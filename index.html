@@ -1,0 +1,50 @@
+<!doctype html><html lang="da"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Napper">
+<link rel="manifest" href="/manifest.json"><title>Napper</title>
+<style>
+:root{--bg:#111418;--fg:#e8eaed;--mut:#8b929c;--acc:#5b8def;--stop:#e0685a}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--fg);font:16px system-ui,sans-serif;
+padding:env(safe-area-inset-top) 20px env(safe-area-inset-bottom);text-align:center}
+main{max-width:420px;margin:0 auto;padding-top:24px}
+#state{color:var(--mut);letter-spacing:.1em;text-transform:uppercase}
+#clock{font-size:64px;font-variant-numeric:tabular-nums;margin:8px 0 24px}
+#btn{width:100%;padding:28px;font-size:24px;border:0;border-radius:20px;background:var(--acc);color:#fff}
+#btn.stop{background:var(--stop)}#btn:disabled{opacity:.5}
+#type{margin:14px 0;display:flex;gap:8px;justify-content:center}
+#type button{padding:8px 20px;border-radius:99px;border:1px solid var(--mut);background:none;color:var(--fg)}
+#type .on{background:var(--fg);color:var(--bg)}
+#pred{margin:28px 0 4px;font-size:20px}#sub,#err{color:var(--mut);font-size:13px}#err{color:var(--stop)}
+ul{list-style:none;padding:0;margin:24px 0;color:var(--mut);text-align:left}li{padding:6px 0;border-top:1px solid #222}
+</style></head><body><main>
+<div id="state">…</div><div id="clock">--</div>
+<button id="btn" disabled>…</button>
+<div id="type" hidden><button data-n="1">Lur</button><button data-n="0">Nat</button></div>
+<div id="pred"></div><div id="sub"></div><div id="err"></div><ul id="today"></ul>
+</main><script>
+const $=i=>document.getElementById(i);let S=null,napSel=null;
+const hm=d=>new Date(d).toLocaleTimeString('da-DK',{hour:'2-digit',minute:'2-digit'});
+async function api(p,body){const r=await fetch(p,body===undefined?{}:{method:'POST',
+headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
+const j=await r.json();if(!r.ok)throw new Error(j.error||r.status);return j}
+const isNap=()=>napSel??S.nap_guess;
+async function load(){try{S=await api('/api/status');$('err').textContent='';if(!S.sleeping)napSel=null}
+catch(e){$('err').textContent=e.message}render()}
+function render(){if(!S)return;
+$('state').textContent=S.sleeping?'Sover':'Vågen';
+const b=S.sleeping?S.since:S.awake_since;
+if(b){const s=Math.max(0,(Date.now()-new Date(b))/1000|0),p=n=>String(n).padStart(2,'0');
+$('clock').textContent=`${p(s/3600|0)}:${p(s/60%60|0)}:${p(s%60)}`}else $('clock').textContent='--';
+$('btn').disabled=false;$('btn').textContent=S.sleeping?'Stop søvn':'Start søvn';
+$('btn').className=S.sleeping?'stop':'';$('type').hidden=!S.sleeping;
+document.querySelectorAll('#type button').forEach(x=>x.classList.toggle('on',(x.dataset.n==='1')===isNap()));
+const p=S.prediction;$('pred').textContent=p?`Næste ${p.kind}: ca. kl. ${hm(p.time)}`:(S.sleeping?'':'Ingen forudsigelse endnu');
+$('sub').textContent=p?`vindue ${p.window_min} min · ${p.source}`:'';
+$('today').innerHTML=S.today.map(x=>`<li>${x.nap?'Lur':'Nat'} ${hm(x.start)}–${hm(x.end)}</li>`).join('')}
+$('btn').onclick=async()=>{$('btn').disabled=true;
+try{await api(S.sleeping?'/api/stop':'/api/start',S.sleeping?{nap:isNap()}:{})}catch(e){$('err').textContent=e.message}
+load()};
+document.querySelectorAll('#type button').forEach(x=>x.onclick=()=>{napSel=x.dataset.n==='1';render()});
+load();setInterval(load,15000);setInterval(render,1000);
+</script></body></html>

@@ -59,7 +59,7 @@ def status():
         awake_since=max((s["end"] for s in sleeps), default=None) and max(s["end"] for s in sleeps).isoformat(),
         prediction=pred,
         last_feed=last_feed,
-        today=[{"start": s["start"].isoformat(), "end": s["end"].isoformat(), "nap": s["nap"]}
+        today=[{"id": s["id"], "start": s["start"].isoformat(), "end": s["end"].isoformat(), "nap": s["nap"]}
                for s in sorted(sleeps, key=lambda s: s["start"])
                if now.date() in (s["start"].date(), s["end"].date())],
     )
@@ -126,6 +126,35 @@ def pump():
     bb("pumping/", "POST", {"child": get_child()["id"], "amount": amount,
                             "start": now, "end": now, "notes": data.get("notes", "")})
     return jsonify(ok=True, amount=amount)
+
+
+def local(txt):  # "YYYY-MM-DDTHH:MM" (lokal tid) -> tidszonebevidst datetime
+    return datetime.fromisoformat(txt).replace(tzinfo=TZ)
+
+
+@app.post("/api/sleep/<int:sid>")
+def edit_sleep(sid):
+    """Ret start/slut (og lur/nat) på en gemt søvn."""
+    d = request.get_json(silent=True) or {}
+    try:
+        s, e = local(d["start"]), local(d["end"])
+    except (KeyError, ValueError):
+        return jsonify(ok=False, error="Ugyldigt tidspunkt"), 400
+    if e <= s:
+        return jsonify(ok=False, error="Sluttid skal være efter starttid"), 400
+    if e > datetime.now(TZ) + timedelta(minutes=1):
+        return jsonify(ok=False, error="Sluttid ligger i fremtiden"), 400
+    body = {"start": s.isoformat(), "end": e.isoformat()}
+    if "nap" in d:
+        body["nap"] = bool(d["nap"])
+    bb(f"sleep/{sid}/", "PATCH", body)
+    return jsonify(ok=True)
+
+
+@app.delete("/api/sleep/<int:sid>")
+def delete_sleep(sid):
+    bb(f"sleep/{sid}/", "DELETE")
+    return jsonify(ok=True)
 
 
 BREAST = {"left": "left breast", "right": "right breast", "both": "both breasts"}

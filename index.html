@@ -77,8 +77,9 @@ input[type=number]{flex:1;min-width:0;padding:10px 12px;border-radius:12px;borde
 #fnote{flex:1;min-width:0;padding:10px 12px;border-radius:12px;border:1px solid var(--line);background:rgba(255,255,255,.04);color:var(--fg);font-size:17px}
 .sw{display:flex;justify-content:space-between;align-items:center;margin-top:12px}.sw input{width:22px;height:22px;accent-color:#5b8def}
 header{position:relative}
-#gobtn{position:absolute;right:0;top:8px;display:flex;align-items:center;gap:6px;padding:8px 14px;border-radius:99px;border:1px solid var(--line);background:var(--card);color:var(--fg);font-size:14px;text-decoration:none}
-#gobtn svg{width:16px;height:16px;stroke:var(--fg);fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+#gobtn,#setbtn{position:absolute;right:0;top:8px;display:flex;align-items:center;gap:6px;padding:8px 14px;border-radius:99px;border:1px solid var(--line);background:var(--card);color:var(--fg);font-size:14px;text-decoration:none}
+#setbtn{left:0;right:auto}
+#gobtn svg,#setbtn svg{width:16px;height:16px;stroke:var(--fg);fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
 .gh{display:flex;justify-content:space-between;align-items:center;margin:4px 0 14px}.gh a,.gh span{min-width:90px;text-align:left;color:var(--acc);text-decoration:none;font-size:16px}
 #gsvg{display:block;width:100%;height:auto}#gsvg text{fill:#8e9ac0;font-size:11px}#gsum{margin-top:8px;font-size:15px}
 #gnote{margin:16px 4px 0;color:var(--mut);font-size:13px;text-align:left}#gadd{margin-top:14px}
@@ -86,6 +87,7 @@ header{position:relative}
 .sw select{background:rgba(255,255,255,.06);color:var(--fg);border:1px solid var(--line);border-radius:10px;padding:8px 10px;font-size:15px}
 </style></head><body><main><div id="v-main">
 <header>
+<a href="#indstillinger" id="setbtn" aria-label="Indstillinger"><svg viewBox="0 0 24 24"><path d="M4 6h9M17 6h3M4 12h3M11 12h9M4 18h11M19 18h1"/><circle cx="15" cy="6" r="2"/><circle cx="9" cy="12" r="2"/><circle cx="17" cy="18" r="2"/></svg>Indstillinger</a>
 <a href="#vaekst" id="gobtn"><svg viewBox="0 0 24 24"><path d="M4 19V5M4 19h16M8 15l4-5 3 3 5-6"/></svg>Vækst</a>
 <svg viewBox="0 0 100 100"><path d="M60 14a34 34 0 1 0 25 55A30 30 0 0 1 60 14z" fill="none" stroke="url(#g)" stroke-width="3" stroke-linejoin="round"/>
 <path d="M46 52q3 3 6 0M60 58q3 3 6 0M52 66q3 2 6 0" fill="none" stroke="url(#g)" stroke-width="2.4" stroke-linecap="round"/>
@@ -131,6 +133,9 @@ header{position:relative}
 <div id="err"></div>
 <div id="day" class="card" hidden><div class="dh"><div class="dl"><svg class="ic" viewBox="0 0 24 24"><rect x="4" y="5" width="16" height="15" rx="2"/><path d="M4 10h16M9 3v4M15 3v4"/></svg>Dagens søvn</div><span id="dd"></span></div>
 <ul id="tl"></ul><div class="sum"><span>Samlet søvn</span><b id="tot"></b></div></div>
+</div>
+<div id="v-settings" hidden>
+<div class="gh"><a href="#">‹ Tilbage</a><div class="dl">Indstillinger</div><span></span></div>
 <div class="card"><div class="dl">Tilpas</div><label class="sw">Amning i Mad-kortet<input type="checkbox" id="cb"></label><label class="sw">Fast føde i Mad-kortet<input type="checkbox" id="cs"></label>
 <label class="sw">Vækstkurver<select id="sx"><option value="boy">Dreng</option><option value="girl">Pige</option></select></label></div>
 </div>
@@ -232,7 +237,7 @@ try{await api('/api/sleep/'+ed.id,{},'DELETE');$('sheet').hidden=true;ed=null;lo
 let G=null,gk='w',gid=null,garm=false;
 const GL={w:['Vægt','kg'],l:['Længde','cm'],h:['Hoved','cm']},nf=v=>v.toLocaleString('da-DK',{maximumFractionDigits:2}),dc=v=>v==null?'':String(v).replace('.',',');
 const gdate=d=>new Date(d+'T12:00').toLocaleDateString('da-DK',{day:'numeric',month:'short',year:'numeric'});
-function route(){const g=location.hash==='#vaekst';$('v-main').hidden=g;$('v-growth').hidden=!g;if(g){scrollTo(0,0);loadG()}}
+function route(){const h=location.hash,g=h==='#vaekst',s=h==='#indstillinger';$('v-main').hidden=g||s;$('v-growth').hidden=!g;$('v-settings').hidden=!s;if(g||s)scrollTo(0,0);if(g)loadG()}
 async function loadG(){try{G=await api('/api/growth');$('gerr').textContent=''}catch(e){$('gerr').textContent=e.message}drawG()}
 function drawG(){if(!G)return;
 document.querySelectorAll('#gtabs button').forEach(x=>x.classList.toggle('on',x.dataset.k===gk));
@@ -251,7 +256,7 @@ $('gsvg').innerHTML=s;const e=pts[pts.length-1],pc=e&&e['p'+gk];
 $('gsum').innerHTML=e?`<b>${nm}: ${nf(e[gk])} ${u}</b> · ${gdate(e.date)} · ${nf(e.m)} mdr.${pc?` · ca. ${pc}. percentil`:''}`:'Ingen målinger endnu';
 $('glist').hidden=!G.entries.length;
 $('glist').innerHTML=G.entries.slice().reverse().map(e=>`<li data-id="${e.id}"><div><div class="tm">${gdate(e.date)}</div><div class="lb">${['w','l','h'].filter(k=>e[k]!=null).map(k=>nf(e[k])+' '+GL[k][1]).join(' · ')}</div></div><svg class="ch" viewBox="0 0 24 24"><path d="m9 6 6 6-6 6"/></svg></li>`).join('');
-$('gnote').textContent=`${G.sex==='boy'?'Drengekurver':'Pigekurver'} fra WHO (2006), som Sundhedsstyrelsen anbefaler til børn 0-5 år. Båndene viser 3.-97. percentil, og den stiplede linje er midten. Vejninger kan afvige mellem forskellige vægte, og én måling siger ikke alt. Tal med sundhedsplejersken, hvis du er i tvivl. Skift kurver under Tilpas.`}
+$('gnote').textContent=`${G.sex==='boy'?'Drengekurver':'Pigekurver'} fra WHO (2006), som Sundhedsstyrelsen anbefaler til børn 0-5 år. Båndene viser 3.-97. percentil, og den stiplede linje er midten. Vejninger kan afvige mellem forskellige vægte, og én måling siger ikke alt. Tal med sundhedsplejersken, hvis du er i tvivl. Skift kurver under Indstillinger.`}
 function gopen(x){gid=x?x.id:null;garm=false;$('gtitle').textContent=x?'Ret måling':'Ny måling';
 $('gd').value=x?x.date:loc(new Date()).slice(0,10);$('gw').value=x?dc(x.w):'';$('gl').value=x?dc(x.l):'';$('gx').value=x?dc(x.h):'';
 $('gerr2').textContent='';$('gdel').hidden=!x;$('gdel').textContent='Slet måling';$('gsheet').hidden=false}

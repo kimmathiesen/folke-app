@@ -86,8 +86,8 @@ Læg `unraid/my-napper.xml` i `/boot/config/plugins/dockerMan/templates-user/`, 
 
 Med `BACKEND=sqlite` gemmer appen alt i `/data/folke.db` og behøver ikke Baby Buddy.
 
-- **Import:** er databasen tom, og er `BB_URL` og `BB_TOKEN` sat, hentes alt fra Baby Buddy automatisk ved start. *Importér fra Baby Buddy* under Tilpas (eller `POST /api/import`) henter igen. Importen går kun den ene vej. Rækker fra Baby Buddy opdateres eller fjernes, så de svarer til Baby Buddy. Det, du har registreret i appen, røres ikke.
-- **Backup:** dagligt øjebliksbillede i `/data/backup/` (de seneste 14 dage). *Eksportér* under Tilpas giver alle data som JSON.
+- **Import:** er databasen tom, og er `BB_URL` og `BB_TOKEN` sat, hentes alt fra Baby Buddy automatisk ved start. *Importér fra Baby Buddy* under Indstillinger (eller `POST /api/import`) henter igen. Importen går kun den ene vej. Rækker fra Baby Buddy opdateres eller fjernes, så de svarer til Baby Buddy. Det, du har registreret i appen, røres ikke.
+- **Backup:** dagligt øjebliksbillede i `/data/backup/` (de seneste 14 dage). *Eksportér* under Indstillinger giver alle data som JSON.
 - Vækst og indstillinger ligger stadig i `growth.json` og `prefs.json` i samme mappe.
 
 **Kør ved siden af den nuværende app.** Branchen `standalone` bygger `ghcr.io/kimmathiesen/folke-app:standalone`, mens `main` stadig bygger `:latest`. Opret en container mere med `unraid/my-folke-standalone.xml`. Den bruger port 6661 og sin egen datamappe, og Home Assistant er slået fra. Når du vil skifte:

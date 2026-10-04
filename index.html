@@ -132,7 +132,8 @@ header{position:relative}
 <div id="day" class="card" hidden><div class="dh"><div class="dl"><svg class="ic" viewBox="0 0 24 24"><rect x="4" y="5" width="16" height="15" rx="2"/><path d="M4 10h16M9 3v4M15 3v4"/></svg>Dagens søvn</div><span id="dd"></span></div>
 <ul id="tl"></ul><div class="sum"><span>Samlet søvn</span><b id="tot"></b></div></div>
 <div class="card"><div class="dl">Tilpas</div><label class="sw">Amning i Mad-kortet<input type="checkbox" id="cb"></label><label class="sw">Fast føde i Mad-kortet<input type="checkbox" id="cs"></label>
-<label class="sw">Vækstkurver<select id="sx"><option value="boy">Dreng</option><option value="girl">Pige</option></select></label></div>
+<label class="sw">Vækstkurver<select id="sx"><option value="boy">Dreng</option><option value="girl">Pige</option></select></label>
+<div id="dsrc" hidden><label class="sw">Data<span>Lokal (SQLite)</span></label><div class="seg" style="margin-top:10px"><button id="imp">Importér fra Baby Buddy</button><button id="exp">Eksportér</button></div><div id="impmsg" class="dl" style="margin-top:8px"></div></div></div>
 </div>
 <div id="v-growth" hidden>
 <div class="gh"><a href="#">‹ Tilbage</a><div class="dl">Vækst</div><span></span></div>
@@ -166,7 +167,7 @@ async function api(p,body,method='POST'){const r=await fetch(p,body===undefined?
 headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
 const j=await r.json();if(!r.ok)throw new Error(j.error||r.status);return j}
 const isNap=()=>napSel??S.nap_guess;
-async function load(){try{S=await api('/api/status');$('err').textContent='';const F=S.features||{};$('cb').checked=!!F.breast;$('cs').checked=!!F.solids;$('sx').value=S.sex||'boy';
+async function load(){try{S=await api('/api/status');$('err').textContent='';const F=S.features||{};$('cb').checked=!!F.breast;$('cs').checked=!!F.solids;$('sx').value=S.sex||'boy';$('dsrc').hidden=S.backend!=='sqlite';$('imp').hidden=!S.can_import;
 if(S.sleeping){$('st').value='';$('lb').hidden=true}else{napSel=null;$('wt').value='';$('wb').hidden=true}}
 catch(e){$('err').textContent=e.message}render()}
 function render(){if(!S)return;const sl=S.sleeping,p=S.prediction,b=sl?S.since:S.awake_since;let secs=0;
@@ -261,6 +262,9 @@ $('gadd').onclick=()=>gopen(null);$('gcancel').onclick=()=>$('gsheet').hidden=tr
 $('gsave').onclick=async()=>{try{await api('/api/growth'+(gid?'/'+gid:''),{date:$('gd').value,w:$('gw').value,l:$('gl').value,h:$('gx').value});$('gsheet').hidden=true;loadG()}catch(e){$('gerr2').textContent=e.message}};
 $('gdel').onclick=async()=>{if(!garm){garm=true;$('gdel').textContent='Tryk igen for at slette';return}
 try{await api('/api/growth/'+gid,{},'DELETE');$('gsheet').hidden=true;loadG()}catch(e){$('gerr2').textContent=e.message;garm=false}};
+$('imp').onclick=async()=>{if(!confirm('Hent alle data fra Baby Buddy igen? Det, der kommer fra Baby Buddy, bliver opdateret. Det, du har registreret her, bevares.'))return;
+$('imp').disabled=true;try{const r=await api('/api/import',{});$('impmsg').textContent=`Importeret: ${r.sleep} søvn, ${r.feeding} måltider, ${r.pumping} pumpninger`}catch(e){$('impmsg').textContent=e.message}$('imp').disabled=false;load()};
+$('exp').onclick=()=>{location.href='/api/export'};
 $('sx').onchange=()=>api('/api/profile',{sex:$('sx').value}).then(load).catch(e=>$('err').textContent=e.message);
 addEventListener('hashchange',route);
 let fk=null,fm='breast milk';

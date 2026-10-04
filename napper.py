@@ -10,7 +10,6 @@ Kun standardbibliotek (Python 3.11+). Kør fx hvert 5. minut.
 import json
 import os
 import statistics
-import urllib.parse
 import urllib.request
 from datetime import datetime, timedelta, date
 from zoneinfo import ZoneInfo
@@ -20,6 +19,7 @@ BB_TOKEN = os.environ.get("BB_TOKEN", "")
 HA_URL = os.environ.get("HA_URL", "").rstrip("/")
 HA_TOKEN = os.environ.get("HA_TOKEN", "")
 HA_NOTIFY = os.environ.get("HA_NOTIFY", "")  # fx notify.mobile_app_min_telefon
+HA_SENSOR = os.environ.get("HA_SENSOR", "sensor.baby_next_sleep")
 CHILD_ID = os.environ.get("CHILD_ID")
 LEAD_MIN = int(os.environ.get("LEAD_MIN", "10"))
 HISTORY_DAYS = int(os.environ.get("HISTORY_DAYS", "10"))
@@ -130,7 +130,7 @@ def ha_update(pred):
             "source": pred["source"],
         },
     }
-    call(f"{HA_URL}/api/states/sensor.baby_next_sleep", HA_TOKEN, "POST", body, scheme="Bearer")
+    call(f"{HA_URL}/api/states/{HA_SENSOR}", HA_TOKEN, "POST", body, scheme="Bearer")
 
 
 def ha_notify(pred):
@@ -160,18 +160,19 @@ def parse(s):
 
 
 def main():
+    import store  # her og ikke øverst: store importerer napper
+
+    db = store.get()
     now = datetime.now(TZ)
-    children = bb_all("children/")
-    child = next((c for c in children if not CHILD_ID or str(c["id"]) == CHILD_ID), None)
+    child = db.child()
     if not child:
-        raise SystemExit("Intet barn fundet i Baby Buddy")
+        raise SystemExit("Intet barn fundet")
     birth = date.fromisoformat(child["birth_date"])
 
-    since = (now - timedelta(days=HISTORY_DAYS)).isoformat()
-    raw = bb_all(f"sleep/?child={child['id']}&start_min={urllib.parse.quote(since)}&limit=200")
+    raw = db.sleeps(child["id"], now - timedelta(days=HISTORY_DAYS))
     sleeps = [
         {"id": s["id"], "start": parse(s["start"]), "end": parse(s["end"]), "nap": s["nap"]}
-        for s in raw if s.get("end")
+        for s in raw
     ]
 
     pred = predict(sleeps, birth, now)
@@ -190,8 +191,7 @@ def main():
     if not HA_NOTIFY or not (0 <= until <= LEAD_MIN):
         return
     try:
-        timers = bb_all(f"timers/?child={child['id']}")
-        if any(t.get("active") for t in timers):
+        if db.timer(child["id"]):
             return
     except Exception:
         pass

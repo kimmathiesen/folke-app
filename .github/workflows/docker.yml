@@ -1,7 +1,7 @@
 name: docker
 on:
   push:
-    branches: [main]
+    branches: [main, standalone]
   workflow_dispatch:
 permissions:
   contents: read
@@ -32,4 +32,5 @@ jobs:
           push: true
           platforms: linux/amd64
           # Små bogstaver kræves af ghcr.io
-          tags: ghcr.io/kimmathiesen/folke-app:latest
+          # main -> :latest (den kørende app), standalone -> :standalone
+          tags: ghcr.io/kimmathiesen/folke-app:${{ github.ref_name == 'main' && 'latest' || github.ref_name }}

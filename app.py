@@ -2,19 +2,21 @@
 import json, math, os, struct, threading, time, zlib
 from datetime import datetime, timedelta, date
 from flask import Flask, Response, jsonify, request, send_from_directory
-import napper, who
+import napper, store, who
 
 app = Flask(__name__)
-TZ, TIMER = napper.TZ, "Søvn"
+TZ = napper.TZ
 
 
-def bb(path, method="GET", body=None):
-    return napper.call(f"{napper.BB_URL}/api/{path}", napper.BB_TOKEN, method, body)
+def db():
+    return store.get()
 
 
 def get_child():
-    cs = napper.bb_all("children/")
-    return next((c for c in cs if not napper.CHILD_ID or str(c["id"]) == napper.CHILD_ID), None)
+    c = db().child()
+    if not c:
+        raise LookupError("Intet barn. Importér fra Baby Buddy eller sæt CHILD_BIRTH")
+    return c
 
 
 def nap_guess(start):
@@ -22,13 +24,12 @@ def nap_guess(start):
 
 
 def sleep_timer(cid):
-    return next((t for t in napper.bb_all(f"timers/?child={cid}") if t["name"] == TIMER), None)
+    return db().timer(cid)
 
 
 def last_sleep_end(cid, now):
-    since = (now - timedelta(days=3)).isoformat().replace("+", "%2B")
-    raw = napper.bb_all(f"sleep/?child={cid}&start_min={since}&limit=200")
-    return max((napper.parse(x["end"]) for x in raw if x.get("end")), default=None)
+    raw = db().sleeps(cid, now - timedelta(days=3))
+    return max((napper.parse(x["end"]) for x in raw), default=None)
 
 
 @app.get("/api/status")
@@ -36,17 +37,15 @@ def status():
     now = datetime.now(TZ)
     c = get_child()
     t = sleep_timer(c["id"])
-    since = (now - timedelta(days=napper.HISTORY_DAYS)).isoformat()
-    raw = napper.bb_all(f"sleep/?child={c['id']}&start_min={since.replace('+', '%2B')}&limit=200")
+    raw = db().sleeps(c["id"], now - timedelta(days=napper.HISTORY_DAYS))
     sleeps = [{"id": s["id"], "start": napper.parse(s["start"]), "end": napper.parse(s["end"]),
-               "nap": s["nap"]} for s in raw if s.get("end")]
+               "nap": s["nap"]} for s in raw]
     pred = None if t else napper.predict(sleeps, date.fromisoformat(c["birth_date"]), now)
     if pred:
         pred["time"] = pred["time"].isoformat()
     start = napper.parse(t["start"]) if t else None
     try:
-        fsince = (now - timedelta(days=2)).isoformat().replace("+", "%2B")
-        fs = napper.bb_all(f"feedings/?child={c['id']}&start_min={fsince}&limit=100")
+        fs = db().feedings(c["id"], now - timedelta(days=2))
         lf = max(fs, key=lambda f: napper.parse(f["start"]), default=None)
         last_feed = lf and {"time": napper.parse(lf["start"]).isoformat(), "method": lf["method"],
                             "type": lf["type"], "amount": lf.get("amount")}
@@ -62,6 +61,8 @@ def status():
         features=prefs()["features"],
         sex=prefs()["sex"],
         suggestions=current_suggestions(c, now, prefs()),
+        backend=db().name,
+        can_import=db().name == "sqlite" and bool(napper.BB_TOKEN),
         today=[{"id": s["id"], "start": s["start"].isoformat(), "end": s["end"].isoformat(), "nap": s["nap"]}
                for s in sorted(sleeps, key=lambda s: s["start"])
                if now.date() in (s["start"].date(), s["end"].date())],
@@ -86,7 +87,7 @@ def start():
         last = last_sleep_end(c["id"], now)
         if last and st < last:
             return jsonify(ok=False, error=f"Forrige søvn sluttede kl. {last:%H:%M}"), 400
-    bb("timers/", "POST", {"child": c["id"], "name": TIMER, "start": st.isoformat()})
+    db().start_timer(c["id"], st)
     return jsonify(ok=True)
 
 
@@ -110,8 +111,8 @@ def stop():
         if e <= s:
             return jsonify(ok=False, error=f"Søvnen startede kl. {s:%H:%M}"), 400
     nap = body.get("nap", nap_guess(s))
-    bb("sleep/", "POST", {"child": c["id"], "start": s.isoformat(), "end": e.isoformat(), "nap": nap})
-    bb(f"timers/{t['id']}/", "DELETE")
+    db().add_sleep(c["id"], s, e, nap)
+    db().delete_timer(t["id"])
     return jsonify(ok=True)
 
 
@@ -125,9 +126,8 @@ def pump():
         amount = 0
     if not 0 < amount <= 1000:
         return jsonify(ok=False, error="Ugyldig mængde"), 400
-    now = datetime.now(TZ).isoformat()
-    bb("pumping/", "POST", {"child": get_child()["id"], "amount": amount,
-                            "start": now, "end": now, "notes": data.get("notes", "")})
+    now = datetime.now(TZ)
+    db().add_pumping(get_child()["id"], amount=amount, start=now, end=now, notes=data.get("notes", ""))
     return jsonify(ok=True, amount=amount)
 
 
@@ -165,8 +165,7 @@ def suggestions(c, now, p):
     if not p["features"]["solids"] and months >= 6 and open_("solids"):
         out.append({"id": "solids", "text": f"Han er nu {int(months)} måneder. Vil du tilføje «Fast føde» til Mad-kortet?"})
     if p["features"]["breast"] and open_("hide_breast"):
-        since = (now - timedelta(days=60)).isoformat().replace("+", "%2B")
-        fs = napper.bb_all(f"feedings/?child={c['id']}&start_min={since}&limit=200")
+        fs = db().feedings(c["id"], now - timedelta(days=60))
         b = [napper.parse(f["start"]) for f in fs if "breast" in (f.get("method") or "")]
         if b and (now - max(b)).days >= 21:
             out.append({"id": "hide_breast", "text": f"Du har ikke registreret amning i {(now - max(b)).days // 7} uger. Skal Amning-knappen skjules?"})
@@ -316,16 +315,13 @@ def edit_sleep(sid):
         return jsonify(ok=False, error="Sluttid skal være efter starttid"), 400
     if e > datetime.now(TZ) + timedelta(minutes=1):
         return jsonify(ok=False, error="Sluttid ligger i fremtiden"), 400
-    body = {"start": s.isoformat(), "end": e.isoformat()}
-    if "nap" in d:
-        body["nap"] = bool(d["nap"])
-    bb(f"sleep/{sid}/", "PATCH", body)
+    db().edit_sleep(sid, s, e, bool(d["nap"]) if "nap" in d else None)
     return jsonify(ok=True)
 
 
 @app.delete("/api/sleep/<int:sid>")
 def delete_sleep(sid):
-    bb(f"sleep/{sid}/", "DELETE")
+    db().delete_sleep(sid)
     return jsonify(ok=True)
 
 
@@ -344,7 +340,7 @@ def feed():
             t = now.replace(hour=h, minute=m, second=0, microsecond=0)
             if t > now:
                 t -= timedelta(days=1)
-        body = {"child": get_child()["id"], "start": t.isoformat(), "end": t.isoformat()}
+        body = {"start": t, "end": t}
         if d.get("kind") == "bottle":
             amount = float(d["amount"])
             if not 0 < amount <= 500:
@@ -359,8 +355,31 @@ def feed():
             raise ValueError
     except (KeyError, ValueError):
         return jsonify(ok=False, error="Ugyldigt måltid"), 400
-    bb("feedings/", "POST", body)
+    db().add_feeding(get_child()["id"], **body)
     return jsonify(ok=True)
+
+
+# ---------- Stand-alone: import fra Baby Buddy, eksport ----------
+@app.post("/api/import")
+def import_bb():
+    """Envejs-import fra Baby Buddy til SQLite. Kan køres igen uden dubletter."""
+    if db().name != "sqlite":
+        return jsonify(ok=False, error="Import kræver BACKEND=sqlite"), 400
+    if not napper.BB_TOKEN:
+        return jsonify(ok=False, error="BB_URL og BB_TOKEN mangler"), 400
+    _sc["t"] = 0
+    return jsonify(ok=True, **db().import_bb())
+
+
+@app.get("/api/export")
+def export():
+    """Alle data som JSON (kun SQLite). Vækst og indstillinger ligger i growth.json og prefs.json."""
+    if db().name != "sqlite":
+        return jsonify(ok=False, error="Eksport kræver BACKEND=sqlite"), 400
+    data = {**db().export(), "growth": load_growth(), "prefs": prefs()}
+    name = f"folke-{datetime.now(TZ):%Y-%m-%d}.json"
+    return Response(json.dumps(data, ensure_ascii=False, indent=1), mimetype="application/json",
+                    headers={"Content-Disposition": f'attachment; filename="{name}"'})
 
 
 def make_icon(n=512):
@@ -429,16 +448,31 @@ def err(e):
             msg += " " + e.read().decode()[:200]
         except Exception:
             pass
-    return jsonify(ok=False, error=msg), 502
+    return jsonify(ok=False, error=msg), 409 if isinstance(e, LookupError) else 502
+
+
+def tick():
+    """Ét gennemløb: første import (tom SQLite), HA-sensor og notifikationer, daglig backup."""
+    if db().name == "sqlite":
+        try:
+            if not db().child() and napper.BB_TOKEN:
+                print("import:", db().import_bb(), flush=True)
+        except Exception as e:
+            print("import:", e, flush=True)
+    try:
+        napper.main()
+    except (Exception, SystemExit) as e:
+        print("loop:", e, flush=True)
+    if db().name == "sqlite":
+        try:
+            db().backup(os.path.join(os.path.dirname(db().path), "backup"))
+        except Exception as e:
+            print("backup:", e, flush=True)
 
 
 def loop():
-    """Opdaterer HA-sensor og sender notifikationer (samme logik som napper.py)."""
     while True:
-        try:
-            napper.main()
-        except Exception as e:
-            print("loop:", e, flush=True)
+        tick()
         time.sleep(60)
 
 

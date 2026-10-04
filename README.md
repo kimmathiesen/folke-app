@@ -1,6 +1,6 @@
 # Folke-App
 
-Selfhostet baby-tracker oven på [Baby Buddy](https://github.com/babybuddy/babybuddy). Start/stop søvn med ét tryk, få en forudsigelse af næste lur eller sengetid, og log mad og pumpning. Designet som en mobil-app (PWA) til iPhonens hjemmeskærm. Al data ligger i Baby Buddy.
+Selfhostet baby-tracker oven på [Baby Buddy](https://github.com/babybuddy/babybuddy). Start/stop søvn med ét tryk, få en forudsigelse af næste lur eller sengetid, og log mad og pumpning. Designet som en mobil-app (PWA) til iPhonens hjemmeskærm. Data ligger i Baby Buddy, eller i en lokal SQLite-fil med `BACKEND=sqlite` (se *Stand-alone* nedenfor).
 
 ## Funktioner
 
@@ -20,11 +20,13 @@ Selfhostet baby-tracker oven på [Baby Buddy](https://github.com/babybuddy/babyb
 |---|---|
 | `napper.py` | Forudsigelsesmotor, HA-sensor og notifikationer (kan også køre alene via cron) |
 | `app.py` | Flask-API og baggrundstråd (kalder `napper.main()` hvert minut) |
+| `store.py` | Datalag: samme funktioner mod Baby Buddy eller SQLite, import og backup |
 | `who.py` | WHO's vækststandarder (LMS-tabeller) og percentilberegning |
 | `index.html` | Hele brugerfladen, ingen build |
 | `Dockerfile` | Python 3.12 slim + gunicorn (1 worker, så baggrundstråden kun kører ét sted) |
 | `.github/workflows/docker.yml` | Bygger og pusher image til `ghcr.io/kimmathiesen/folke-app:latest` |
 | `unraid/my-napper.xml` | Unraid-skabelon (`unraid/update-local.sh`: lokal variant uden GitHub) |
+| `unraid/my-folke-standalone.xml` | Unraid-skabelon til stand-alone ved siden af den kørende app |
 | `tests/` | pytest: `predict()`, WHO-kurver og API mod en falsk Baby Buddy |
 
 ## Konfiguration (miljøvariabler)
@@ -41,6 +43,10 @@ Selfhostet baby-tracker oven på [Baby Buddy](https://github.com/babybuddy/babyb
 | `LEAD_MIN` | Minutter før næste søvn, notifikationen sendes | `10` |
 | `HISTORY_DAYS` | Dage søvnhistorik til forudsigelsen | `10` |
 | `STATE_FILE` | Stien til tilstandsfil (`prefs.json` ligger ved siden af) | `/data/state.json` |
+| `BACKEND` | `babybuddy` eller `sqlite` | `babybuddy` |
+| `DB_FILE` | SQLite-fil | `folke.db` ved siden af `STATE_FILE` |
+| `HA_SENSOR` | Sensoren, forudsigelsen skrives til | `sensor.baby_next_sleep` |
+| `CHILD_BIRTH`, `CHILD_NAME` | Kun SQLite uden import: barnets fødselsdato (ÅÅÅÅ-MM-DD) og navn | |
 
 Gem aldrig nøgler i repoet. Brug `.env` (ignoreret af git) eller felterne i Unraid-skabelonen.
 
@@ -73,6 +79,24 @@ Læg `unraid/my-napper.xml` i `/boot/config/plugins/dockerMan/templates-user/`, 
 | `POST /api/pump` | `{"amount": ml}` |
 | `GET/POST /api/growth`, `POST/DELETE /api/growth/<id>` | Vækstmålinger og kurver |
 | `POST /api/suggestion`, `POST /api/feature` | Svar på forslag, slå funktioner til/fra |
+| `POST /api/import` | Kun SQLite: hent alt fra Baby Buddy igen |
+| `GET /api/export` | Kun SQLite: alle data som JSON |
+
+## Stand-alone (SQLite)
+
+Med `BACKEND=sqlite` gemmer appen alt i `/data/folke.db` og behøver ikke Baby Buddy.
+
+- **Import:** er databasen tom, og er `BB_URL` og `BB_TOKEN` sat, hentes alt fra Baby Buddy automatisk ved start. *Importér fra Baby Buddy* under Tilpas (eller `POST /api/import`) henter igen. Importen går kun den ene vej. Rækker fra Baby Buddy opdateres eller fjernes, så de svarer til Baby Buddy. Det, du har registreret i appen, røres ikke.
+- **Backup:** dagligt øjebliksbillede i `/data/backup/` (de seneste 14 dage). *Eksportér* under Tilpas giver alle data som JSON.
+- Vækst og indstillinger ligger stadig i `growth.json` og `prefs.json` i samme mappe.
+
+**Kør ved siden af den nuværende app.** Branchen `standalone` bygger `ghcr.io/kimmathiesen/folke-app:standalone`, mens `main` stadig bygger `:latest`. Opret en container mere med `unraid/my-folke-standalone.xml`. Den bruger port 6661 og sin egen datamappe, og Home Assistant er slået fra. Når du vil skifte:
+
+1. Tryk *Importér fra Baby Buddy* en sidste gang.
+2. Udfyld HA-felterne, og sæt `HA_SENSOR=sensor.baby_next_sleep`.
+3. Stop den gamle `folke-app` (og byt evt. port til 6660).
+
+Baby Buddy kan blive stående som arkiv.
 
 ## Home Assistant
 

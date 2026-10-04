@@ -1,0 +1,25 @@
+<?xml version="1.0"?>
+<Container version="2">
+  <Name>folke-standalone</Name>
+  <Repository>ghcr.io/kimmathiesen/folke-app:standalone</Repository>
+  <Registry>https://github.com/kimmathiesen/folke-app/pkgs/container/folke-app</Registry>
+  <Icon>https://raw.githubusercontent.com/kimmathiesen/folke-app/main/icon.png</Icon>
+  <Network>bridge</Network>
+  <Privileged>false</Privileged>
+  <Support>https://github.com/kimmathiesen/folke-app</Support>
+  <Overview>Folke-App stand-alone (SQLite). Importerer én gang fra Baby Buddy og kører derefter uden. Kan køre ved siden af folke-app: egen port, egen data, og Home Assistant er slået fra, til du skifter.</Overview>
+  <Category>HomeAutomation:</Category>
+  <WebUI>http://[IP]:[PORT:6661]/</WebUI>
+  <Config Name="WebUI port" Target="8080" Default="6661" Mode="tcp" Description="" Type="Port" Display="always" Required="true" Mask="false">6661</Config>
+  <Config Name="Data" Target="/data" Default="/mnt/user/appdata/folke-standalone/data" Mode="rw" Description="" Type="Path" Display="always" Required="true" Mask="false">/mnt/user/appdata/folke-standalone/data</Config>
+  <Config Name="BB_URL" Target="BB_URL" Default="http://192.168.68.58:8000" Mode="" Description="Baby Buddy adresse (kun til import)" Type="Variable" Display="always" Required="false" Mask="false">http://192.168.68.58:8000</Config>
+  <Config Name="BB_TOKEN" Target="BB_TOKEN" Default="" Mode="" Description="Baby Buddy API-nøgle (kun til import, kan fjernes bagefter)" Type="Variable" Display="always" Required="false" Mask="true"></Config>
+  <Config Name="HA_URL" Target="HA_URL" Default="" Mode="" Description="Home Assistant adresse. Lad stå tom, indtil du skifter fra folke-app" Type="Variable" Display="always" Required="false" Mask="false"></Config>
+  <Config Name="HA_TOKEN" Target="HA_TOKEN" Default="" Mode="" Description="Home Assistant long-lived token" Type="Variable" Display="always" Required="false" Mask="true"></Config>
+  <Config Name="HA_NOTIFY" Target="HA_NOTIFY" Default="" Mode="" Description="HA notify-tjeneste. Tom = ingen notifikationer" Type="Variable" Display="always" Required="false" Mask="false"></Config>
+  <Config Name="TZ" Target="TZ" Default="Europe/Copenhagen" Mode="" Description="" Type="Variable" Display="advanced" Required="true" Mask="false">Europe/Copenhagen</Config>
+  <Config Name="STATE_FILE" Target="STATE_FILE" Default="/data/state.json" Mode="" Description="" Type="Variable" Display="advanced" Required="true" Mask="false">/data/state.json</Config>
+  <Config Name="BACKEND" Target="BACKEND" Default="sqlite" Mode="" Description="sqlite = stand-alone" Type="Variable" Display="advanced" Required="true" Mask="false">sqlite</Config>
+  <Config Name="HA_SENSOR" Target="HA_SENSOR" Default="sensor.baby_next_sleep_test" Mode="" Description="Sensornavn i HA. Skift til sensor.baby_next_sleep, når den gamle app er stoppet" Type="Variable" Display="advanced" Required="true" Mask="false">sensor.baby_next_sleep_test</Config>
+  <Config Name="CHILD_BIRTH" Target="CHILD_BIRTH" Default="" Mode="" Description="Kun uden Baby Buddy: fødselsdato (ÅÅÅÅ-MM-DD)" Type="Variable" Display="advanced" Required="false" Mask="false"></Config>
+</Container>

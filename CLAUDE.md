@@ -17,10 +17,17 @@ forudsigelse af næste lur/sengetid, notifikation via Home Assistant.
 ## Idéer / TODO
 - Ret/slet seneste registrering i UI, tilføj glemt søvn bagud
 - Ikon + splash til hjemmeskærm, evt. HTTPS via Tailscale/NPM
-- Tests for `predict()` (syntetiske data findes i chat-historik: 10 dage, 3 lure)
+- Tests: `tests/` (pytest, falsk Baby Buddy i `test_app.py`). CI kører dem før build.
 - Flere børn, vækstvindue-justering (fx efter dårlig nat), enkelt login
 
 ## Udrulning
 - GitHub Actions bygger `ghcr.io/kimmathiesen/folke-app:latest` ved push til main.
 - Unraid-skabelon: `unraid/my-napper.xml` (hemmeligheder ligger kun i Unraid, aldrig i repoet).
 - Lokal variant uden GitHub: `unraid/update-local.sh` (Gitea + cron).
+
+## Forslag og tilpasning
+- `prefs.json` (ved siden af state.json) gemmer funktionsvalg og svar på forslag. `suggestions()` i app.py beregnes højst hvert 10. min.
+- Forslag: «Fast føde» ved 6 mdr., «skjul Amning» efter 21 dage uden amning. Intet ændres uden svar (Ja / Ikke nu = 30 dage / Aldrig). «Tilpas» nederst gør alt reversibelt.
+
+## Vækst
+- Egen side i index.html (`#vaekst`). Målinger i `growth.json` (ikke Baby Buddy). `who.py` har WHO LMS-tabeller 0-24 mdr. (fra pygrowup) og beregner kurver/percentiler. Køn vælges under Tilpas (`prefs.json`).

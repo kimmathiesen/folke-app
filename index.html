@@ -44,7 +44,7 @@ font-size:20px;font-weight:500;color:#fff;background:linear-gradient(90deg,#4f86
 input[type=time]{width:112px;padding:10px;border-radius:12px;border:1px solid var(--line);background:rgba(255,255,255,.04);color:var(--fg);font-size:17px;text-align:center}
 .go{margin-top:12px;width:100%;padding:12px;border:0;border-radius:12px;background:var(--acc);color:#fff;font-size:16px}
 .big{font-size:26px;font-weight:600;margin:2px 0}
-#err,#eerr{color:#ff8b7e;font-size:14px;margin-top:12px}
+#err,#eerr,#gerr,#gerr2{color:#ff8b7e;font-size:14px;margin-top:12px}
 .seg{display:flex;gap:8px;margin-top:12px}
 .seg button{flex:1;padding:12px 6px;border-radius:14px;border:1px solid var(--line);background:rgba(255,255,255,.05);color:var(--fg);font-size:16px}
 .seg .on{background:var(--fg);color:#0b1224;border-color:var(--fg)}
@@ -66,7 +66,7 @@ input[type=number]{flex:1;min-width:0;padding:10px 12px;border-radius:12px;borde
 .sum{display:flex;justify-content:space-between;margin:6px 4px 0;padding-top:12px;border-top:1px solid var(--line);color:var(--mut)}.sum b{color:var(--fg);font-weight:500}
 .ch{width:18px;height:18px;flex:none;stroke:var(--mut);fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
 #tl li{cursor:pointer}#tl li:active .pill{background:rgba(255,255,255,.09)}
-#sheet{position:fixed;inset:0;z-index:10;display:flex;align-items:flex-end;justify-content:center;background:rgba(3,6,16,.62)}
+#sheet,#gsheet{position:fixed;inset:0;z-index:10;display:flex;align-items:flex-end;justify-content:center;background:rgba(3,6,16,.62)}
 .sh{width:100%;max-width:440px;max-height:92vh;overflow:auto;background:#131c36;border:1px solid var(--line);border-radius:24px 24px 0 0;padding:20px 18px calc(env(safe-area-inset-bottom) + 18px);text-align:left}
 .sh label{display:block;margin-top:14px;color:var(--mut);font-size:14px}
 .sh input{display:block;width:100%;margin-top:6px;text-align:left;padding:11px 12px;border-radius:12px;border:1px solid var(--line);background:rgba(255,255,255,.04);color:var(--fg);font-size:17px}
@@ -76,8 +76,17 @@ input[type=number]{flex:1;min-width:0;padding:10px 12px;border-radius:12px;borde
 #sug b{font-weight:500}#sug .seg button{font-size:15px}
 #fnote{flex:1;min-width:0;padding:10px 12px;border-radius:12px;border:1px solid var(--line);background:rgba(255,255,255,.04);color:var(--fg);font-size:17px}
 .sw{display:flex;justify-content:space-between;align-items:center;margin-top:12px}.sw input{width:22px;height:22px;accent-color:#5b8def}
-</style></head><body><main>
+header{position:relative}
+#gobtn{position:absolute;right:0;top:8px;display:flex;align-items:center;gap:6px;padding:8px 14px;border-radius:99px;border:1px solid var(--line);background:var(--card);color:var(--fg);font-size:14px;text-decoration:none}
+#gobtn svg{width:16px;height:16px;stroke:var(--fg);fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+.gh{display:flex;justify-content:space-between;align-items:center;margin:4px 0 14px}.gh a,.gh span{min-width:90px;text-align:left;color:var(--acc);text-decoration:none;font-size:16px}
+#gsvg{display:block;width:100%;height:auto}#gsvg text{fill:#8e9ac0;font-size:11px}#gsum{margin-top:8px;font-size:15px}
+#gnote{margin:16px 4px 0;color:var(--mut);font-size:13px;text-align:left}#gadd{margin-top:14px}
+#glist{list-style:none;margin:16px 0 0}#glist li{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:12px 0;border-top:1px solid var(--line);cursor:pointer}#glist li:first-child{border:0}
+.sw select{background:rgba(255,255,255,.06);color:var(--fg);border:1px solid var(--line);border-radius:10px;padding:8px 10px;font-size:15px}
+</style></head><body><main><div id="v-main">
 <header>
+<a href="#vaekst" id="gobtn"><svg viewBox="0 0 24 24"><path d="M4 19V5M4 19h16M8 15l4-5 3 3 5-6"/></svg>Vækst</a>
 <svg viewBox="0 0 100 100"><path d="M60 14a34 34 0 1 0 25 55A30 30 0 0 1 60 14z" fill="none" stroke="url(#g)" stroke-width="3" stroke-linejoin="round"/>
 <path d="M46 52q3 3 6 0M60 58q3 3 6 0M52 66q3 2 6 0" fill="none" stroke="url(#g)" stroke-width="2.4" stroke-linecap="round"/>
 <path d="M82 14l1.8 4.2L88 20l-4.2 1.8L82 26l-1.8-4.2L76 20l4.2-1.8z" fill="#ffe28a"/>
@@ -122,7 +131,24 @@ input[type=number]{flex:1;min-width:0;padding:10px 12px;border-radius:12px;borde
 <div id="err"></div>
 <div id="day" class="card" hidden><div class="dh"><div class="dl"><svg class="ic" viewBox="0 0 24 24"><rect x="4" y="5" width="16" height="15" rx="2"/><path d="M4 10h16M9 3v4M15 3v4"/></svg>Dagens søvn</div><span id="dd"></span></div>
 <ul id="tl"></ul><div class="sum"><span>Samlet søvn</span><b id="tot"></b></div></div>
-<div class="card"><div class="dl">Tilpas</div><label class="sw">Amning i Mad-kortet<input type="checkbox" id="cb"></label><label class="sw">Fast føde i Mad-kortet<input type="checkbox" id="cs"></label></div>
+<div class="card"><div class="dl">Tilpas</div><label class="sw">Amning i Mad-kortet<input type="checkbox" id="cb"></label><label class="sw">Fast føde i Mad-kortet<input type="checkbox" id="cs"></label>
+<label class="sw">Vækstkurver<select id="sx"><option value="boy">Dreng</option><option value="girl">Pige</option></select></label></div>
+</div>
+<div id="v-growth" hidden>
+<div class="gh"><a href="#">‹ Tilbage</a><div class="dl">Vækst</div><span></span></div>
+<div class="seg" id="gtabs"><button data-k="w">Vægt</button><button data-k="l">Længde</button><button data-k="h">Hoved</button></div>
+<div class="card"><svg id="gsvg" viewBox="0 0 340 262"></svg><div id="gsum"></div></div>
+<button class="go" id="gadd">Tilføj måling</button>
+<ul id="glist" class="card" hidden></ul>
+<div id="gnote"></div><div id="gerr"></div>
+</div>
+<div id="gsheet" hidden><div class="sh"><div class="dl" id="gtitle">Ny måling</div>
+<label>Dato<input type="date" id="gd"></label>
+<label>Vægt (kg)<input type="text" inputmode="decimal" id="gw" placeholder="fx 6,4"></label>
+<label>Længde (cm)<input type="text" inputmode="decimal" id="gl" placeholder="fx 62"></label>
+<label>Hovedomfang (cm)<input type="text" inputmode="decimal" id="gx" placeholder="fx 41"></label>
+<div id="gerr2"></div>
+<button class="go" id="gsave">Gem måling</button><button class="go del" id="gdel">Slet måling</button><button class="go ghost" id="gcancel">Annullér</button></div></div>
 </main><script>
 const $=i=>document.getElementById(i);let S=null,napSel=null;
 const PLAY='<svg viewBox="0 0 24 24"><path d="M7 4.5v15l13-7.5z"/></svg>',STOP='<svg viewBox="0 0 24 24"><rect x="6" y="6" width="12" height="12" rx="2"/></svg>';
@@ -140,7 +166,7 @@ async function api(p,body,method='POST'){const r=await fetch(p,body===undefined?
 headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
 const j=await r.json();if(!r.ok)throw new Error(j.error||r.status);return j}
 const isNap=()=>napSel??S.nap_guess;
-async function load(){try{S=await api('/api/status');$('err').textContent='';const F=S.features||{};$('cb').checked=!!F.breast;$('cs').checked=!!F.solids;
+async function load(){try{S=await api('/api/status');$('err').textContent='';const F=S.features||{};$('cb').checked=!!F.breast;$('cs').checked=!!F.solids;$('sx').value=S.sex||'boy';
 if(S.sleeping){$('st').value='';$('lb').hidden=true}else{napSel=null;$('wt').value='';$('wb').hidden=true}}
 catch(e){$('err').textContent=e.message}render()}
 function render(){if(!S)return;const sl=S.sleeping,p=S.prediction,b=sl?S.since:S.awake_since;let secs=0;
@@ -203,6 +229,40 @@ $('sheet').onclick=e=>{if(e.target.id==='sheet')$('ecancel').onclick()};
 $('esave').onclick=async()=>{try{await api('/api/sleep/'+ed.id,{start:$('es').value,end:$('ee').value,nap:edNap});$('sheet').hidden=true;ed=null;load()}catch(e){$('eerr').textContent=e.message}};
 $('edel').onclick=async()=>{if(!armed){armed=true;eui();return}
 try{await api('/api/sleep/'+ed.id,{},'DELETE');$('sheet').hidden=true;ed=null;load()}catch(e){$('eerr').textContent=e.message;armed=false;eui()}};
+let G=null,gk='w',gid=null,garm=false;
+const GL={w:['Vægt','kg'],l:['Længde','cm'],h:['Hoved','cm']},nf=v=>v.toLocaleString('da-DK',{maximumFractionDigits:2}),dc=v=>v==null?'':String(v).replace('.',',');
+const gdate=d=>new Date(d+'T12:00').toLocaleDateString('da-DK',{day:'numeric',month:'short',year:'numeric'});
+function route(){const g=location.hash==='#vaekst';$('v-main').hidden=g;$('v-growth').hidden=!g;if(g){scrollTo(0,0);loadG()}}
+async function loadG(){try{G=await api('/api/growth');$('gerr').textContent=''}catch(e){$('gerr').textContent=e.message}drawG()}
+function drawG(){if(!G)return;
+document.querySelectorAll('#gtabs button').forEach(x=>x.classList.toggle('on',x.dataset.k===gk));
+const cv=G.curves[gk],X=cv.length-1,pts=G.entries.filter(e=>e[gk]!=null),[nm,u]=GL[gk];
+const vals=[...cv.map(r=>r.p3),...cv.map(r=>r.p97),...pts.map(e=>e[gk])],lo=Math.min(...vals),hi=Math.max(...vals),pd=(hi-lo)*.05,y0=lo-pd,y1=hi+pd;
+const W=340,H=262,L=40,R=10,T=22,B=38,sx=m=>L+(W-L-R)*m/X,sy=v=>H-B-(H-T-B)*(v-y0)/(y1-y0),f=n=>n.toFixed(1);
+const band=(a,b,c)=>`<path d="M${cv.map(r=>f(sx(r.m))+' '+f(sy(r[b]))).join('L')}L${cv.slice().reverse().map(r=>f(sx(r.m))+' '+f(sy(r[a]))).join('L')}Z" fill="${c}"/>`;
+const st=[.5,1,2,5,10,20].find(s=>(y1-y0)/s<=6)||20;let s='';
+for(let v=Math.ceil(y0/st)*st;v<=y1;v+=st)s+=`<path d="M${L} ${f(sy(v))}H${W-R}" stroke="rgba(255,255,255,.07)"/><text x="${L-6}" y="${f(sy(v)+4)}" text-anchor="end">${nf(v)}</text>`;
+for(let m=0;m<=X;m+=X>12?2:1)s+=`<text x="${f(sx(m))}" y="${H-20}" text-anchor="middle">${m}</text>`;
+s+=`<text x="${L-6}" y="12" text-anchor="end">${u}</text><text x="${(L+W-R)/2}" y="${H-4}" text-anchor="middle">alder i måneder</text>`;
+s+=band('p3','p97','rgba(110,160,255,.14)')+band('p15','p85','rgba(110,160,255,.18)')+`<path d="M${cv.map(r=>f(sx(r.m))+' '+f(sy(r.p50))).join('L')}" fill="none" stroke="#8fb0ff" stroke-dasharray="4 3"/>`;
+if(pts.length>1)s+=`<path d="M${pts.map(e=>f(sx(Math.min(e.m,X)))+' '+f(sy(e[gk]))).join('L')}" fill="none" stroke="#ffd27a" stroke-width="2"/>`;
+pts.forEach((e,i)=>s+=`<circle cx="${f(sx(Math.min(e.m,X)))}" cy="${f(sy(e[gk]))}" r="${i==pts.length-1?5.5:4}" fill="#ffd27a" stroke="#0f1830" stroke-width="1.5"/>`);
+$('gsvg').innerHTML=s;const e=pts[pts.length-1],pc=e&&e['p'+gk];
+$('gsum').innerHTML=e?`<b>${nm}: ${nf(e[gk])} ${u}</b> · ${gdate(e.date)} · ${nf(e.m)} mdr.${pc?` · ca. ${pc}. percentil`:''}`:'Ingen målinger endnu';
+$('glist').hidden=!G.entries.length;
+$('glist').innerHTML=G.entries.slice().reverse().map(e=>`<li data-id="${e.id}"><div><div class="tm">${gdate(e.date)}</div><div class="lb">${['w','l','h'].filter(k=>e[k]!=null).map(k=>nf(e[k])+' '+GL[k][1]).join(' · ')}</div></div><svg class="ch" viewBox="0 0 24 24"><path d="m9 6 6 6-6 6"/></svg></li>`).join('');
+$('gnote').textContent=`${G.sex==='boy'?'Drengekurver':'Pigekurver'} fra WHO (2006), som Sundhedsstyrelsen anbefaler til børn 0-5 år. Båndene viser 3.-97. percentil, og den stiplede linje er midten. Vejninger kan afvige mellem forskellige vægte, og én måling siger ikke alt. Tal med sundhedsplejersken, hvis du er i tvivl. Skift kurver under Tilpas.`}
+function gopen(x){gid=x?x.id:null;garm=false;$('gtitle').textContent=x?'Ret måling':'Ny måling';
+$('gd').value=x?x.date:loc(new Date()).slice(0,10);$('gw').value=x?dc(x.w):'';$('gl').value=x?dc(x.l):'';$('gx').value=x?dc(x.h):'';
+$('gerr2').textContent='';$('gdel').hidden=!x;$('gdel').textContent='Slet måling';$('gsheet').hidden=false}
+document.querySelectorAll('#gtabs button').forEach(x=>x.onclick=()=>{gk=x.dataset.k;drawG()});
+$('glist').onclick=e=>{const li=e.target.closest('li');if(li)gopen(G.entries.find(x=>x.id==li.dataset.id))};
+$('gadd').onclick=()=>gopen(null);$('gcancel').onclick=()=>$('gsheet').hidden=true;$('gsheet').onclick=e=>{if(e.target.id==='gsheet')$('gcancel').onclick()};
+$('gsave').onclick=async()=>{try{await api('/api/growth'+(gid?'/'+gid:''),{date:$('gd').value,w:$('gw').value,l:$('gl').value,h:$('gx').value});$('gsheet').hidden=true;loadG()}catch(e){$('gerr2').textContent=e.message}};
+$('gdel').onclick=async()=>{if(!garm){garm=true;$('gdel').textContent='Tryk igen for at slette';return}
+try{await api('/api/growth/'+gid,{},'DELETE');$('gsheet').hidden=true;loadG()}catch(e){$('gerr2').textContent=e.message;garm=false}};
+$('sx').onchange=()=>api('/api/profile',{sex:$('sx').value}).then(load).catch(e=>$('err').textContent=e.message);
+addEventListener('hashchange',route);
 let fk=null,fm='breast milk';
 function fui(){$('fbreast').hidden=fk!=='breast';$('fbottle').hidden=fk!=='bottle';$('fsolidbox').hidden=fk!=='solid';$('fwhen').hidden=!fk;
 document.querySelectorAll('#fbtns button').forEach(x=>x.classList.toggle('on',x.dataset.k===fk));
@@ -213,5 +273,5 @@ document.querySelectorAll('#fbtns button').forEach(x=>x.onclick=()=>{fk=fk===x.d
 document.querySelectorAll('#fmilk button').forEach(x=>x.onclick=()=>{fm=x.dataset.m;fui()});
 document.querySelectorAll('#fbreast button').forEach(x=>x.onclick=()=>feed({kind:x.dataset.s}));
 $('fgo').onclick=()=>{const ml=+$('ml').value;if(!(ml>0)){$('err').textContent='Skriv hvor mange ml';return}feed({kind:'bottle',milk:fm,amount:ml})};
-fui();load();setInterval(load,15000);setInterval(render,1000);
+route();fui();load();setInterval(load,15000);setInterval(render,1000);
 </script></body></html>

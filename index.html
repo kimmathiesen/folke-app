@@ -46,6 +46,12 @@ ul{list-style:none;margin:10px 0 0}#today{padding:2px 16px}
 #today li{display:flex;gap:12px;align-items:center;padding:13px 0;border-top:1px solid var(--line)}
 #today li:first-child{border:0}#today .ic{width:24px;height:24px}
 #err{color:#ff8b7e;font-size:14px;margin-top:12px}
+.seg{display:flex;gap:8px;margin-top:12px}
+.seg button{flex:1;padding:12px 6px;border-radius:14px;border:1px solid var(--line);background:rgba(255,255,255,.05);color:var(--fg);font-size:16px}
+.seg .on{background:var(--fg);color:#0b1224;border-color:var(--fg)}
+.inl{display:flex;gap:10px;align-items:center;margin-top:12px}.inl span{flex:1;color:var(--mut);font-size:14px}
+.inl .go{margin:0;width:auto;flex:none;padding:12px 18px}
+input[type=number]{flex:1;min-width:0;padding:10px 12px;border-radius:12px;border:1px solid var(--line);background:rgba(255,255,255,.04);color:var(--fg);font-size:17px}
 </style></head><body><main>
 <header>
 <svg viewBox="0 0 100 100"><path d="M60 14a34 34 0 1 0 25 55A30 30 0 0 1 60 14z" fill="none" stroke="url(#g)" stroke-width="3" stroke-linejoin="round"/>
@@ -66,6 +72,13 @@ ul{list-style:none;margin:10px 0 0}#today{padding:2px 16px}
 <div class="t"><b>Glemte du at trykke?</b><span>Vågnede kl.</span></div><input type="time" id="wt"></div><button class="go" id="wb" hidden>Gem</button></div>
 <div id="pred" class="card" hidden><div class="row"><svg class="ic" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M8 11q1.5 1.5 3 0M13 11q1.5 1.5 3 0M10 15.5q2 1.5 4 0"/></svg>
 <div class="t"><span id="pk"></span><div class="big" id="pt"></div><span id="sub"></span></div></div></div>
+<div id="feed" class="card"><div class="row"><svg class="ic" viewBox="0 0 24 24"><path d="M10 3h4M10.5 3v3M13.5 3v3M8 8a3 3 0 0 1 3-2h2a3 3 0 0 1 3 2v11a2 2 0 0 1-2 2h-4a2 2 0 0 1-2-2zM8 12h3M8 15h3"/></svg>
+<div class="t"><b>Mad</b><span id="lastfeed">Ingen måltider endnu</span></div></div>
+<div class="seg" id="fbtns"><button data-k="breast">Amning</button><button data-k="bottle">Flaske</button></div>
+<div class="inl" id="fwhen" hidden><span>Tidspunkt (valgfrit)</span><input type="time" id="ft"></div>
+<div class="seg" id="fbreast" hidden><button data-s="left">Venstre</button><button data-s="right">Højre</button><button data-s="both">Begge</button></div>
+<div id="fbottle" hidden><div class="seg" id="fmilk"><button data-m="breast milk">Modermælk</button><button data-m="formula">Erstatning</button></div>
+<div class="inl"><input type="number" id="ml" inputmode="numeric" min="1" max="500" placeholder="ml"><button class="go" id="fgo">Gem flaske</button></div></div></div>
 <div id="err"></div>
 <h2 id="th" hidden>Dagens søvn</h2><ul id="today" class="card" hidden></ul>
 </main><script>
@@ -73,6 +86,8 @@ const $=i=>document.getElementById(i);let S=null,napSel=null;
 const PLAY='<svg viewBox="0 0 24 24"><path d="M7 4.5v15l13-7.5z"/></svg>',STOP='<svg viewBox="0 0 24 24"><rect x="6" y="6" width="12" height="12" rx="2"/></svg>';
 const CLK='<svg class="ic" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>';
 const hm=d=>new Date(d).toLocaleTimeString('da-DK',{hour:'2-digit',minute:'2-digit'});
+const FM={'bottle':'Flaske','left breast':'Amning, venstre','right breast':'Amning, højre','both breasts':'Amning'};
+const ago=d=>{const m=Math.max(0,(Date.now()-new Date(d))/60000|0);return m<60?`${m} min`:`${m/60|0} t ${m%60} min`};
 const cap=s=>s.charAt(0).toUpperCase()+s.slice(1);
 async function api(p,body){const r=await fetch(p,body===undefined?{}:{method:'POST',
 headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
@@ -92,6 +107,7 @@ $('type').hidden=$('wake').hidden=!sl;$('late').hidden=sl;
 document.querySelectorAll('#type button').forEach(x=>x.classList.toggle('on',(x.dataset.n==='1')===isNap()));
 $('pred').hidden=!p;if(p){$('pk').textContent='Næste '+p.kind;$('pt').textContent='ca. kl. '+hm(p.time);
 $('sub').textContent=cap(`vindue ${p.window_min} min · ${p.source}`)}
+const lf=S.last_feed;$('lastfeed').textContent=lf?`${FM[lf.method]||lf.method}${lf.amount?' '+Math.round(+lf.amount)+' ml':''} kl. ${hm(lf.time)} · for ${ago(lf.time)} siden`:'Ingen måltider endnu';
 $('th').hidden=$('today').hidden=!S.today.length;
 $('today').innerHTML=S.today.map(x=>`<li>${CLK}${x.nap?'Lur':'Nat'} ${hm(x.start)}–${hm(x.end)}</li>`).join('')}
 $('btn').onclick=async()=>{$('btn').disabled=true;
@@ -103,5 +119,15 @@ try{await api('/api/start',{since:$('st').value})}catch(e){$('err').textContent=
 $('wb').onclick=async()=>{$('wb').disabled=true;
 try{await api('/api/stop',{nap:isNap(),wake:$('wt').value})}catch(e){$('err').textContent=e.message}$('wb').disabled=false;load()};
 document.querySelectorAll('#type button').forEach(x=>x.onclick=()=>{napSel=x.dataset.n==='1';render()});
-load();setInterval(load,15000);setInterval(render,1000);
+let fk=null,fm='breast milk';
+function fui(){$('fbreast').hidden=fk!=='breast';$('fbottle').hidden=fk!=='bottle';$('fwhen').hidden=!fk;
+document.querySelectorAll('#fbtns button').forEach(x=>x.classList.toggle('on',x.dataset.k===fk));
+document.querySelectorAll('#fmilk button').forEach(x=>x.classList.toggle('on',x.dataset.m===fm))}
+async function feed(b){try{await api('/api/feed',{...b,at:$('ft').value});fk=null;$('ml').value='';$('ft').value='';fui()}
+catch(e){$('err').textContent=e.message}load()}
+document.querySelectorAll('#fbtns button').forEach(x=>x.onclick=()=>{fk=fk===x.dataset.k?null:x.dataset.k;fui()});
+document.querySelectorAll('#fmilk button').forEach(x=>x.onclick=()=>{fm=x.dataset.m;fui()});
+document.querySelectorAll('#fbreast button').forEach(x=>x.onclick=()=>feed({kind:x.dataset.s}));
+$('fgo').onclick=()=>{const ml=+$('ml').value;if(!(ml>0)){$('err').textContent='Skriv hvor mange ml';return}feed({kind:'bottle',milk:fm,amount:ml})};
+fui();load();setInterval(load,15000);setInterval(render,1000);
 </script></body></html>

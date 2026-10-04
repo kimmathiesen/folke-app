@@ -60,7 +60,8 @@ def status():
         prediction=pred,
         last_feed=last_feed,
         today=[{"start": s["start"].isoformat(), "end": s["end"].isoformat(), "nap": s["nap"]}
-               for s in sorted(sleeps, key=lambda s: s["start"]) if s["start"].date() == now.date()],
+               for s in sorted(sleeps, key=lambda s: s["start"])
+               if now.date() in (s["start"].date(), s["end"].date())],
     )
 
 

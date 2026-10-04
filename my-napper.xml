@@ -1,8 +1,9 @@
 <?xml version="1.0"?>
 <Container version="2">
-  <Name>napper</Name>
+  <Name>folke-app</Name>
   <Repository>ghcr.io/kimmathiesen/folke-app:latest</Repository>
   <Registry>https://github.com/kimmathiesen/folke-app/pkgs/container/folke-app</Registry>
+  <Icon>https://raw.githubusercontent.com/kimmathiesen/folke-app/main/icon.png</Icon>
   <Network>bridge</Network>
   <Privileged>false</Privileged>
   <Support>https://github.com/kimmathiesen/folke-app</Support>

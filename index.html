@@ -17,10 +17,16 @@ main{max-width:420px;margin:0 auto;padding-top:24px}
 #type .on{background:var(--fg);color:var(--bg)}
 #pred{margin:28px 0 4px;font-size:20px}#sub,#err{color:var(--mut);font-size:13px}#err{color:var(--stop)}
 ul{list-style:none;padding:0;margin:24px 0;color:var(--mut);text-align:left}li{padding:6px 0;border-top:1px solid #222}
+[hidden]{display:none!important}
+#wake,#late{margin:6px 0 0;color:var(--mut);font-size:14px}
+#wake input,#late input{background:#1b1f25;color:var(--fg);border:1px solid var(--mut);border-radius:10px;padding:8px;font-size:16px}
+#wake button,#late button{padding:9px 16px;border-radius:10px;border:0;background:var(--acc);color:#fff;font-size:15px}
 </style></head><body><main>
 <div id="state">…</div><div id="clock">--</div>
 <button id="btn" disabled>…</button>
 <div id="type" hidden><button data-n="1">Lur</button><button data-n="0">Nat</button></div>
+<div id="late">Glemte du at trykke? Faldt i søvn kl. <input type="time" id="st"> <button id="lb">Gem</button></div>
+<div id="wake" hidden>Glemte du at trykke? Vågnede kl. <input type="time" id="wt"> <button id="wb">Gem</button></div>
 <div id="pred"></div><div id="sub"></div><div id="err"></div><ul id="today"></ul>
 </main><script>
 const $=i=>document.getElementById(i);let S=null,napSel=null;
@@ -29,7 +35,7 @@ async function api(p,body){const r=await fetch(p,body===undefined?{}:{method:'PO
 headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
 const j=await r.json();if(!r.ok)throw new Error(j.error||r.status);return j}
 const isNap=()=>napSel??S.nap_guess;
-async function load(){try{S=await api('/api/status');$('err').textContent='';if(!S.sleeping)napSel=null}
+async function load(){try{S=await api('/api/status');$('err').textContent='';if(!S.sleeping){napSel=null;$('wt').value=''}else $('st').value=''}
 catch(e){$('err').textContent=e.message}render()}
 function render(){if(!S)return;
 $('state').textContent=S.sleeping?'Sover':'Vågen';
@@ -37,7 +43,7 @@ const b=S.sleeping?S.since:S.awake_since;
 if(b){const s=Math.max(0,(Date.now()-new Date(b))/1000|0),p=n=>String(n).padStart(2,'0');
 $('clock').textContent=`${p(s/3600|0)}:${p(s/60%60|0)}:${p(s%60)}`}else $('clock').textContent='--';
 $('btn').disabled=false;$('btn').textContent=S.sleeping?'Stop søvn':'Start søvn';
-$('btn').className=S.sleeping?'stop':'';$('type').hidden=!S.sleeping;
+$('btn').className=S.sleeping?'stop':'';$('type').hidden=!S.sleeping;$('wake').hidden=!S.sleeping;$('late').hidden=S.sleeping;
 document.querySelectorAll('#type button').forEach(x=>x.classList.toggle('on',(x.dataset.n==='1')===isNap()));
 const p=S.prediction;$('pred').textContent=p?`Næste ${p.kind}: ca. kl. ${hm(p.time)}`:(S.sleeping?'':'Ingen forudsigelse endnu');
 $('sub').textContent=p?`vindue ${p.window_min} min · ${p.source}`:'';
@@ -45,6 +51,10 @@ $('today').innerHTML=S.today.map(x=>`<li>${x.nap?'Lur':'Nat'} ${hm(x.start)}–$
 $('btn').onclick=async()=>{$('btn').disabled=true;
 try{await api(S.sleeping?'/api/stop':'/api/start',S.sleeping?{nap:isNap()}:{})}catch(e){$('err').textContent=e.message}
 load()};
+$('lb').onclick=async()=>{const w=$('st').value;if(!w){$('err').textContent='Vælg hvornår han faldt i søvn';return}
+$('lb').disabled=true;try{await api('/api/start',{since:w})}catch(e){$('err').textContent=e.message}$('lb').disabled=false;load()};
+$('wb').onclick=async()=>{const w=$('wt').value;if(!w){$('err').textContent='Vælg hvornår han vågnede';return}
+$('wb').disabled=true;try{await api('/api/stop',{nap:isNap(),wake:w})}catch(e){$('err').textContent=e.message}$('wb').disabled=false;load()};
 document.querySelectorAll('#type button').forEach(x=>x.onclick=()=>{napSel=x.dataset.n==='1';render()});
 load();setInterval(load,15000);setInterval(render,1000);
 </script></body></html>

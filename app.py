@@ -2,7 +2,7 @@
 import json, math, os, struct, threading, time, zlib
 from datetime import datetime, timedelta, date
 from flask import Flask, Response, jsonify, request, send_from_directory
-import napper
+import napper, who
 
 app = Flask(__name__)
 TZ, TIMER = napper.TZ, "Søvn"
@@ -60,6 +60,7 @@ def status():
         prediction=pred,
         last_feed=last_feed,
         features=prefs()["features"],
+        sex=prefs()["sex"],
         suggestions=current_suggestions(c, now, prefs()),
         today=[{"id": s["id"], "start": s["start"].isoformat(), "end": s["end"].isoformat(), "nap": s["nap"]}
                for s in sorted(sleeps, key=lambda s: s["start"])
@@ -140,7 +141,8 @@ def prefs():
             p = json.load(f)
     except (OSError, ValueError):
         p = {}
-    return {"features": {"breast": True, "solids": False, **p.get("features", {})}, "sug": p.get("sug", {})}
+    return {"features": {"breast": True, "solids": False, **p.get("features", {})}, "sug": p.get("sug", {}),
+            "sex": p.get("sex", "boy")}
 
 
 def save_prefs(p):
@@ -207,6 +209,94 @@ def feature():
     p = prefs()
     p["features"][d["name"]] = bool(d.get("on"))
     save_prefs(p)
+    return jsonify(ok=True)
+
+
+@app.post("/api/profile")
+def profile():
+    d = request.get_json(silent=True) or {}
+    if d.get("sex") not in ("boy", "girl"):
+        return jsonify(ok=False, error="Ugyldigt valg"), 400
+    p = prefs()
+    p["sex"] = d["sex"]
+    save_prefs(p)
+    return jsonify(ok=True)
+
+
+# ---------- Vækst (egen fil: growth.json) ----------
+GROWTH = os.path.join(os.path.dirname(napper.STATE_FILE) or ".", "growth.json")
+RANGES = {"w": (0.5, 30, "Vægt"), "l": (30, 120, "Længde"), "h": (25, 60, "Hovedomfang")}
+
+
+def load_growth():
+    try:
+        with open(GROWTH) as f:
+            return json.load(f)
+    except (OSError, ValueError):
+        return []
+
+
+def save_growth(g):
+    os.makedirs(os.path.dirname(GROWTH), exist_ok=True)
+    with open(GROWTH, "w") as f:
+        json.dump(g, f)
+
+
+def clean_measure(d):
+    try:
+        day = date.fromisoformat(str(d.get("date")))
+    except ValueError:
+        raise ValueError("Ugyldig dato")
+    if day > datetime.now(TZ).date():
+        raise ValueError("Datoen ligger i fremtiden")
+    out = {"date": day.isoformat()}
+    for k, (lo, hi, name) in RANGES.items():
+        v = d.get(k)
+        if v in (None, ""):
+            out[k] = None
+            continue
+        v = float(str(v).replace(",", "."))
+        if not lo <= v <= hi:
+            raise ValueError(f"{name} skal være mellem {lo} og {hi}")
+        out[k] = v
+    if all(out[k] is None for k in RANGES):
+        raise ValueError("Skriv mindst én måling")
+    return out
+
+
+@app.get("/api/growth")
+def growth():
+    birth, sex = date.fromisoformat(get_child()["birth_date"]), prefs()["sex"]
+    ents = sorted(load_growth(), key=lambda e: e["date"])
+    for e in ents:
+        e["m"] = round((date.fromisoformat(e["date"]) - birth).days / 30.4375, 2)
+        for k in RANGES:
+            e["p" + k] = who.percentile(k, sex, e["m"], e[k])
+    age = (datetime.now(TZ).date() - birth).days / 30.4375
+    upto = 12 if age < 9 else 24
+    return jsonify(sex=sex, age_m=round(age, 1), entries=ents,
+                   curves={k: who.curves(k, sex, upto) for k in RANGES})
+
+
+@app.post("/api/growth")
+@app.post("/api/growth/<int:gid>")
+def growth_save(gid=None):
+    try:
+        m = clean_measure(request.get_json(silent=True) or {})
+    except ValueError as e:
+        return jsonify(ok=False, error=str(e)), 400
+    g = load_growth()
+    if gid is None:
+        g.append({"id": max((e["id"] for e in g), default=0) + 1, **m})
+    else:
+        g = [{"id": gid, **m} if e["id"] == gid else e for e in g]
+    save_growth(g)
+    return jsonify(ok=True)
+
+
+@app.delete("/api/growth/<int:gid>")
+def growth_delete(gid):
+    save_growth([e for e in load_growth() if e["id"] != gid])
     return jsonify(ok=True)
 
 

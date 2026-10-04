@@ -70,6 +70,9 @@ input[type=number]{flex:1;min-width:0;padding:10px 12px;border-radius:12px;borde
 #edur{margin-top:12px;color:var(--mut);font-size:14px}
 .go.del{background:#c4524a}.go.ghost{background:transparent;border:1px solid var(--line);color:var(--mut)}
 .sh .go{margin-top:10px}
+#sug b{font-weight:500}#sug .seg button{font-size:15px}
+#fnote{flex:1;min-width:0;padding:10px 12px;border-radius:12px;border:1px solid var(--line);background:rgba(255,255,255,.04);color:var(--fg);font-size:17px}
+.sw{display:flex;justify-content:space-between;align-items:center;margin-top:12px}.sw input{width:22px;height:22px;accent-color:#5b8def}
 </style></head><body><main>
 <header>
 <svg viewBox="0 0 100 100"><path d="M60 14a34 34 0 1 0 25 55A30 30 0 0 1 60 14z" fill="none" stroke="url(#g)" stroke-width="3" stroke-linejoin="round"/>
@@ -79,6 +82,8 @@ input[type=number]{flex:1;min-width:0;padding:10px 12px;border-radius:12px;borde
 <path d="M30 8l1 2.4 2.4 1-2.4 1L30 15l-1-2.6-2.4-1 2.4-1z" fill="#ffe28a"/></svg>
 <h1>Baby Søvn</h1><div class="tag">Små drømme, store øjeblikke ♡</div>
 </header>
+<div id="sug" class="card" hidden><div class="t"><span>Forslag</span><b id="sugt" style="display:block"></b></div>
+<div class="seg"><button id="sy">Ja, gør det</button><button id="sl">Ikke nu</button><button id="sn">Aldrig</button></div></div>
 <div id="ring"><svg viewBox="0 0 200 200"><defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#6ea0ff"/><stop offset="1" stop-color="#8b7cf6"/></linearGradient></defs>
 <circle class="trk" cx="100" cy="100" r="92"/><circle id="arc" cx="100" cy="100" r="92"/></svg>
 <div id="mid"><div id="clock">--</div><div id="state"></div></div></div>
@@ -98,14 +103,16 @@ input[type=number]{flex:1;min-width:0;padding:10px 12px;border-radius:12px;borde
 <button class="go" id="esave">Gem ændringer</button><button class="go del" id="edel">Slet søvn</button><button class="go ghost" id="ecancel">Annullér</button></div></div>
 <div id="feed" class="card"><div class="row"><svg class="ic" viewBox="0 0 24 24"><path d="M10 3h4M10.5 3v3M13.5 3v3M8 8a3 3 0 0 1 3-2h2a3 3 0 0 1 3 2v11a2 2 0 0 1-2 2h-4a2 2 0 0 1-2-2zM8 12h3M8 15h3"/></svg>
 <div class="t"><b>Mad</b><span id="lastfeed">Ingen måltider endnu</span></div></div>
-<div class="seg" id="fbtns"><button data-k="breast">Amning</button><button data-k="bottle">Flaske</button></div>
+<div class="seg" id="fbtns"><button data-k="breast" id="fbr">Amning</button><button data-k="bottle">Flaske</button><button data-k="solid" id="fsolid" hidden>Fast føde</button></div>
 <div class="inl" id="fwhen" hidden><span>Tidspunkt (valgfrit)</span><input type="time" id="ft"></div>
 <div class="seg" id="fbreast" hidden><button data-s="left">Venstre</button><button data-s="right">Højre</button><button data-s="both">Begge</button></div>
+<div id="fsolidbox" hidden><div class="inl"><input type="text" id="fnote" placeholder="Hvad spiste han? (valgfrit)"><button class="go" id="fsgo">Gem</button></div></div>
 <div id="fbottle" hidden><div class="seg" id="fmilk"><button data-m="breast milk">Modermælk</button><button data-m="formula">Erstatning</button></div>
 <div class="inl"><input type="number" id="ml" inputmode="numeric" min="1" max="500" placeholder="ml"><button class="go" id="fgo">Gem flaske</button></div></div></div>
 <div id="err"></div>
 <div id="day" class="card" hidden><div class="dh"><div class="dl"><svg class="ic" viewBox="0 0 24 24"><rect x="4" y="5" width="16" height="15" rx="2"/><path d="M4 10h16M9 3v4M15 3v4"/></svg>Dagens søvn</div><span id="dd"></span></div>
 <ul id="tl"></ul><div class="sum"><span>Samlet søvn</span><b id="tot"></b></div></div>
+<div class="card"><div class="dl">Tilpas</div><label class="sw">Amning i Mad-kortet<input type="checkbox" id="cb"></label><label class="sw">Fast føde i Mad-kortet<input type="checkbox" id="cs"></label></div>
 </main><script>
 const $=i=>document.getElementById(i);let S=null,napSel=null;
 const PLAY='<svg viewBox="0 0 24 24"><path d="M7 4.5v15l13-7.5z"/></svg>',STOP='<svg viewBox="0 0 24 24"><rect x="6" y="6" width="12" height="12" rx="2"/></svg>';
@@ -123,7 +130,7 @@ async function api(p,body,method='POST'){const r=await fetch(p,body===undefined?
 headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
 const j=await r.json();if(!r.ok)throw new Error(j.error||r.status);return j}
 const isNap=()=>napSel??S.nap_guess;
-async function load(){try{S=await api('/api/status');$('err').textContent='';
+async function load(){try{S=await api('/api/status');$('err').textContent='';const F=S.features||{};$('cb').checked=!!F.breast;$('cs').checked=!!F.solids;
 if(S.sleeping){$('st').value='';$('lb').hidden=true}else{napSel=null;$('wt').value='';$('wb').hidden=true}}
 catch(e){$('err').textContent=e.message}render()}
 function render(){if(!S)return;const sl=S.sleeping,p=S.prediction,b=sl?S.since:S.awake_since;let secs=0;
@@ -138,6 +145,7 @@ document.querySelectorAll('#type button').forEach(x=>x.classList.toggle('on',(x.
 $('pred').hidden=!p;if(p){$('pk').textContent='Næste '+p.kind;$('pt').textContent='ca. kl. '+hm(p.time);
 $('sub').textContent=cap(`vindue ${p.window_min} min · ${p.source}`)}
 const lf=S.last_feed;$('lastfeed').textContent=lf?`${FM[lf.method]||lf.method}${lf.amount?' '+Math.round(+lf.amount)+' ml':''} kl. ${hm(lf.time)} · for ${ago(lf.time)} siden`:'Ingen måltider endnu';
+const F=S.features||{},sg=(S.suggestions||[])[0];$('fbr').hidden=!F.breast;$('fsolid').hidden=!F.solids;$('sug').hidden=!sg;if(sg)$('sugt').textContent=sg.text;
 $('day').hidden=!S.today.length;
 if(S.today.length){let n=0,tot=0;$('dd').textContent=cap(new Date().toLocaleDateString('da-DK',{weekday:'long',day:'numeric',month:'long'}));
 $('tl').innerHTML=S.today.map((x,i)=>{const a=new Date(x.start),m=Math.round((new Date(x.end)-a)/60000),t=a.getHours();tot+=m;
@@ -153,6 +161,11 @@ try{await api('/api/start',{since:$('st').value})}catch(e){$('err').textContent=
 $('wb').onclick=async()=>{$('wb').disabled=true;
 try{await api('/api/stop',{nap:isNap(),wake:$('wt').value})}catch(e){$('err').textContent=e.message}$('wb').disabled=false;load()};
 document.querySelectorAll('#type button').forEach(x=>x.onclick=()=>{napSel=x.dataset.n==='1';render()});
+const ans=a=>api('/api/suggestion',{id:S.suggestions[0].id,answer:a}).then(load).catch(e=>$('err').textContent=e.message);
+$('sy').onclick=()=>ans('yes');$('sl').onclick=()=>ans('later');$('sn').onclick=()=>ans('never');
+$('cb').onchange=()=>api('/api/feature',{name:'breast',on:$('cb').checked}).then(load);
+$('cs').onchange=()=>api('/api/feature',{name:'solids',on:$('cs').checked}).then(load);
+$('fsgo').onclick=()=>feed({kind:'solid',note:$('fnote').value});
 let ed=null,edNap=true,armed=false;
 const p2=n=>String(n).padStart(2,'0'),loc=i=>{const d=new Date(i);return `${d.getFullYear()}-${p2(d.getMonth()+1)}-${p2(d.getDate())}T${p2(d.getHours())}:${p2(d.getMinutes())}`};
 function eui(){const m=Math.round((new Date($('ee').value)-new Date($('es').value))/60000);
@@ -169,10 +182,10 @@ $('esave').onclick=async()=>{try{await api('/api/sleep/'+ed.id,{start:$('es').va
 $('edel').onclick=async()=>{if(!armed){armed=true;eui();return}
 try{await api('/api/sleep/'+ed.id,{},'DELETE');$('sheet').hidden=true;ed=null;load()}catch(e){$('eerr').textContent=e.message;armed=false;eui()}};
 let fk=null,fm='breast milk';
-function fui(){$('fbreast').hidden=fk!=='breast';$('fbottle').hidden=fk!=='bottle';$('fwhen').hidden=!fk;
+function fui(){$('fbreast').hidden=fk!=='breast';$('fbottle').hidden=fk!=='bottle';$('fsolidbox').hidden=fk!=='solid';$('fwhen').hidden=!fk;
 document.querySelectorAll('#fbtns button').forEach(x=>x.classList.toggle('on',x.dataset.k===fk));
 document.querySelectorAll('#fmilk button').forEach(x=>x.classList.toggle('on',x.dataset.m===fm))}
-async function feed(b){try{await api('/api/feed',{...b,at:$('ft').value});fk=null;$('ml').value='';$('ft').value='';fui()}
+async function feed(b){try{await api('/api/feed',{...b,at:$('ft').value});fk=null;$('ml').value='';$('ft').value='';$('fnote').value='';fui()}
 catch(e){$('err').textContent=e.message}load()}
 document.querySelectorAll('#fbtns button').forEach(x=>x.onclick=()=>{fk=fk===x.dataset.k?null:x.dataset.k;fui()});
 document.querySelectorAll('#fmilk button').forEach(x=>x.onclick=()=>{fm=x.dataset.m;fui()});

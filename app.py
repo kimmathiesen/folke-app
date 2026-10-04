@@ -1,5 +1,5 @@
 """Napper webapp: start/stop søvn + forudsigelse. Bruger napper.py som motor."""
-import math, struct, threading, time, zlib
+import json, math, os, struct, threading, time, zlib
 from datetime import datetime, timedelta, date
 from flask import Flask, Response, jsonify, request, send_from_directory
 import napper
@@ -59,6 +59,8 @@ def status():
         awake_since=max((s["end"] for s in sleeps), default=None) and max(s["end"] for s in sleeps).isoformat(),
         prediction=pred,
         last_feed=last_feed,
+        features=prefs()["features"],
+        suggestions=current_suggestions(c, now, prefs()),
         today=[{"id": s["id"], "start": s["start"].isoformat(), "end": s["end"].isoformat(), "nap": s["nap"]}
                for s in sorted(sleeps, key=lambda s: s["start"])
                if now.date() in (s["start"].date(), s["end"].date())],
@@ -128,6 +130,86 @@ def pump():
     return jsonify(ok=True, amount=amount)
 
 
+PREFS = os.path.join(os.path.dirname(napper.STATE_FILE) or ".", "prefs.json")
+_sc = {"t": 0, "v": []}
+
+
+def prefs():
+    try:
+        with open(PREFS) as f:
+            p = json.load(f)
+    except (OSError, ValueError):
+        p = {}
+    return {"features": {"breast": True, "solids": False, **p.get("features", {})}, "sug": p.get("sug", {})}
+
+
+def save_prefs(p):
+    os.makedirs(os.path.dirname(PREFS), exist_ok=True)
+    with open(PREFS, "w") as f:
+        json.dump(p, f)
+
+
+def suggestions(c, now, p):
+    """Forslag til at tilpasse appen efter alder og brug. Intet ændres uden et svar fra dig."""
+    out = []
+    months = (now.date() - date.fromisoformat(c["birth_date"])).days / 30.44
+
+    def open_(i):
+        v = p["sug"].get(i)
+        if not v:
+            return True
+        return v not in ("never", "done") and datetime.fromisoformat(v) < now
+
+    if not p["features"]["solids"] and months >= 6 and open_("solids"):
+        out.append({"id": "solids", "text": f"Han er nu {int(months)} måneder. Vil du tilføje «Fast føde» til Mad-kortet?"})
+    if p["features"]["breast"] and open_("hide_breast"):
+        since = (now - timedelta(days=60)).isoformat().replace("+", "%2B")
+        fs = napper.bb_all(f"feedings/?child={c['id']}&start_min={since}&limit=200")
+        b = [napper.parse(f["start"]) for f in fs if "breast" in (f.get("method") or "")]
+        if b and (now - max(b)).days >= 21:
+            out.append({"id": "hide_breast", "text": f"Du har ikke registreret amning i {(now - max(b)).days // 7} uger. Skal Amning-knappen skjules?"})
+    return out
+
+
+def current_suggestions(c, now, p):
+    if time.time() - _sc["t"] > 600:  # beregnes højst hvert 10. minut
+        try:
+            _sc["v"] = suggestions(c, now, p)
+        except Exception:
+            _sc["v"] = []
+        _sc["t"] = time.time()
+    return _sc["v"]
+
+
+@app.post("/api/suggestion")
+def answer_suggestion():
+    d = request.get_json(silent=True) or {}
+    i, a, p = d.get("id"), d.get("answer"), prefs()
+    if i not in ("solids", "hide_breast") or a not in ("yes", "later", "never"):
+        return jsonify(ok=False, error="Ugyldigt svar"), 400
+    if a == "yes":
+        p["features"]["solids" if i == "solids" else "breast"] = i == "solids"
+        p["sug"][i] = "done"
+    elif a == "later":
+        p["sug"][i] = (datetime.now(TZ) + timedelta(days=30)).isoformat()
+    else:
+        p["sug"][i] = "never"
+    save_prefs(p)
+    _sc["t"] = 0
+    return jsonify(ok=True)
+
+
+@app.post("/api/feature")
+def feature():
+    d = request.get_json(silent=True) or {}
+    if d.get("name") not in ("breast", "solids"):
+        return jsonify(ok=False, error="Ukendt funktion"), 400
+    p = prefs()
+    p["features"][d["name"]] = bool(d.get("on"))
+    save_prefs(p)
+    return jsonify(ok=True)
+
+
 def local(txt):  # "YYYY-MM-DDTHH:MM" (lokal tid) -> tidszonebevidst datetime
     return datetime.fromisoformat(txt).replace(tzinfo=TZ)
 
@@ -179,6 +261,8 @@ def feed():
                 raise ValueError
             body.update(type="formula" if d.get("milk") == "formula" else "breast milk",
                         method="bottle", amount=amount)
+        elif d.get("kind") == "solid":
+            body.update(type="solid food", method="parent fed", notes=str(d.get("note", ""))[:200])
         elif d.get("kind") in BREAST:
             body.update(type="breast milk", method=BREAST[d["kind"]])
         else:

@@ -11,7 +11,7 @@ Selfhostet baby-tracker oven på [Baby Buddy](https://github.com/babybuddy/babyb
 - **Mad:** amning (venstre/højre/begge), flaske (ml, modermælk/erstatning) og fastføde
 - **Vækst:** egen side (knap øverst til højre) med vægt, længde og hovedomfang på WHO's kurver (2006), 3.-97. percentil. Gemmes i `growth.json`, kurvedata ligger i `who.py`
 - **Pumpning:** `POST /api/pump`, beregnet til Home Assistant
-- **Forslag:** appen foreslår at tilføje eller skjule funktioner efter alder og brug (fast føde ved 6 mdr., skjul amning efter 3 uger uden). Intet ændres uden svar. Alt kan ændres under *Tilpas*
+- **Forslag:** appen foreslår at tilføje eller skjule funktioner efter alder og brug (fast føde ved 6 mdr., skjul amning efter 3 uger uden). Intet ændres uden svar. Alt kan ændres under *Indstillinger* (knap øverst til venstre)
 - **Home Assistant:** opdaterer `sensor.baby_next_sleep` og sender notifikation før næste søvn
 
 ## Opbygning

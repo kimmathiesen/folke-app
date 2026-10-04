@@ -1,206 +1,147 @@
-#!/usr/bin/env python3
-"""napper.py - simpel selfhostet søvnforudsigelse oven på Baby Buddy.
-
-Henter søvnlog fra Baby Buddy, beregner næste lur/sengetid og
-- opdaterer sensor.baby_next_sleep i Home Assistant
-- sender en notifikation LEAD_MIN minutter før (én gang pr. forudsigelse)
-
-Kun standardbibliotek (Python 3.11+). Kør fx hvert 5. minut.
-"""
-import json
-import os
-import statistics
-import urllib.parse
-import urllib.request
+"""Napper webapp: start/stop søvn + forudsigelse. Bruger napper.py som motor."""
+import threading, time
 from datetime import datetime, timedelta, date
-from zoneinfo import ZoneInfo
+from flask import Flask, jsonify, request, send_from_directory
+import napper
 
-BB_URL = os.environ.get("BB_URL", "http://localhost:8000").rstrip("/")
-BB_TOKEN = os.environ.get("BB_TOKEN", "")
-HA_URL = os.environ.get("HA_URL", "").rstrip("/")
-HA_TOKEN = os.environ.get("HA_TOKEN", "")
-HA_NOTIFY = os.environ.get("HA_NOTIFY", "")  # fx notify.mobile_app_min_telefon
-CHILD_ID = os.environ.get("CHILD_ID")
-LEAD_MIN = int(os.environ.get("LEAD_MIN", "10"))
-HISTORY_DAYS = int(os.environ.get("HISTORY_DAYS", "10"))
-DEFAULT_BEDTIME = int(os.environ.get("DEFAULT_BEDTIME_MIN", str(19 * 60 + 30)))
-STATE_FILE = os.environ.get("STATE_FILE", "/data/state.json")
-TZ = ZoneInfo(os.environ.get("TZ", "Europe/Copenhagen"))
+app = Flask(__name__)
+TZ, TIMER = napper.TZ, "Søvn"
 
 
-# ---------- HTTP ----------
-def call(url, token, method="GET", body=None, scheme="Token"):
-    req = urllib.request.Request(
-        url,
-        method=method,
-        data=json.dumps(body).encode() if body is not None else None,
-        headers={"Authorization": f"{scheme} {token}", "Content-Type": "application/json"},
-    )
-    with urllib.request.urlopen(req, timeout=15) as r:
-        raw = r.read()
-        return json.loads(raw) if raw else None
+def bb(path, method="GET", body=None):
+    return napper.call(f"{napper.BB_URL}/api/{path}", napper.BB_TOKEN, method, body)
 
 
-def bb_all(path):
-    url = f"{BB_URL}/api/{path}"
-    out = []
-    while url:
-        page = call(url, BB_TOKEN)
-        out += page["results"]
-        url = page.get("next")
-    return out
+def get_child():
+    cs = napper.bb_all("children/")
+    return next((c for c in cs if not napper.CHILD_ID or str(c["id"]) == napper.CHILD_ID), None)
 
 
-# ---------- Forudsigelse ----------
-def default_window(age_days):
-    """Groft vågenvindue (minutter) efter alder - bruges kun til der er data nok."""
-    months = age_days / 30.4
-    for limit, mins in [(2, 60), (3, 75), (4, 90), (6, 120), (9, 150), (12, 180), (18, 210)]:
-        if months < limit:
-            return mins
-    return 270
+def nap_guess(start):
+    return not (start.hour >= 18 or start.hour < 5)
 
 
-def predict(sleeps, birth_date, now):
-    """sleeps: liste af dicts med id, start, end (datetime), nap (bool)."""
-    sleeps = sorted(sleeps, key=lambda s: s["start"])
-    if not sleeps:
-        return None
-
-    # Vågenvinduer pr. position på dagen (0 = morgen, 1 = efter 1. lur ...)
-    windows = {}
-    all_gaps = []
-    pos = 0
-    for prev, nxt in zip(sleeps, sleeps[1:]):
-        pos = 0 if not prev["nap"] else pos + 1
-        gap = (nxt["start"] - prev["end"]).total_seconds() / 60
-        if 20 < gap < 480:
-            windows.setdefault(pos, []).append(gap)
-            all_gaps.append(gap)
-
-    # Position for den næste søvn
-    last = sleeps[-1]
-    pos = 0
-    for s in sleeps:
-        pos = 0 if not s["nap"] else pos + 1
-
-    age_days = (now.date() - birth_date).days
-    samples = windows.get(pos, [])[-7:]
-    if len(samples) >= 3:
-        window, source = statistics.median(samples), f"eget mønster (position {pos})"
-    elif len(all_gaps) >= 5:
-        window, source = statistics.median(all_gaps[-15:]), "gennemsnit af alle vinduer"
-    else:
-        window, source = default_window(age_days), "aldersbaseret standard"
-
-    next_start = last["end"] + timedelta(minutes=window)
-
-    # Typisk sengetid = median af aftensøvne (kl. 17-24)
-    evenings = [
-        s["start"].hour * 60 + s["start"].minute
-        for s in sleeps
-        if not s["nap"] and s["start"].hour >= 17
-    ]
-    bed_min = int(statistics.median(evenings)) if len(evenings) >= 3 else DEFAULT_BEDTIME
-    bed = next_start.replace(hour=bed_min // 60, minute=bed_min % 60, second=0, microsecond=0)
-
-    if next_start >= bed - timedelta(minutes=60):
-        kind, when = "sengetid", bed
-    else:
-        kind, when = "lur", next_start
-
-    return {
-        "kind": kind,
-        "time": when,
-        "window_min": round(window),
-        "source": source,
-        "last_id": last["id"],
-    }
+def sleep_timer(cid):
+    return next((t for t in napper.bb_all(f"timers/?child={cid}") if t["name"] == TIMER), None)
 
 
-# ---------- Home Assistant ----------
-def ha_update(pred):
-    body = {
-        "state": pred["time"].isoformat(),
-        "attributes": {
-            "device_class": "timestamp",
-            "friendly_name": "Næste søvn",
-            "kind": pred["kind"],
-            "window_min": pred["window_min"],
-            "source": pred["source"],
-        },
-    }
-    call(f"{HA_URL}/api/states/sensor.baby_next_sleep", HA_TOKEN, "POST", body, scheme="Bearer")
+def last_sleep_end(cid, now):
+    since = (now - timedelta(days=3)).isoformat().replace("+", "%2B")
+    raw = napper.bb_all(f"sleep/?child={cid}&start_min={since}&limit=200")
+    return max((napper.parse(x["end"]) for x in raw if x.get("end")), default=None)
 
 
-def ha_notify(pred):
-    path = HA_NOTIFY.replace(".", "/", 1)
-    msg = f"Næste {pred['kind']} ca. kl. {pred['time'].astimezone(TZ):%H:%M}"
-    call(f"{HA_URL}/api/services/{path}", HA_TOKEN, "POST",
-         {"title": "Søvn", "message": msg}, scheme="Bearer")
-
-
-def load_state():
-    try:
-        with open(STATE_FILE) as f:
-            return json.load(f)
-    except (OSError, ValueError):
-        return {}
-
-
-def save_state(state):
-    os.makedirs(os.path.dirname(STATE_FILE), exist_ok=True)
-    with open(STATE_FILE, "w") as f:
-        json.dump(state, f)
-
-
-# ---------- Main ----------
-def parse(s):
-    return datetime.fromisoformat(s).astimezone(TZ)
-
-
-def main():
+@app.get("/api/status")
+def status():
     now = datetime.now(TZ)
-    children = bb_all("children/")
-    child = next((c for c in children if not CHILD_ID or str(c["id"]) == CHILD_ID), None)
-    if not child:
-        raise SystemExit("Intet barn fundet i Baby Buddy")
-    birth = date.fromisoformat(child["birth_date"])
+    c = get_child()
+    t = sleep_timer(c["id"])
+    since = (now - timedelta(days=napper.HISTORY_DAYS)).isoformat()
+    raw = napper.bb_all(f"sleep/?child={c['id']}&start_min={since.replace('+', '%2B')}&limit=200")
+    sleeps = [{"id": s["id"], "start": napper.parse(s["start"]), "end": napper.parse(s["end"]),
+               "nap": s["nap"]} for s in raw if s.get("end")]
+    pred = None if t else napper.predict(sleeps, date.fromisoformat(c["birth_date"]), now)
+    if pred:
+        pred["time"] = pred["time"].isoformat()
+    start = napper.parse(t["start"]) if t else None
+    return jsonify(
+        sleeping=bool(t),
+        since=start.isoformat() if start else None,
+        nap_guess=nap_guess(start or now),
+        awake_since=max((s["end"] for s in sleeps), default=None) and max(s["end"] for s in sleeps).isoformat(),
+        prediction=pred,
+        today=[{"start": s["start"].isoformat(), "end": s["end"].isoformat(), "nap": s["nap"]}
+               for s in sorted(sleeps, key=lambda s: s["start"]) if s["start"].date() == now.date()],
+    )
 
-    since = (now - timedelta(days=HISTORY_DAYS)).isoformat()
-    raw = bb_all(f"sleep/?child={child['id']}&start_min={urllib.parse.quote(since)}&limit=200")
-    sleeps = [
-        {"id": s["id"], "start": parse(s["start"]), "end": parse(s["end"]), "nap": s["nap"]}
-        for s in raw if s.get("end")
-    ]
 
-    pred = predict(sleeps, birth, now)
-    if not pred:
-        print("Ingen søvndata endnu")
-        return
-    print(f"Næste {pred['kind']}: {pred['time']:%a %H:%M} "
-          f"(vindue {pred['window_min']} min, {pred['source']})")
+@app.post("/api/start")
+def start():
+    c = get_child()
+    if sleep_timer(c["id"]):
+        return jsonify(ok=True)
+    now = datetime.now(TZ)
+    st, since = now, (request.get_json(silent=True) or {}).get("since")
+    if since:  # "HH:MM" = faldt i søvn kl.
+        try:
+            h, m = map(int, str(since).split(":")[:2])
+            st = now.replace(hour=h, minute=m, second=0, microsecond=0)
+        except ValueError:
+            return jsonify(ok=False, error="Ugyldigt tidspunkt"), 400
+        if st > now:
+            st -= timedelta(days=1)
+        last = last_sleep_end(c["id"], now)
+        if last and st < last:
+            return jsonify(ok=False, error=f"Forrige søvn sluttede kl. {last:%H:%M}"), 400
+    bb("timers/", "POST", {"child": c["id"], "name": TIMER, "start": st.isoformat()})
+    return jsonify(ok=True)
 
-    if not HA_URL:
-        return
-    ha_update(pred)
 
-    # Notifikation: kun i tidsvinduet, kun én gang, ikke hvis en timer kører
-    until = (pred["time"] - now).total_seconds() / 60
-    if not HA_NOTIFY or not (0 <= until <= LEAD_MIN):
-        return
+@app.post("/api/stop")
+def stop():
+    c = get_child()
+    t = sleep_timer(c["id"])
+    if not t:
+        return jsonify(ok=False, error="Ingen søvn i gang"), 409
+    now = datetime.now(TZ)
+    body = request.get_json(silent=True) or {}
+    s, e = napper.parse(t["start"]), now
+    if body.get("wake"):  # "HH:MM" = vågnede kl.
+        try:
+            h, m = map(int, str(body["wake"]).split(":")[:2])
+            e = now.replace(hour=h, minute=m, second=0, microsecond=0)
+        except ValueError:
+            return jsonify(ok=False, error="Ugyldigt tidspunkt"), 400
+        if e > now:  # fx 23:50 tastet lige efter midnat
+            e -= timedelta(days=1)
+        if e <= s:
+            return jsonify(ok=False, error=f"Søvnen startede kl. {s:%H:%M}"), 400
+    nap = body.get("nap", nap_guess(s))
+    bb("sleep/", "POST", {"child": c["id"], "start": s.isoformat(), "end": e.isoformat(), "nap": nap})
+    bb(f"timers/{t['id']}/", "DELETE")
+    return jsonify(ok=True)
+
+
+@app.post("/api/pump")
+def pump():
+    """Log en pumpning (ml). Kaldes fra Home Assistant via rest_command."""
+    data = request.get_json(silent=True) or {}
     try:
-        timers = bb_all(f"timers/?child={child['id']}")
-        if any(t.get("active") for t in timers):
-            return
-    except Exception:
-        pass
-    state = load_state()
-    if state.get("notified") != pred["last_id"]:
-        ha_notify(pred)
-        state["notified"] = pred["last_id"]
-        save_state(state)
+        amount = float(data.get("amount", 0))
+    except (TypeError, ValueError):
+        amount = 0
+    if not 0 < amount <= 1000:
+        return jsonify(ok=False, error="Ugyldig mængde"), 400
+    now = datetime.now(TZ).isoformat()
+    bb("pumping/", "POST", {"child": get_child()["id"], "amount": amount,
+                            "start": now, "end": now, "notes": data.get("notes", "")})
+    return jsonify(ok=True, amount=amount)
 
 
-if __name__ == "__main__":
-    main()
+@app.get("/manifest.json")
+def manifest():
+    return jsonify(name="Napper", short_name="Napper", start_url="/", display="standalone",
+                   background_color="#111418", theme_color="#111418")
+
+
+@app.get("/")
+def index():
+    return send_from_directory(".", "index.html")
+
+
+@app.errorhandler(Exception)
+def err(e):
+    return jsonify(ok=False, error=str(e)), 502
+
+
+def loop():
+    """Opdaterer HA-sensor og sender notifikationer (samme logik som napper.py)."""
+    while True:
+        try:
+            napper.main()
+        except Exception as e:
+            print("loop:", e, flush=True)
+        time.sleep(60)
+
+
+threading.Thread(target=loop, daemon=True).start()

@@ -1,7 +1,7 @@
 """Napper webapp: start/stop søvn + forudsigelse. Bruger napper.py som motor."""
-import threading, time
+import math, struct, threading, time, zlib
 from datetime import datetime, timedelta, date
-from flask import Flask, jsonify, request, send_from_directory
+from flask import Flask, Response, jsonify, request, send_from_directory
 import napper
 
 app = Flask(__name__)
@@ -160,10 +160,57 @@ def feed():
     return jsonify(ok=True)
 
 
+def make_icon(n=512):
+    """Hjemmeskærm-ikon (PNG) tegnet uden eksterne biblioteker: måne og stjerner på natblå."""
+    def mix(a, b, t):
+        return tuple(a[i] + (b[i] - a[i]) * t for i in range(3))
+
+    def shade(x, y):
+        c = mix((34, 52, 107), (10, 16, 34), y)
+        g = max(0.0, 1 - math.hypot(x - .5, y - .5) / .55)
+        c = mix(c, (110, 160, 255), .30 * g * g)
+        if math.hypot(x - .47, y - .52) < .27 and math.hypot(x - .58, y - .43) >= .23:
+            return mix((243, 246, 255), (157, 182, 255), (x + y) / 2)
+        for sx, sy, r in ((.68, .36, .07), (.80, .56, .04), (.30, .24, .035)):
+            if (abs(x - sx) / r) ** .5 + (abs(y - sy) / r) ** .5 < 1:
+                return (255, 226, 138)
+        return c
+
+    rows = bytearray()
+    for j in range(n):
+        rows.append(0)
+        for i in range(n):
+            acc = [0, 0, 0]
+            for dx in (.25, .75):
+                for dy in (.25, .75):
+                    p = shade((i + dx) / n, (j + dy) / n)
+                    for k in range(3):
+                        acc[k] += p[k]
+            rows += bytes(int(v / 4) for v in acc)
+
+    def chunk(t, d):
+        return struct.pack(">I", len(d)) + t + d + struct.pack(">I", zlib.crc32(t + d))
+
+    return (b"\x89PNG\r\n\x1a\n" + chunk(b"IHDR", struct.pack(">IIBBBBB", n, n, 8, 2, 0, 0, 0))
+            + chunk(b"IDAT", zlib.compress(bytes(rows), 9)) + chunk(b"IEND", b""))
+
+
+_icon = []
+
+
+@app.get("/icon.png")
+@app.get("/apple-touch-icon.png")
+def icon():
+    if not _icon:
+        _icon.append(make_icon())
+    return Response(_icon[0], mimetype="image/png", headers={"Cache-Control": "public, max-age=86400"})
+
+
 @app.get("/manifest.json")
 def manifest():
-    return jsonify(name="Napper", short_name="Napper", start_url="/", display="standalone",
-                   background_color="#111418", theme_color="#111418")
+    return jsonify(name="Folke-App", short_name="Folke-App", start_url="/", display="standalone",
+                   background_color="#0a1022", theme_color="#0a1022",
+                   icons=[{"src": "/icon.png", "sizes": "512x512", "type": "image/png"}])
 
 
 @app.get("/")

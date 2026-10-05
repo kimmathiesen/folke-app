@@ -85,6 +85,15 @@ header{position:relative}
 #gnote{margin:16px 4px 0;color:var(--mut);font-size:13px;text-align:left}#gadd{margin-top:14px}
 #glist{list-style:none;margin:16px 0 0}#glist li{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:12px 0;border-top:1px solid var(--line);cursor:pointer}#glist li:first-child{border:0}
 .sw select{background:rgba(255,255,255,.06);color:var(--fg);border:1px solid var(--line);border-radius:10px;padding:8px 10px;font-size:15px}
+/* iPad på højkant: én bredere kolonne */
+@media (min-width:600px){main{max-width:600px}#dial{width:min(100%,420px)}
+#sheet,#gsheet{align-items:center}.sh{border-radius:24px;max-width:480px}}
+/* iPad på langs og pc: ring til venstre (bliver stående), kort til højre */
+@media (min-width:900px){main{max-width:1040px}
+#v-main{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);column-gap:40px;align-items:start}
+#v-main>header{grid-column:1/-1}#v-main>#sug{grid-column:1/-1;max-width:600px;margin:16px auto 0;width:100%}
+.colA{position:sticky;top:calc(env(safe-area-inset-top) + 16px)}.colB>.card:first-child{margin-top:6px}
+#v-settings,#v-growth{max-width:640px;margin:0 auto}}
 </style></head><body><main><div id="v-main">
 <header>
 <a href="#indstillinger" id="setbtn" aria-label="Indstillinger"><svg viewBox="0 0 24 24"><path d="M4 6h9M17 6h3M4 12h3M11 12h9M4 18h11M19 18h1"/><circle cx="15" cy="6" r="2"/><circle cx="9" cy="12" r="2"/><circle cx="17" cy="18" r="2"/></svg>Indstillinger</a>
@@ -98,6 +107,7 @@ header{position:relative}
 </header>
 <div id="sug" class="card" hidden><div class="t"><span>Forslag</span><b id="sugt" style="display:block"></b></div>
 <div class="seg"><button id="sy">Ja, gør det</button><button id="sl">Ikke nu</button><button id="sn">Aldrig</button></div></div>
+<div class="colA">
 <div id="dial"><svg viewBox="0 0 360 400" role="img" aria-label="Dagens rytme"><defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#6ea0ff"/><stop offset="1" stop-color="#8b7cf6"/></linearGradient></defs>
 <circle cx="180" cy="200" r="88" fill="none" stroke="rgba(255,255,255,.06)" stroke-width="9"/>
 <g id="seg" fill="none" stroke-width="14"></g><g id="dyn"></g>
@@ -110,6 +120,8 @@ header{position:relative}
 <div class="lg"><span><i style="background:#a9c2ff"></i>Lur</span><span><i style="background:#8b7cf6"></i>Nat</span><span><i style="border:1.5px dashed #e9edf8"></i>Forventet næste</span></div>
 <button id="btn" disabled>…</button>
 <div id="type" hidden><button data-n="1">Lur</button><button data-n="0">Nat</button></div>
+</div>
+<div class="colB">
 <div id="late" class="card"><div class="row"><svg class="ic" viewBox="0 0 24 24"><path d="M3 20V6M21 20V6M3 12h18M3 17h18M7 12V9a2 2 0 0 1 2-2h6a2 2 0 0 1 2 2v3"/></svg>
 <div class="t"><b>Glemte du at trykke?</b><span>Faldt i søvn kl.</span></div><input type="time" id="st"></div><button class="go" id="lb" hidden>Gem</button></div>
 <div id="wake" class="card" hidden><div class="row"><svg class="ic" viewBox="0 0 24 24"><path d="M3 20V6M21 20V6M3 12h18M3 17h18M7 12V9a2 2 0 0 1 2-2h6a2 2 0 0 1 2 2v3"/></svg>
@@ -133,6 +145,7 @@ header{position:relative}
 <div id="err"></div>
 <div id="day" class="card" hidden><div class="dh"><div class="dl"><svg class="ic" viewBox="0 0 24 24"><rect x="4" y="5" width="16" height="15" rx="2"/><path d="M4 10h16M9 3v4M15 3v4"/></svg>Dagens søvn</div><span id="dd"></span></div>
 <ul id="tl"></ul><div class="sum"><span>Samlet søvn</span><b id="tot"></b></div></div>
+</div>
 </div>
 <div id="v-settings" hidden>
 <div class="gh"><a href="#">‹ Tilbage</a><div class="dl">Indstillinger</div><span></span></div>

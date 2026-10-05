@@ -1,8 +1,9 @@
 import FolkeCore
 import SwiftUI
 
-/// Første opstart (`#onb` i index.html): barnets navn, fødselsdato og «Jeg er mor/far».
-/// Fødselsdato spørges kun om, hvis der ikke er et barn endnu (fx delt fra partneren).
+/// Første opstart (`#onb` i index.html): barnets navn, fødselsdato, dreng/pige og «Jeg er mor/far».
+/// Fødselsdato og køn spørges kun om, hvis der ikke er et barn endnu (fx delt fra partneren).
+/// Kønnet bestemmer vækstkurverne og kan ændres under Indstillinger.
 struct OnboardingView: View {
     @Environment(AppModel.self) private var model
     @Environment(\.muted) private var muted
@@ -10,6 +11,7 @@ struct OnboardingView: View {
     @State private var birth = Date.now
     @State private var birthChosen = false
     @State private var role: Role?
+    @State private var sex: Sex?
     @State private var error = ""
 
     var body: some View {
@@ -37,6 +39,9 @@ struct OnboardingView: View {
                         .frame(maxWidth: .infinity, maxHeight: 150)
                         .clipped()
                         .environment(\.locale, Locale(identifier: "da_DK"))
+
+                    label("Barnet er")
+                    Segmented(options: [(Sex.boy, "Dreng"), (.girl, "Pige")], selection: $sex).padding(.top, 8)
                 }
 
                 label("Jeg er")
@@ -77,9 +82,10 @@ struct OnboardingView: View {
         guard !name.trimmingCharacters(in: .whitespaces).isEmpty else { return error = "Skriv barnets navn" }
         guard let clean = Format.cleanName(name) else { return error = "Skriv barnets navn (højst 40 tegn)" }
         if !model.snapshot.hasChild && !birthChosen { return error = "Vælg fødselsdato" }
+        if !model.snapshot.hasChild && sex == nil { return error = "Vælg, om barnet er en dreng eller pige" }
         guard let role else { return error = "Vælg, om du er mor eller far" }
         error = ""
-        model.finishOnboarding(name: clean, birthDate: birth, role: role)
+        model.finishOnboarding(name: clean, birthDate: birth, sex: sex ?? .boy, role: role)
     }
 }
 

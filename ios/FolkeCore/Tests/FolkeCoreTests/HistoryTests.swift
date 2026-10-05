@@ -45,6 +45,17 @@ import Testing
         #expect(s.growthPoints().count == 1)
     }
 
+    @Test func koenVedOprettelseGiverKurverne() throws {
+        let s = try FolkeStore(inMemory: true)
+        s.calendar = cph
+        try s.createChild(name: "Ida", birthDate: day(2026, 1, 1), sex: .girl)
+        try s.saveGrowth(date: day(2026, 1, 1), values: [.weight: 3.2322], now: d)
+        // Pigernes median ved fødslen er 50. percentil, drengenes ville give en lavere
+        #expect(s.growthPoints()[0].percentiles[.weight] == 50)
+        #expect(WHO.percentile(.weight, .boy, month: 0, value: 3.2322)! < 50)
+        #expect(s.suggestions(now: day(2026, 7, 10)).first?.text.hasPrefix("Hun er nu 6 måneder") == true)
+    }
+
     @Test func udpumpningPrDag() throws {
         let s = try store()
         let now = at(d, 15, 0)

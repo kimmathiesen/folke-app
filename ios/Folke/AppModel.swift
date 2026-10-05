@@ -267,13 +267,13 @@ final class AppModel {
         refresh()
     }
 
-    func finishOnboarding(name: String, birthDate: Date?, role: Role) {
+    func finishOnboarding(name: String, birthDate: Date?, sex: Sex, role: Role) {
         perform {
             if let child = store.child() {
                 child.name = name
                 try store.save()
             } else {
-                try store.createChild(name: name, birthDate: birthDate ?? .now)
+                try store.createChild(name: name, birthDate: birthDate ?? .now, sex: sex)
             }
             self.role = role
         }

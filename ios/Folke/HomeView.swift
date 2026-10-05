@@ -14,17 +14,19 @@ struct HomeView: View {
                     if g.size.width >= 900 {
                         VStack(spacing: 0) {
                             header
+                            suggestion.frame(maxWidth: 600)
                             HStack(alignment: .top, spacing: 40) {
                                 dialColumn(now: tl.date, maxDial: 420)
-                                cards.padding(.top, 6)
+                                cards(now: tl.date).padding(.top, 6)
                             }
                         }
                         .frame(maxWidth: 1040)
                     } else {
                         VStack(spacing: 0) {
                             header
+                            suggestion
                             dialColumn(now: tl.date, maxDial: g.size.width >= 600 ? 420 : 360)
-                            cards
+                            cards(now: tl.date)
                         }
                         .frame(maxWidth: g.size.width >= 600 ? 600 : 440)
                     }
@@ -33,6 +35,7 @@ struct HomeView: View {
                 .contentMargins(.horizontal, 18, for: .scrollContent)
                 .contentMargins(.bottom, 28, for: .scrollContent)
                 .scrollIndicators(.hidden)
+                .scrollDismissesKeyboard(.interactively)
             }
         }
     }
@@ -113,13 +116,28 @@ struct HomeView: View {
         .sensoryFeedback(.impact, trigger: sleeping)
     }
 
-    @ViewBuilder var cards: some View {
-        VStack(spacing: 16) {
-            if let p = model.snapshot.prediction {
+    @ViewBuilder var suggestion: some View {
+        if let sg = model.snapshot.suggestion {
+            SuggestionCard(suggestion: sg).padding(.top, 16)
+        }
+    }
+
+    func cards(now: Date) -> some View {
+        let s = model.snapshot
+        return VStack(spacing: 16) {
+            ForgotCard(sleeping: s.running != nil)
+            if let p = s.prediction {
                 PredictionCard(prediction: p)
+            }
+            FeedCard(now: now)
+            if s.featurePump {
+                PumpCard(now: now)
             }
             if let e = model.error {
                 Text(e).font(.system(size: 14)).foregroundStyle(Color.errorText)
+            }
+            if !s.today.isEmpty {
+                DayCard(now: now)
             }
         }
         .padding(.top, 16)
@@ -134,13 +152,10 @@ struct PredictionCard: View {
 
     var body: some View {
         HStack(spacing: 14) {
-            Image(systemName: "face.smiling")
-                .font(.system(size: 34, weight: .ultraLight))
-                .foregroundStyle(muted)
-                .frame(width: 46, height: 46)
+            CardIcon(name: "face.smiling", size: 46)
             VStack(alignment: .leading, spacing: 2) {
                 Text("Næste \(prediction.kind.rawValue)").font(.system(size: 14)).foregroundStyle(muted)
-                Text("ca. kl. \(Format.clock(prediction.time))")
+                Text("ca. kl. \(Format.time(prediction.time))")
                     .font(.system(size: 26, weight: .semibold)).foregroundStyle(Color.fg)
                 Text("Vindue \(prediction.windowMin) min · \(prediction.source.text)")
                     .font(.system(size: 14)).foregroundStyle(muted)

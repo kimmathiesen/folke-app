@@ -18,6 +18,12 @@ struct Snapshot {
     var awakeSince: Date?
     var prediction: Prediction?
     var today: [Item] = []
+    var featureBreast = true
+    var featureSolids = false
+    var featurePump = true
+    var lastFeed: (kind: FeedKind, amountMl: Double, time: Date)?
+    var pump = PumpSummary(todayCount: 0, todayMl: 0, last: nil)
+    var suggestion: Suggestions.Suggestion?
 }
 
 @MainActor @Observable
@@ -47,10 +53,11 @@ final class AppModel {
     static func live() -> AppModel {
         do {
             #if DEBUG
-            // Skærmbilleder i simulatoren: start med `-demoData YES` for et barn på 4 mdr. og 10 dages søvn i hukommelsen
+            // Skærmbilleder i simulatoren: start med `-demoData YES` (og evt. `-demoMonths 7`) for et barn på 4 mdr. og 10 dages søvn i hukommelsen
             if UserDefaults.standard.bool(forKey: "demoData") {
                 let store = try FolkeStore(inMemory: true)
-                try store.seedDemo()
+                let months = UserDefaults.standard.integer(forKey: "demoMonths")
+                try store.seedDemo(months: months > 0 ? months : 4)
                 return AppModel(store: store)
             }
             #endif
@@ -80,6 +87,16 @@ final class AppModel {
             guard let id = x.id, let start = x.start, let end = x.end else { return nil }
             return .init(id: id, start: start, end: end, nap: x.nap)
         }
+        if let set = store.settings() {
+            s.featureBreast = set.featureBreast
+            s.featureSolids = set.featureSolids
+            s.featurePump = set.featurePump
+        }
+        if let f = store.lastFeeding(now: now), let t = f.time, let k = f.kind.flatMap(FeedKind.init(rawValue:)) {
+            s.lastFeed = (k, f.amountMl, t)
+        }
+        s.pump = store.pumpSummary(now: now)
+        s.suggestion = store.suggestions(now: now).first
         snapshot = s
     }
 
@@ -88,14 +105,18 @@ final class AppModel {
         napSelection ?? snapshot.running.map { Predictor.napGuess($0.start) } ?? Predictor.napGuess(.now)
     }
 
-    private func perform(_ action: () throws -> Void) {
+    /// Udfør en handling, vis en eventuel fejl, og opdatér forsiden. Giver true, hvis det lykkedes.
+    @discardableResult
+    private func perform(_ action: () throws -> Void) -> Bool {
+        defer { refresh() }
         do {
             try action()
             error = nil
+            return true
         } catch {
             self.error = (error as? LocalizedError)?.errorDescription ?? error.localizedDescription
+            return false
         }
-        refresh()
     }
 
     func toggleSleep() {
@@ -106,6 +127,58 @@ final class AppModel {
                 try store.startSleep(by: role)
             }
         }
+    }
+
+    /// «Glemte du at trykke?»: faldt i søvn eller vågnede kl. (i går, hvis tidspunktet ligger i fremtiden).
+    func forgot(_ time: Date) {
+        let c = Calendar.current.dateComponents([.hour, .minute], from: time)
+        let t = SleepRules.resolve(hour: c.hour ?? 0, minute: c.minute ?? 0, now: .now)
+        perform {
+            if snapshot.running != nil {
+                try store.stopSleep(at: t, nap: isNap)
+            } else {
+                try store.startSleep(at: t, by: role)
+            }
+        }
+    }
+
+    /// Et valgfrit klokkeslæt («Tidspunkt (valgfrit)»): i dag, eller i går, hvis det ligger i fremtiden.
+    static func resolve(_ time: Date?) -> Date? {
+        time.map {
+            let c = Calendar.current.dateComponents([.hour, .minute], from: $0)
+            return SleepRules.resolve(hour: c.hour ?? 0, minute: c.minute ?? 0, now: .now)
+        }
+    }
+
+    func editSleep(id: UUID, start: Date, end: Date, nap: Bool) -> String? {
+        guard let s = store.sleep(id: id) else { return nil }
+        do {
+            try store.editSleep(s, start: start, end: end, nap: nap)
+            refresh()
+            return nil
+        } catch {
+            return (error as? LocalizedError)?.errorDescription ?? error.localizedDescription
+        }
+    }
+
+    func deleteSleep(id: UUID) {
+        guard let s = store.sleep(id: id) else { return }
+        perform { try store.delete(s) }
+    }
+
+    @discardableResult
+    func feed(_ kind: FeedKind, amountMl: Double? = nil, milk: Milk = .breast, note: String = "", at time: Date?) -> Bool {
+        perform { try store.addFeeding(kind, amountMl: amountMl, milk: milk, note: note, at: Self.resolve(time)) }
+    }
+
+    @discardableResult
+    func pump(amountMl: Double, side: Side?, minutes: Double?, at time: Date?) -> Bool {
+        perform { try store.addPumping(amountMl: amountMl, side: side, minutes: minutes, at: Self.resolve(time)) }
+    }
+
+    func answer(_ answer: Suggestions.Answer) {
+        guard let id = snapshot.suggestion?.id else { return }
+        perform { try store.answer(id, answer) }
     }
 
     func finishOnboarding(name: String, birthDate: Date?, role: Role) {

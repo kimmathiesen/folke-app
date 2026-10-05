@@ -3,3 +3,4 @@ xcuserdata/
 .swiftpm/
 DerivedData/
 *.xcuserstate
+.DS_Store

@@ -71,12 +71,14 @@ struct Segmented<T: Hashable>: View {
     var options: [(T, String)]
     @Binding var selection: T?
     var pill = false
+    /// Et tryk mere på den valgte knap fravælger den (som side ved udpumpning).
+    var toggles = false
 
     var body: some View {
         HStack(spacing: 8) {
             ForEach(options, id: \.0) { value, label in
                 let on = selection == value
-                Button { selection = value } label: {
+                Button { selection = toggles && on ? nil : value } label: {
                     Text(label)
                         .font(.system(size: pill ? 15 : 16))
                         .padding(.vertical, pill ? 8 : 12)

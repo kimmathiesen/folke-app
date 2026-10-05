@@ -13,6 +13,40 @@ public enum Format {
         return String(format: "%02d:%02d", c.hour ?? 0, c.minute ?? 0)
     }
 
+    /// "13.40": klokkeslæt i UI'et (dansk format som `hm` i index.html). Notifikationer og fejl bruger `clock`.
+    public static func time(_ d: Date, calendar: Calendar = .current) -> String {
+        clock(d, calendar: calendar).replacingOccurrences(of: ":", with: ".")
+    }
+
+    /// "for 1 t 10 min siden" uden «for» og «siden» (som `ago` i index.html).
+    public static func ago(_ d: Date, now: Date) -> String {
+        duration(minutes: max(0, Int(now.timeIntervalSince(d) / 60)))
+    }
+
+    /// Linjen med sidste måltid: «Flaske 120 ml kl. 14.05 · for 1 t 10 min siden».
+    public static func lastFeed(kind: FeedKind, amountMl: Double, time: Date, now: Date,
+                                calendar: Calendar = .current) -> String {
+        let name = switch kind {
+        case .bottle: "Flaske"
+        case .left: "Amning, venstre"
+        case .right: "Amning, højre"
+        case .both: "Amning"
+        case .solid: "Fast føde"
+        }
+        let ml = amountMl > 0 ? " \(Int(amountMl.rounded())) ml" : ""
+        return "\(name)\(ml) kl. \(Format.time(time, calendar: calendar)) · for \(ago(time, now: now)) siden"
+    }
+
+    /// «I dag: 3 gange · 340 ml · sidst kl. 14.20 · for 1 t 5 min siden» (som `pumpUI` i index.html).
+    public static func pumpSummary(_ s: PumpSummary, now: Date, calendar: Calendar = .current) -> String {
+        let last = s.last.map { "sidst kl. \(Format.time($0, calendar: calendar)) · for \(ago($0, now: now)) siden" }
+        if s.todayCount > 0 {
+            return "I dag: \(s.todayCount) \(s.todayCount > 1 ? "gange" : "gang") · \(s.todayMl) ml"
+                + (last.map { " · " + $0 } ?? "")
+        }
+        return last.map { "Ingen i dag · " + $0 } ?? "Ingen udpumpninger endnu"
+    }
+
     /// "45 min" eller "1 t 20 min" (som `dur` i index.html).
     public static func duration(minutes m: Int) -> String {
         m < 60 ? "\(m) min" : "\(m / 60) t \(m % 60) min"
@@ -40,6 +74,26 @@ public enum Format {
     public static func cleanName(_ s: String) -> String? {
         let name = s.split(whereSeparator: \.isWhitespace).joined(separator: " ")
         return (1...40).contains(name.count) ? name : nil
+    }
+}
+
+/// Dagens søvn i listen: farve og ikon efter tidspunkt (`TL` i index.html).
+public enum DayPart: Sendable {
+    case night, morning, day, evening
+
+    public static func of(start: Date, nap: Bool, calendar: Calendar = .current) -> DayPart {
+        guard nap else { return .night }
+        let h = calendar.component(.hour, from: start)
+        return h < 11 ? .morning : h < 15 ? .day : .evening
+    }
+
+    public var color: RGB {
+        switch self {
+        case .night: RGB(hex: "#7c6ff0")
+        case .morning: RGB(hex: "#e0a63c")
+        case .day: RGB(hex: "#3f9be0")
+        case .evening: RGB(hex: "#e8814f")
+        }
     }
 }
 

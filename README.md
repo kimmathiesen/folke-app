@@ -12,7 +12,8 @@ Selfhostet baby-tracker oven på [Baby Buddy](https://github.com/babybuddy/babyb
 - **Vækst:** egen side (knap øverst til højre) med vægt, længde og hovedomfang på WHO's kurver (2006), 3.-97. percentil. Gemmes i `growth.json`, kurvedata ligger i `who.py`
 - **Udpumpning:** kort på forsiden (ml, tidspunkt og i stand-alone også side og minutter) med dagens total. Egen side med graf over 14 dage og en liste, hvor man kan rette og slette. Påmindelse via Home Assistant efter et valgfrit antal timer (ikke mellem 22 og 7). Kan slås fra under Indstillinger. `POST /api/pump` virker stadig fra Home Assistant
 - **Forslag:** appen foreslår at tilføje eller skjule funktioner efter alder og brug (fast føde ved 6 mdr., skjul amning efter 3 uger uden). Intet ændres uden svar. Alt kan ændres under *Indstillinger* (knap øverst til venstre)
-- **Home Assistant:** opdaterer `sensor.baby_next_sleep` og sender notifikation før næste søvn
+- **Notifikationer:** besked før næste lur/sengetid og påmindelse om udpumpning. Via web push direkte til telefonen (Indstillinger → *Notifikationer på denne enhed*) og/eller via Home Assistant
+- **Home Assistant:** opdaterer `sensor.baby_next_sleep` og kan sende notifikationer
 
 ## Opbygning
 
@@ -80,6 +81,7 @@ Læg `unraid/my-napper.xml` i `/boot/config/plugins/dockerMan/templates-user/`, 
 | `POST /api/pump/<id>` / `DELETE` | Ret eller slet en udpumpning |
 | `GET /api/pump/history?days=14` | Ml pr. dag og de enkelte udpumpninger |
 | `POST /api/pump/remind` | `{"hours": 3}` (0 = fra) |
+| `GET /api/push/key`, `POST /api/push/subscribe`, `/unsubscribe`, `/test` | Web push pr. enhed |
 | `GET/POST /api/growth`, `POST/DELETE /api/growth/<id>` | Vækstmålinger og kurver |
 | `POST /api/suggestion`, `POST /api/feature` | Svar på forslag, slå funktioner til/fra |
 | `POST /api/import` | Kun SQLite: hent alt fra Baby Buddy igen |
@@ -100,6 +102,16 @@ Med `BACKEND=sqlite` gemmer appen alt i `/data/folke.db` og behøver ikke Baby B
 3. Stop den gamle `folke-app` (og byt evt. port til 6660).
 
 Baby Buddy kan blive stående som arkiv.
+
+## Push-notifikationer
+
+Virker uden Home Assistant. Kræver https, fx via cloudflared eller Tailscale.
+
+1. Åbn appen i Safari på https-adressen, og vælg *Del → Føj til hjemmeskærm*. På iPhone virker push kun fra hjemmeskærmen (iOS 16.4+).
+2. Åbn appen fra hjemmeskærmen, gå til *Indstillinger → Notifikationer på denne enhed*, og tryk *Slå til*.
+3. Tryk *Send test*.
+
+Gentag på hver enhed. Nøglen (`vapid.pem`) og enhederne (`push.json`) ligger i `/data`. Mistes `vapid.pem`, skal hver enhed slå notifikationer til igen.
 
 ## Home Assistant
 

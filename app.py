@@ -2,10 +2,11 @@
 import json, math, os, struct, threading, time, zlib
 from datetime import datetime, timedelta, date
 from flask import Flask, Response, jsonify, request, send_from_directory
-import napper, store, who
+import napper, push, store, who
 
 app = Flask(__name__)
 TZ = napper.TZ
+napper.push = push
 
 
 def db():
@@ -60,7 +61,8 @@ def status():
         last_feed=last_feed,
         pump=pump_summary(c["id"], now),
         pump_remind=prefs()["pump_remind"],
-        ha=bool(napper.HA_URL and napper.HA_NOTIFY),
+        can_notify=napper.can_notify(),
+        push_devices=len(push.load()),
         features=prefs()["features"],
         sex=prefs()["sex"],
         suggestions=current_suggestions(c, now, prefs()),
@@ -247,11 +249,11 @@ QUIET = (22, 7)  # ingen påmindelser om udpumpning mellem 22 og 7
 
 
 def pump_reminder(now):
-    """Notifikation via Home Assistant, når der er gået `pump_remind` timer siden sidste udpumpning.
+    """Notifikation (Home Assistant og/eller push), når der er gået `pump_remind` timer siden sidste udpumpning.
     Én gang pr. udpumpning, og ikke om natten."""
     p = prefs()
     h = p["pump_remind"]
-    if not (h and p["features"]["pump"] and napper.HA_URL and napper.HA_NOTIFY):
+    if not (h and p["features"]["pump"] and napper.can_notify()):
         return False
     if now.hour >= QUIET[0] or now.hour < QUIET[1]:
         return False
@@ -574,6 +576,41 @@ def manifest():
     return jsonify(name="Folke-App", short_name="Folke-App", start_url="/", display="standalone",
                    background_color="#0a1022", theme_color="#0a1022",
                    icons=[{"src": "/icon.png", "sizes": "512x512", "type": "image/png"}])
+
+
+# ---------- Web push ----------
+@app.get("/api/push/key")
+def push_key():
+    return jsonify(key=push.public_key())
+
+
+@app.post("/api/push/subscribe")
+def push_subscribe():
+    d = request.get_json(silent=True) or {}
+    try:
+        n = push.subscribe(d.get("subscription"), d.get("origin", ""), d.get("name", ""))
+    except ValueError as e:
+        return jsonify(ok=False, error=str(e)), 400
+    return jsonify(ok=True, devices=n)
+
+
+@app.post("/api/push/unsubscribe")
+def push_unsubscribe():
+    push.unsubscribe((request.get_json(silent=True) or {}).get("endpoint", ""))
+    return jsonify(ok=True)
+
+
+@app.post("/api/push/test")
+def push_test():
+    n = push.send("Folke-App", "Notifikationer virker på denne enhed.")
+    return jsonify(ok=bool(n), sent=n, **({} if n else {"error": "Ingen enheder fik beskeden"}))
+
+
+@app.get("/sw.js")
+def service_worker():
+    r = send_from_directory(".", "sw.js", mimetype="application/javascript")
+    r.headers["Cache-Control"] = "no-cache"
+    return r
 
 
 @app.get("/")

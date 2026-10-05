@@ -84,7 +84,7 @@ header{position:relative}
 #gsvg,#psvg{display:block;width:100%;height:auto}#gsvg text,#psvg text{fill:var(--mut);font-size:11px}#gsum,#psum2{margin-top:8px;font-size:15px}
 #gnote{margin:16px 4px 0;color:var(--mut);font-size:13px;text-align:left}#gadd{margin-top:14px}
 #glist,#plist{list-style:none;margin:16px 0 0}#plist li,#glist li{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:12px 0;border-top:1px solid var(--line);cursor:pointer}#glist li:first-child,#plist li:first-child{border:0}
-.more{flex:none;color:var(--acc);text-decoration:none;font-size:14px}#pnote{margin:16px 4px 0;color:var(--mut);font-size:13px;text-align:left}#premnote{font-size:13px;color:var(--mut);margin-top:6px;text-align:left}
+.more{flex:none;color:var(--acc);text-decoration:none;font-size:14px}#pnote{margin:16px 4px 0;color:var(--mut);font-size:13px;text-align:left}#premnote,#pushmsg{font-size:13px;color:var(--mut);margin-top:6px;text-align:left}#pushst{color:var(--mut);font-size:14px;text-align:right;max-width:60%}
 .sw select{background:rgba(255,255,255,.06);color:var(--fg);border:1px solid var(--line);border-radius:10px;padding:8px 10px;font-size:15px}
 /* iPad på højkant: én bredere kolonne */
 @media (min-width:600px){main{max-width:600px}#dial{width:min(100%,420px)}
@@ -159,7 +159,8 @@ header{position:relative}
 <div class="card"><div class="dl">Tilpas</div><label class="sw">Amning i Mad-kortet<input type="checkbox" id="cb"></label><label class="sw">Fast føde i Mad-kortet<input type="checkbox" id="cs"></label>
 <label class="sw">Udpumpning<input type="checkbox" id="cp"></label>
 <label class="sw" id="premrow">Påmind om udpumpning<select id="prem"><option value="0">Fra</option><option value="2">efter 2 t</option><option value="2.5">efter 2½ t</option><option value="3">efter 3 t</option><option value="3.5">efter 3½ t</option><option value="4">efter 4 t</option><option value="5">efter 5 t</option><option value="6">efter 6 t</option></select></label>
-<div id="premnote" hidden>Påmindelser kræver Home Assistant (HA_URL og HA_NOTIFY). Ingen påmindelser mellem 22 og 7.</div>
+<div id="premnote" hidden>Påmindelser kræver notifikationer: slå dem til herunder (eller brug Home Assistant). Ingen påmindelser mellem 22 og 7.</div>
+<label class="sw">Notifikationer på denne enhed<span id="pushst"></span></label><div class="seg" style="margin-top:10px"><button id="pushbtn" hidden>Slå til</button><button id="pushtest" hidden>Send test</button></div><div id="pushmsg"></div>
 <label class="sw">Vækstkurver<select id="sx"><option value="boy">Dreng</option><option value="girl">Pige</option></select></label>
 <div id="dsrc" hidden><label class="sw">Data<span>Lokal (SQLite)</span></label><div class="seg" style="margin-top:10px"><button id="imp">Importér fra Baby Buddy</button><button id="exp">Eksportér</button></div><div id="impmsg" class="dl" style="margin-top:8px"></div></div></div>
 </div>
@@ -208,7 +209,7 @@ async function api(p,body,method='POST'){const r=await fetch(p,body===undefined?
 headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
 const j=await r.json();if(!r.ok)throw new Error(j.error||r.status);return j}
 const isNap=()=>napSel??S.nap_guess;
-async function load(){try{S=await api('/api/status');$('err').textContent='';const F=S.features||{};$('cb').checked=!!F.breast;$('cs').checked=!!F.solids;$('sx').value=S.sex||'boy';$('dsrc').hidden=S.backend!=='sqlite';$('cp').checked=!!F.pump;$('prem').value=String(S.pump_remind||0);$('premrow').hidden=!F.pump;$('premnote').hidden=!F.pump||!!S.ha;$('imp').hidden=!S.can_import;
+async function load(){try{S=await api('/api/status');$('err').textContent='';const F=S.features||{};$('cb').checked=!!F.breast;$('cs').checked=!!F.solids;$('sx').value=S.sex||'boy';$('dsrc').hidden=S.backend!=='sqlite';$('cp').checked=!!F.pump;$('prem').value=String(S.pump_remind||0);$('premrow').hidden=!F.pump;$('premnote').hidden=!F.pump||!!S.can_notify;$('imp').hidden=!S.can_import;
 if(S.sleeping){$('st').value='';$('lb').hidden=true}else{napSel=null;$('wt').value='';$('wb').hidden=true}}
 catch(e){$('err').textContent=e.message}render()}
 function render(){if(!S)return;const sl=S.sleeping,p=S.prediction,b=sl?S.since:S.awake_since;let secs=0;
@@ -285,7 +286,7 @@ try{await api('/api/sleep/'+ed.id,{},'DELETE');$('sheet').hidden=true;ed=null;lo
 let G=null,gk='w',gid=null,garm=false;
 const GL={w:['Vægt','kg'],l:['Længde','cm'],h:['Hoved','cm']},nf=v=>v.toLocaleString('da-DK',{maximumFractionDigits:2}),dc=v=>v==null?'':String(v).replace('.',',');
 const gdate=d=>new Date(d+'T12:00').toLocaleDateString('da-DK',{day:'numeric',month:'short',year:'numeric'});
-function route(){const h=location.hash,g=h==='#vaekst',s=h==='#indstillinger',u=h==='#pumpning';$('v-main').hidden=g||s||u;$('v-growth').hidden=!g;$('v-settings').hidden=!s;$('v-pump').hidden=!u;if(g||s||u)scrollTo(0,0);if(g)loadG();if(u)loadP()}
+function route(){const h=location.hash,g=h==='#vaekst',s=h==='#indstillinger',u=h==='#pumpning';$('v-main').hidden=g||s||u;$('v-growth').hidden=!g;$('v-settings').hidden=!s;$('v-pump').hidden=!u;if(g||s||u)scrollTo(0,0);if(s)pushUI();if(g)loadG();if(u)loadP()}
 async function loadG(){try{G=await api('/api/growth');$('gerr').textContent=''}catch(e){$('gerr').textContent=e.message}drawG()}
 function drawG(){if(!G)return;
 document.querySelectorAll('#gtabs button').forEach(x=>x.classList.toggle('on',x.dataset.k===gk));
@@ -362,5 +363,29 @@ $('pecancel').onclick=()=>{$('psheet').hidden=true;ped=null};$('psheet').onclick
 $('pesave').onclick=async()=>{try{await api('/api/pump/'+ped.id,{start:$('pes').value,amount:$('peml').value,side:peSide,minutes:$('pemin').value||null});$('psheet').hidden=true;loadP();load()}catch(e){$('perr2').textContent=e.message}};
 $('pedel').onclick=async()=>{if(!parm){parm=true;peui();return}
 try{await api('/api/pump/'+ped.id,{},'DELETE');$('psheet').hidden=true;loadP();load()}catch(e){$('perr2').textContent=e.message;parm=false;peui()}};
+// ---------- Push-notifikationer på denne enhed ----------
+const PUSHOK='serviceWorker' in navigator&&'PushManager' in window&&'Notification' in window;
+const INST=matchMedia('(display-mode: standalone)').matches||navigator.standalone===true;
+const IPAD=/iPad/.test(navigator.userAgent)||(navigator.maxTouchPoints>1&&/Macintosh/.test(navigator.userAgent)),IOS=IPAD||/iPhone|iPod/.test(navigator.userAgent);
+if('serviceWorker' in navigator&&isSecureContext)navigator.serviceWorker.register('/sw.js').catch(()=>{});
+const u8=b=>{b=b.replace(/-/g,'+').replace(/_/g,'/');const r=atob(b+'='.repeat((4-b.length%4)%4));return Uint8Array.from(r,c=>c.charCodeAt(0))};
+let pushOn=false;
+async function pushUI(){let txt,can=true;pushOn=false;
+if(!isSecureContext){txt='Kræver https';can=false}
+else if(!PUSHOK){txt=IOS&&!INST?'Føj appen til hjemmeskærmen (Del → Føj til hjemmeskærm), og åbn den derfra':'Understøttes ikke i denne browser';can=false}
+else if(Notification.permission==='denied'){txt='Blokeret. Tillad notifikationer for Folke-App under Indstillinger → Notifikationer';can=false}
+else{pushOn=!!(await (await navigator.serviceWorker.ready).pushManager.getSubscription());txt=pushOn?'Slået til':'Slået fra'}
+$('pushst').textContent=txt;$('pushbtn').hidden=!can;$('pushbtn').textContent=pushOn?'Slå fra':'Slå til';$('pushtest').hidden=!pushOn}
+$('pushbtn').onclick=async()=>{$('pushbtn').disabled=true;$('pushmsg').textContent='';
+try{if(!pushOn){// iOS kræver, at tilladelsen bedes om direkte fra trykket
+if(await Notification.requestPermission()!=='granted')throw new Error('Notifikationer blev ikke tilladt');
+const reg=await navigator.serviceWorker.ready,{key}=await api('/api/push/key');
+const sub=await reg.pushManager.subscribe({userVisibleOnly:true,applicationServerKey:u8(key)});
+await api('/api/push/subscribe',{subscription:sub.toJSON(),origin:location.origin,name:IPAD?'iPad':IOS?'iPhone':(navigator.userAgentData?.platform||'Browser')});
+$('pushmsg').textContent='Du får nu besked om næste lur og påmindelser om udpumpning. Tryk «Send test» for at prøve.'}
+else{const sub=await (await navigator.serviceWorker.ready).pushManager.getSubscription();
+if(sub){await api('/api/push/unsubscribe',{endpoint:sub.endpoint});await sub.unsubscribe()}}}
+catch(e){$('pushmsg').textContent=e.message}$('pushbtn').disabled=false;pushUI();load()};
+$('pushtest').onclick=async()=>{$('pushmsg').textContent='';try{const r=await api('/api/push/test',{});$('pushmsg').textContent=`Sendt til ${r.sent} ${r.sent===1?'enhed':'enheder'}`}catch(e){$('pushmsg').textContent=e.message}};
 sky();route();fui();load();setInterval(load,15000);setInterval(render,1000);setInterval(sky,60000);
 </script></body></html>

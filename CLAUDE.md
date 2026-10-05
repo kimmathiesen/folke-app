@@ -35,5 +35,9 @@ forudsigelse af næste lur/sengetid, notifikation via Home Assistant.
 - Kort på forsiden, side `#pumpning` (graf 14 dage, liste 7 dage, ret/slet). Side og minutter gemmes kun i SQLite (migration 2). Baby Buddy-backenden ignorerer dem.
 - Påmindelse: `pump_reminder()` i app.py, kaldt fra `tick()`. `prefs.pump_remind` timer (0 = fra), én gang pr. udpumpning (`pump_notified` i state.json), ikke mellem 22 og 7.
 
+## Push (kun branch standalone)
+- `push.py`: web push med pywebpush. VAPID-nøgle i `vapid.pem` (laves første gang), abonnementer i `push.json`, begge ved STATE_FILE. 404/410 fra push-tjenesten fjerner abonnementet.
+- `napper.notify()` sender via HA (hvis sat op) og push (`napper.push`, sat af app.py). `napper.can_notify()` styrer, om der overhovedet notificeres. `sw.js` (route `/sw.js`) viser notifikationen.
+
 ## Vækst
 - Egen side i index.html (`#vaekst`). Målinger i `growth.json` (ikke Baby Buddy). `who.py` har WHO LMS-tabeller 0-24 mdr. (fra pygrowup) og beregner kurver/percentiler. Køn vælges under Indstillinger (`prefs.json`).

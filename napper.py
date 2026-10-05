@@ -133,10 +133,28 @@ def ha_update(pred):
     call(f"{HA_URL}/api/states/{HA_SENSOR}", HA_TOKEN, "POST", body, scheme="Bearer")
 
 
+# Ekstra notifikationskanal ud over Home Assistant (web push), sat af app.py: objekt med active() og send()
+push = None
+
+
+def can_notify():
+    return bool(HA_URL and HA_NOTIFY) or bool(push and push.active())
+
+
 def notify(title, msg):
-    path = HA_NOTIFY.replace(".", "/", 1)
-    call(f"{HA_URL}/api/services/{path}", HA_TOKEN, "POST",
-         {"title": title, "message": msg}, scheme="Bearer")
+    """Send via alle kanaler, der er sat op. En fejl i den ene stopper ikke den anden."""
+    if HA_URL and HA_NOTIFY:
+        try:
+            path = HA_NOTIFY.replace(".", "/", 1)
+            call(f"{HA_URL}/api/services/{path}", HA_TOKEN, "POST",
+                 {"title": title, "message": msg}, scheme="Bearer")
+        except Exception as e:
+            print("notify ha:", e, flush=True)
+    if push and push.active():
+        try:
+            push.send(title, msg)
+        except Exception as e:
+            print("notify push:", e, flush=True)
 
 
 def ha_notify(pred):
@@ -185,13 +203,12 @@ def main():
     print(f"Næste {pred['kind']}: {pred['time']:%a %H:%M} "
           f"(vindue {pred['window_min']} min, {pred['source']})")
 
-    if not HA_URL:
-        return
-    ha_update(pred)
+    if HA_URL:
+        ha_update(pred)
 
     # Notifikation: kun i tidsvinduet, kun én gang, ikke hvis en timer kører
     until = (pred["time"] - now).total_seconds() / 60
-    if not HA_NOTIFY or not (0 <= until <= LEAD_MIN):
+    if not can_notify() or not (0 <= until <= LEAD_MIN):
         return
     try:
         if db.timer(child["id"]):

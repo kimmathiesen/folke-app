@@ -133,11 +133,14 @@ def ha_update(pred):
     call(f"{HA_URL}/api/states/{HA_SENSOR}", HA_TOKEN, "POST", body, scheme="Bearer")
 
 
-def ha_notify(pred):
+def notify(title, msg):
     path = HA_NOTIFY.replace(".", "/", 1)
-    msg = f"Næste {pred['kind']} ca. kl. {pred['time'].astimezone(TZ):%H:%M}"
     call(f"{HA_URL}/api/services/{path}", HA_TOKEN, "POST",
-         {"title": "Søvn", "message": msg}, scheme="Bearer")
+         {"title": title, "message": msg}, scheme="Bearer")
+
+
+def ha_notify(pred):
+    notify("Søvn", f"Næste {pred['kind']} ca. kl. {pred['time'].astimezone(TZ):%H:%M}")
 
 
 def load_state():

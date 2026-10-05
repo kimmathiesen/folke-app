@@ -22,7 +22,8 @@ def test_status_uden_data(client):
     assert d["sleeping"] is False
     assert d["prediction"] is None
     assert d["today"] == []
-    assert d["features"] == {"breast": True, "solids": False}
+    assert d["features"] == {"breast": True, "solids": False, "pump": True}
+    assert d["pump"] == {"today_ml": 0, "today_count": 0, "last": None}
     assert d["suggestions"] == []
 
 

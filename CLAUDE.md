@@ -31,5 +31,9 @@ forudsigelse af næste lur/sengetid, notifikation via Home Assistant.
 - `prefs.json` (ved siden af state.json) gemmer funktionsvalg og svar på forslag. `suggestions()` i app.py beregnes højst hvert 10. min.
 - Forslag: «Fast føde» ved 6 mdr., «skjul Amning» efter 21 dage uden amning. Intet ændres uden svar (Ja / Ikke nu = 30 dage / Aldrig). Siden «Indstillinger» (`#indstillinger`, knap øverst til venstre) gør alt reversibelt.
 
+## Udpumpning (kun branch standalone)
+- Kort på forsiden, side `#pumpning` (graf 14 dage, liste 7 dage, ret/slet). Side og minutter gemmes kun i SQLite (migration 2). Baby Buddy-backenden ignorerer dem.
+- Påmindelse: `pump_reminder()` i app.py, kaldt fra `tick()`. `prefs.pump_remind` timer (0 = fra), én gang pr. udpumpning (`pump_notified` i state.json), ikke mellem 22 og 7.
+
 ## Vækst
 - Egen side i index.html (`#vaekst`). Målinger i `growth.json` (ikke Baby Buddy). `who.py` har WHO LMS-tabeller 0-24 mdr. (fra pygrowup) og beregner kurver/percentiler. Køn vælges under Indstillinger (`prefs.json`).

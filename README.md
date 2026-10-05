@@ -10,7 +10,7 @@ Selfhostet baby-tracker oven på [Baby Buddy](https://github.com/babybuddy/babyb
 - **Rediger søvn:** tryk på en søvn i listen for at rette tider, skifte lur/nat eller slette
 - **Mad:** amning (venstre/højre/begge), flaske (ml, modermælk/erstatning) og fastføde
 - **Vækst:** egen side (knap øverst til højre) med vægt, længde og hovedomfang på WHO's kurver (2006), 3.-97. percentil. Gemmes i `growth.json`, kurvedata ligger i `who.py`
-- **Pumpning:** `POST /api/pump`, beregnet til Home Assistant
+- **Udpumpning:** kort på forsiden (ml, tidspunkt og i stand-alone også side og minutter) med dagens total. Egen side med graf over 14 dage og en liste, hvor man kan rette og slette. Påmindelse via Home Assistant efter et valgfrit antal timer (ikke mellem 22 og 7). Kan slås fra under Indstillinger. `POST /api/pump` virker stadig fra Home Assistant
 - **Forslag:** appen foreslår at tilføje eller skjule funktioner efter alder og brug (fast føde ved 6 mdr., skjul amning efter 3 uger uden). Intet ændres uden svar. Alt kan ændres under *Indstillinger* (knap øverst til venstre)
 - **Home Assistant:** opdaterer `sensor.baby_next_sleep` og sender notifikation før næste søvn
 
@@ -76,7 +76,10 @@ Læg `unraid/my-napper.xml` i `/boot/config/plugins/dockerMan/templates-user/`, 
 | `POST /api/stop` | Stop søvn. Valgfrit `{"nap": true, "wake": "HH:MM"}` |
 | `POST /api/sleep/<id>` / `DELETE` | Ret eller slet en søvn |
 | `POST /api/feed` | `{"kind": "left\|right\|both\|bottle\|solid", "amount": ml, "milk": "formula", "at": "HH:MM"}` |
-| `POST /api/pump` | `{"amount": ml}` |
+| `POST /api/pump` | `{"amount": ml}`, valgfrit `"at": "HH:MM"`, `"side": "left\|right\|both"`, `"minutes"` |
+| `POST /api/pump/<id>` / `DELETE` | Ret eller slet en udpumpning |
+| `GET /api/pump/history?days=14` | Ml pr. dag og de enkelte udpumpninger |
+| `POST /api/pump/remind` | `{"hours": 3}` (0 = fra) |
 | `GET/POST /api/growth`, `POST/DELETE /api/growth/<id>` | Vækstmålinger og kurver |
 | `POST /api/suggestion`, `POST /api/feature` | Svar på forslag, slå funktioner til/fra |
 | `POST /api/import` | Kun SQLite: hent alt fra Baby Buddy igen |

@@ -58,6 +58,9 @@ def status():
         awake_since=max((s["end"] for s in sleeps), default=None) and max(s["end"] for s in sleeps).isoformat(),
         prediction=pred,
         last_feed=last_feed,
+        pump=pump_summary(c["id"], now),
+        pump_remind=prefs()["pump_remind"],
+        ha=bool(napper.HA_URL and napper.HA_NOTIFY),
         features=prefs()["features"],
         sex=prefs()["sex"],
         suggestions=current_suggestions(c, now, prefs()),
@@ -116,19 +119,157 @@ def stop():
     return jsonify(ok=True)
 
 
-@app.post("/api/pump")
-def pump():
-    """Log en pumpning (ml). Kaldes fra Home Assistant via rest_command."""
-    data = request.get_json(silent=True) or {}
+# ---------- Udpumpning ----------
+SIDES = ("left", "right", "both")
+
+
+def clock(txt, now):
+    """"HH:MM" -> i dag, eller i går hvis tiden ligger i fremtiden."""
+    h, m = map(int, str(txt).split(":")[:2])
+    t = now.replace(hour=h, minute=m, second=0, microsecond=0)
+    return t - timedelta(days=1) if t > now else t
+
+
+def clean_pump(d):
+    """Mængde (påkrævet), side og minutter (valgfri) fra en forespørgsel."""
     try:
-        amount = float(data.get("amount", 0))
+        amount = float(str(d.get("amount", 0)).replace(",", "."))
     except (TypeError, ValueError):
         amount = 0
     if not 0 < amount <= 1000:
-        return jsonify(ok=False, error="Ugyldig mængde"), 400
+        raise ValueError("Ugyldig mængde")
+    side = d.get("side") or None
+    if side not in (None, *SIDES):
+        raise ValueError("Ugyldig side")
+    minutes = d.get("minutes")
+    if minutes in (None, ""):
+        minutes = None
+    else:
+        try:
+            minutes = float(str(minutes).replace(",", "."))
+        except ValueError:
+            raise ValueError("Ugyldigt antal minutter")
+        if not 0 < minutes <= 180:
+            raise ValueError("Minutter skal være mellem 1 og 180")
+    return {"amount": amount, "side": side, "minutes": minutes}
+
+
+@app.post("/api/pump")
+def pump():
+    """Log en udpumpning. Fra appen eller Home Assistant (rest_command): {"amount": ml}.
+    Valgfrit: "at": "HH:MM", "side": left|right|both, "minutes", "notes"."""
+    data = request.get_json(silent=True) or {}
     now = datetime.now(TZ)
-    db().add_pumping(get_child()["id"], amount=amount, start=now, end=now, notes=data.get("notes", ""))
-    return jsonify(ok=True, amount=amount)
+    try:
+        p = clean_pump(data)
+    except ValueError as e:
+        return jsonify(ok=False, error=str(e)), 400
+    try:
+        t = clock(data["at"], now) if data.get("at") else now
+    except ValueError:
+        return jsonify(ok=False, error="Ugyldigt tidspunkt"), 400
+    db().add_pumping(get_child()["id"], start=t, end=t, notes=data.get("notes", ""), **p)
+    return jsonify(ok=True, amount=p["amount"])
+
+
+@app.post("/api/pump/<int:pid>")
+def edit_pump(pid):
+    d = request.get_json(silent=True) or {}
+    try:
+        t = local(d["start"])
+    except (KeyError, ValueError):
+        return jsonify(ok=False, error="Ugyldigt tidspunkt"), 400
+    try:
+        p = clean_pump(d)
+    except ValueError as e:
+        return jsonify(ok=False, error=str(e)), 400
+    if t > datetime.now(TZ) + timedelta(minutes=1):
+        return jsonify(ok=False, error="Tidspunktet ligger i fremtiden"), 400
+    db().edit_pumping(pid, t, **p)
+    return jsonify(ok=True)
+
+
+@app.delete("/api/pump/<int:pid>")
+def delete_pump(pid):
+    db().delete_pumping(pid)
+    return jsonify(ok=True)
+
+
+def pump_rows(cid, since):
+    return [{"id": r["id"], "start": napper.parse(r["start"]).isoformat(), "amount": r.get("amount"),
+             "side": r.get("side"), "minutes": r.get("minutes")}
+            for r in sorted(db().pumpings(cid, since), key=lambda r: r["start"])]
+
+
+def pump_summary(cid, now):
+    rows = pump_rows(cid, now - timedelta(days=2))
+    today = [r for r in rows if datetime.fromisoformat(r["start"]).date() == now.date()]
+    return {"today_ml": round(sum(r["amount"] or 0 for r in today)), "today_count": len(today),
+            "last": rows[-1] if rows else None}
+
+
+@app.get("/api/pump/history")
+def pump_history():
+    """Ml og antal pr. dag (lokal dato) de seneste `days` dage, plus de enkelte udpumpninger."""
+    days = min(max(request.args.get("days", 14, type=int), 1), 90)
+    now = datetime.now(TZ)
+    first = now.date() - timedelta(days=days - 1)
+    start = datetime(first.year, first.month, first.day, tzinfo=TZ)
+    rows = pump_rows(get_child()["id"], start)
+    per = {first + timedelta(days=i): {"ml": 0, "count": 0} for i in range(days)}
+    for r in rows:
+        d = per.get(datetime.fromisoformat(r["start"]).date())
+        if d is not None:
+            d["ml"] += r["amount"] or 0
+            d["count"] += 1
+    out = [{"date": d.isoformat(), "ml": round(v["ml"]), "count": v["count"]} for d, v in sorted(per.items())]
+    full = [x["ml"] for x in out[:-1] if x["count"]]  # i dag er ikke færdig
+    return jsonify(days=out, avg_ml=round(sum(full) / len(full)) if full else None,
+                   items=list(reversed(rows)), remind=prefs()["pump_remind"], detail=db().name == "sqlite")
+
+
+@app.post("/api/pump/remind")
+def pump_remind():
+    d = request.get_json(silent=True) or {}
+    try:
+        h = float(d.get("hours", 0))
+    except (TypeError, ValueError):
+        h = -1
+    if not 0 <= h <= 12:
+        return jsonify(ok=False, error="Vælg 0-12 timer"), 400
+    p = prefs()
+    p["pump_remind"] = h
+    save_prefs(p)
+    return jsonify(ok=True)
+
+
+QUIET = (22, 7)  # ingen påmindelser om udpumpning mellem 22 og 7
+
+
+def pump_reminder(now):
+    """Notifikation via Home Assistant, når der er gået `pump_remind` timer siden sidste udpumpning.
+    Én gang pr. udpumpning, og ikke om natten."""
+    p = prefs()
+    h = p["pump_remind"]
+    if not (h and p["features"]["pump"] and napper.HA_URL and napper.HA_NOTIFY):
+        return False
+    if now.hour >= QUIET[0] or now.hour < QUIET[1]:
+        return False
+    c = db().child()
+    last = c and pump_summary(c["id"], now)["last"]
+    if not last:
+        return False
+    t = datetime.fromisoformat(last["start"])
+    if now - t < timedelta(hours=h):
+        return False
+    state = napper.load_state()
+    if state.get("pump_notified") == last["id"]:
+        return False
+    hrs = (now - t).total_seconds() / 3600
+    napper.notify("Udpumpning", f"Det er {hrs:.0f} timer siden sidste udpumpning (kl. {t:%H:%M})")
+    state["pump_notified"] = last["id"]
+    napper.save_state(state)
+    return True
 
 
 PREFS = os.path.join(os.path.dirname(napper.STATE_FILE) or ".", "prefs.json")
@@ -141,8 +282,8 @@ def prefs():
             p = json.load(f)
     except (OSError, ValueError):
         p = {}
-    return {"features": {"breast": True, "solids": False, **p.get("features", {})}, "sug": p.get("sug", {}),
-            "sex": p.get("sex", "boy")}
+    return {"features": {"breast": True, "solids": False, "pump": True, **p.get("features", {})},
+            "sug": p.get("sug", {}), "sex": p.get("sex", "boy"), "pump_remind": p.get("pump_remind", 0)}
 
 
 def save_prefs(p):
@@ -203,7 +344,7 @@ def answer_suggestion():
 @app.post("/api/feature")
 def feature():
     d = request.get_json(silent=True) or {}
-    if d.get("name") not in ("breast", "solids"):
+    if d.get("name") not in ("breast", "solids", "pump"):
         return jsonify(ok=False, error="Ukendt funktion"), 400
     p = prefs()
     p["features"][d["name"]] = bool(d.get("on"))
@@ -463,6 +604,10 @@ def tick():
         napper.main()
     except (Exception, SystemExit) as e:
         print("loop:", e, flush=True)
+    try:
+        pump_reminder(datetime.now(TZ))
+    except Exception as e:
+        print("pump:", e, flush=True)
     if db().name == "sqlite":
         try:
             db().backup(os.path.join(os.path.dirname(db().path), "backup"))

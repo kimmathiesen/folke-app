@@ -72,8 +72,15 @@ class BabyBuddy:
     def pumpings(self, cid, since):
         return napper.bb_all(f"pumping/?child={cid}&start_min={self._q(since)}&limit=200")
 
-    def add_pumping(self, cid, **p):
+    def add_pumping(self, cid, side=None, minutes=None, **p):
+        # Baby Buddy har ingen felter til side og varighed
         self._bb("pumping/", "POST", {"child": cid, **self._ser(p)})
+
+    def edit_pumping(self, pid, start, amount, side=None, minutes=None):
+        self._bb(f"pumping/{pid}/", "PATCH", {"start": start.isoformat(), "end": start.isoformat(), "amount": amount})
+
+    def delete_pumping(self, pid):
+        self._bb(f"pumping/{pid}/", "DELETE")
 
     @staticmethod
     def _ser(d):
@@ -95,6 +102,11 @@ MIGRATIONS = [
     CREATE INDEX sleep_start ON sleep (child, start);
     CREATE INDEX feeding_start ON feeding (child, start);
     CREATE INDEX pumping_start ON pumping (child, start);
+    """,
+    # Udpumpning: side (left/right/both) og varighed i minutter - findes ikke i Baby Buddy
+    """
+    ALTER TABLE pumping ADD COLUMN side TEXT;
+    ALTER TABLE pumping ADD COLUMN minutes REAL;
     """,
 ]
 TABLES = ("child", "sleep", "timer", "feeding", "pumping")
@@ -181,12 +193,19 @@ class Sqlite:
                    (cid, iso(start), end and iso(end), type, method, amount, notes))
 
     def pumpings(self, cid, since):
-        return self._rows('SELECT id, start, "end", amount, notes FROM pumping '
+        return self._rows('SELECT id, start, "end", amount, notes, side, minutes FROM pumping '
                           "WHERE child = ? AND start >= ? ORDER BY start", (cid, iso(since)))
 
-    def add_pumping(self, cid, start, end=None, amount=None, notes=None):
-        self._exec('INSERT INTO pumping (child, start, "end", amount, notes) VALUES (?, ?, ?, ?, ?)',
-                   (cid, iso(start), end and iso(end), amount, notes))
+    def add_pumping(self, cid, start, end=None, amount=None, notes=None, side=None, minutes=None):
+        self._exec('INSERT INTO pumping (child, start, "end", amount, notes, side, minutes) VALUES (?, ?, ?, ?, ?, ?, ?)',
+                   (cid, iso(start), end and iso(end), amount, notes, side, minutes))
+
+    def edit_pumping(self, pid, start, amount, side=None, minutes=None):
+        self._exec('UPDATE pumping SET start = ?, "end" = ?, amount = ?, side = ?, minutes = ? WHERE id = ?',
+                   (iso(start), iso(start), amount, side, minutes, pid))
+
+    def delete_pumping(self, pid):
+        self._exec("DELETE FROM pumping WHERE id = ?", (pid,))
 
     # ---------- import / eksport / backup ----------
     def import_bb(self):

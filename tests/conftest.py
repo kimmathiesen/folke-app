@@ -52,6 +52,7 @@ class BBWorld:
     def __init__(self, fake):
         self.fake = fake
         self.store = store.use(store.BabyBuddy())
+        self.cid = 1
 
     def add_sleep(self, start, end, nap=True):
         return self.fake.add("sleep", start=start.isoformat(), end=end.isoformat(), nap=nap)["id"]

@@ -66,7 +66,7 @@ input[type=number]{flex:1;min-width:0;padding:10px 12px;border-radius:12px;borde
 .sum{display:flex;justify-content:space-between;margin:6px 4px 0;padding-top:12px;border-top:1px solid var(--line);color:var(--mut)}.sum b{color:var(--fg);font-weight:500}
 .ch{width:18px;height:18px;flex:none;stroke:var(--mut);fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
 #tl li{cursor:pointer}#tl li:active .pill{background:rgba(255,255,255,.09)}
-#sheet,#gsheet{position:fixed;inset:0;z-index:10;display:flex;align-items:flex-end;justify-content:center;background:rgba(3,6,16,.62)}
+#sheet,#gsheet,#psheet{position:fixed;inset:0;z-index:10;display:flex;align-items:flex-end;justify-content:center;background:rgba(3,6,16,.62)}
 .sh{width:100%;max-width:440px;max-height:92vh;overflow:auto;background:#131c36;border:1px solid var(--line);border-radius:24px 24px 0 0;padding:20px 18px calc(env(safe-area-inset-bottom) + 18px);text-align:left}
 .sh label{display:block;margin-top:14px;color:var(--mut);font-size:14px}
 .sh input{display:block;width:100%;margin-top:6px;text-align:left;padding:11px 12px;border-radius:12px;border:1px solid var(--line);background:rgba(255,255,255,.04);color:var(--fg);font-size:17px}
@@ -81,13 +81,14 @@ header{position:relative}
 #setbtn{left:0;right:auto}
 #gobtn svg,#setbtn svg{width:16px;height:16px;stroke:var(--fg);fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
 .gh{display:flex;justify-content:space-between;align-items:center;margin:4px 0 14px}.gh a,.gh span{min-width:90px;text-align:left;color:var(--acc);text-decoration:none;font-size:16px}
-#gsvg{display:block;width:100%;height:auto}#gsvg text{fill:var(--mut);font-size:11px}#gsum{margin-top:8px;font-size:15px}
+#gsvg,#psvg{display:block;width:100%;height:auto}#gsvg text,#psvg text{fill:var(--mut);font-size:11px}#gsum,#psum2{margin-top:8px;font-size:15px}
 #gnote{margin:16px 4px 0;color:var(--mut);font-size:13px;text-align:left}#gadd{margin-top:14px}
-#glist{list-style:none;margin:16px 0 0}#glist li{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:12px 0;border-top:1px solid var(--line);cursor:pointer}#glist li:first-child{border:0}
+#glist,#plist{list-style:none;margin:16px 0 0}#plist li,#glist li{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:12px 0;border-top:1px solid var(--line);cursor:pointer}#glist li:first-child,#plist li:first-child{border:0}
+.more{flex:none;color:var(--acc);text-decoration:none;font-size:14px}#pnote{margin:16px 4px 0;color:var(--mut);font-size:13px;text-align:left}#premnote{font-size:13px;color:var(--mut);margin-top:6px;text-align:left}
 .sw select{background:rgba(255,255,255,.06);color:var(--fg);border:1px solid var(--line);border-radius:10px;padding:8px 10px;font-size:15px}
 /* iPad på højkant: én bredere kolonne */
 @media (min-width:600px){main{max-width:600px}#dial{width:min(100%,420px)}
-#sheet,#gsheet{align-items:center}.sh{border-radius:24px;max-width:480px}}
+#sheet,#gsheet,#psheet{align-items:center}.sh{border-radius:24px;max-width:480px}}
 /* iPad på langs og pc: ring til venstre (bliver stående), kort til højre */
 @media (min-width:900px){main{max-width:1040px}
 #v-main{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);column-gap:40px;align-items:start}
@@ -142,6 +143,12 @@ header{position:relative}
 <div id="fsolidbox" hidden><div class="inl"><input type="text" id="fnote" placeholder="Hvad spiste han? (valgfrit)"><button class="go" id="fsgo">Gem</button></div></div>
 <div id="fbottle" hidden><div class="seg" id="fmilk"><button data-m="breast milk">Modermælk</button><button data-m="formula">Erstatning</button></div>
 <div class="inl"><input type="number" id="ml" inputmode="numeric" min="1" max="500" placeholder="ml"><button class="go" id="fgo">Gem flaske</button></div></div></div>
+<div id="pumpc" class="card" hidden><div class="row"><svg class="ic" viewBox="0 0 24 24"><path d="M12 3c3 4 6 7.2 6 10.5a6 6 0 0 1-12 0C6 10.2 9 7 12 3z"/><path d="M9.5 14.5a2.5 2.5 0 0 0 2.5 2.5"/></svg>
+<div class="t"><b>Udpumpning</b><span id="psum">Ingen i dag</span></div><a href="#pumpning" class="more">Historik ›</a></div>
+<div class="seg" id="pside" hidden><button data-s="left">Venstre</button><button data-s="right">Højre</button><button data-s="both">Begge</button></div>
+<div class="inl"><input type="number" id="pml" inputmode="decimal" min="1" max="1000" placeholder="ml"><input type="number" id="pmin" inputmode="numeric" min="1" max="180" placeholder="minutter (valgfrit)" hidden></div>
+<div class="inl"><span>Tidspunkt (valgfrit)</span><input type="time" id="pat"></div>
+<button class="go" id="pgo">Gem udpumpning</button></div>
 <div id="err"></div>
 <div id="day" class="card" hidden><div class="dh"><div class="dl"><svg class="ic" viewBox="0 0 24 24"><rect x="4" y="5" width="16" height="15" rx="2"/><path d="M4 10h16M9 3v4M15 3v4"/></svg>Dagens søvn</div><span id="dd"></span></div>
 <ul id="tl"></ul><div class="sum"><span>Samlet søvn</span><b id="tot"></b></div></div>
@@ -150,9 +157,25 @@ header{position:relative}
 <div id="v-settings" hidden>
 <div class="gh"><a href="#">‹ Tilbage</a><div class="dl">Indstillinger</div><span></span></div>
 <div class="card"><div class="dl">Tilpas</div><label class="sw">Amning i Mad-kortet<input type="checkbox" id="cb"></label><label class="sw">Fast føde i Mad-kortet<input type="checkbox" id="cs"></label>
+<label class="sw">Udpumpning<input type="checkbox" id="cp"></label>
+<label class="sw" id="premrow">Påmind om udpumpning<select id="prem"><option value="0">Fra</option><option value="2">efter 2 t</option><option value="2.5">efter 2½ t</option><option value="3">efter 3 t</option><option value="3.5">efter 3½ t</option><option value="4">efter 4 t</option><option value="5">efter 5 t</option><option value="6">efter 6 t</option></select></label>
+<div id="premnote" hidden>Påmindelser kræver Home Assistant (HA_URL og HA_NOTIFY). Ingen påmindelser mellem 22 og 7.</div>
 <label class="sw">Vækstkurver<select id="sx"><option value="boy">Dreng</option><option value="girl">Pige</option></select></label>
 <div id="dsrc" hidden><label class="sw">Data<span>Lokal (SQLite)</span></label><div class="seg" style="margin-top:10px"><button id="imp">Importér fra Baby Buddy</button><button id="exp">Eksportér</button></div><div id="impmsg" class="dl" style="margin-top:8px"></div></div></div>
 </div>
+<div id="v-pump" hidden>
+<div class="gh"><a href="#">‹ Tilbage</a><div class="dl">Udpumpning</div><span></span></div>
+<div class="card"><svg id="psvg" viewBox="0 0 340 200"></svg><div id="psum2"></div></div>
+<ul id="plist" class="card" hidden></ul>
+<div id="pnote"></div><div id="perr"></div>
+</div>
+<div id="psheet" hidden><div class="sh"><div class="dl">Ret udpumpning</div>
+<label>Tidspunkt<input type="datetime-local" id="pes"></label>
+<label>Mængde (ml)<input type="number" inputmode="decimal" id="peml"></label>
+<div id="pedet"><div class="seg" id="peside"><button data-s="left">Venstre</button><button data-s="right">Højre</button><button data-s="both">Begge</button></div>
+<label>Minutter (valgfrit)<input type="number" inputmode="numeric" id="pemin"></label></div>
+<div id="perr2"></div>
+<button class="go" id="pesave">Gem ændringer</button><button class="go del" id="pedel">Slet udpumpning</button><button class="go ghost" id="pecancel">Annullér</button></div></div>
 <div id="v-growth" hidden>
 <div class="gh"><a href="#">‹ Tilbage</a><div class="dl">Vækst</div><span></span></div>
 <div class="seg" id="gtabs"><button data-k="w">Vægt</button><button data-k="l">Længde</button><button data-k="h">Hoved</button></div>
@@ -185,7 +208,7 @@ async function api(p,body,method='POST'){const r=await fetch(p,body===undefined?
 headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
 const j=await r.json();if(!r.ok)throw new Error(j.error||r.status);return j}
 const isNap=()=>napSel??S.nap_guess;
-async function load(){try{S=await api('/api/status');$('err').textContent='';const F=S.features||{};$('cb').checked=!!F.breast;$('cs').checked=!!F.solids;$('sx').value=S.sex||'boy';$('dsrc').hidden=S.backend!=='sqlite';$('imp').hidden=!S.can_import;
+async function load(){try{S=await api('/api/status');$('err').textContent='';const F=S.features||{};$('cb').checked=!!F.breast;$('cs').checked=!!F.solids;$('sx').value=S.sex||'boy';$('dsrc').hidden=S.backend!=='sqlite';$('cp').checked=!!F.pump;$('prem').value=String(S.pump_remind||0);$('premrow').hidden=!F.pump;$('premnote').hidden=!F.pump||!!S.ha;$('imp').hidden=!S.can_import;
 if(S.sleeping){$('st').value='';$('lb').hidden=true}else{napSel=null;$('wt').value='';$('wb').hidden=true}}
 catch(e){$('err').textContent=e.message}render()}
 function render(){if(!S)return;const sl=S.sleeping,p=S.prediction,b=sl?S.since:S.awake_since;let secs=0;
@@ -200,6 +223,7 @@ $('pred').hidden=!p;if(p){$('pk').textContent='Næste '+p.kind;$('pt').textConte
 $('sub').textContent=cap(`vindue ${p.window_min} min · ${p.source}`)}
 const lf=S.last_feed;$('lastfeed').textContent=lf?`${FM[lf.method]||lf.method}${lf.amount?' '+Math.round(+lf.amount)+' ml':''} kl. ${hm(lf.time)} · for ${ago(lf.time)} siden`:'Ingen måltider endnu';
 const F=S.features||{},sg=(S.suggestions||[])[0];$('fbr').hidden=!F.breast;$('fsolid').hidden=!F.solids;$('sug').hidden=!sg;if(sg)$('sugt').textContent=sg.text;
+pumpUI();
 $('day').hidden=!S.today.length;
 if(S.today.length){let n=0,tot=0;$('dd').textContent=cap(new Date().toLocaleDateString('da-DK',{weekday:'long',day:'numeric',month:'long'}));
 $('tl').innerHTML=S.today.map((x,i)=>{const a=new Date(x.start),m=Math.round((new Date(x.end)-a)/60000),t=a.getHours();tot+=m;
@@ -261,7 +285,7 @@ try{await api('/api/sleep/'+ed.id,{},'DELETE');$('sheet').hidden=true;ed=null;lo
 let G=null,gk='w',gid=null,garm=false;
 const GL={w:['Vægt','kg'],l:['Længde','cm'],h:['Hoved','cm']},nf=v=>v.toLocaleString('da-DK',{maximumFractionDigits:2}),dc=v=>v==null?'':String(v).replace('.',',');
 const gdate=d=>new Date(d+'T12:00').toLocaleDateString('da-DK',{day:'numeric',month:'short',year:'numeric'});
-function route(){const h=location.hash,g=h==='#vaekst',s=h==='#indstillinger';$('v-main').hidden=g||s;$('v-growth').hidden=!g;$('v-settings').hidden=!s;if(g||s)scrollTo(0,0);if(g)loadG()}
+function route(){const h=location.hash,g=h==='#vaekst',s=h==='#indstillinger',u=h==='#pumpning';$('v-main').hidden=g||s||u;$('v-growth').hidden=!g;$('v-settings').hidden=!s;$('v-pump').hidden=!u;if(g||s||u)scrollTo(0,0);if(g)loadG();if(u)loadP()}
 async function loadG(){try{G=await api('/api/growth');$('gerr').textContent=''}catch(e){$('gerr').textContent=e.message}drawG()}
 function drawG(){if(!G)return;
 document.querySelectorAll('#gtabs button').forEach(x=>x.classList.toggle('on',x.dataset.k===gk));
@@ -305,5 +329,38 @@ document.querySelectorAll('#fbtns button').forEach(x=>x.onclick=()=>{fk=fk===x.d
 document.querySelectorAll('#fmilk button').forEach(x=>x.onclick=()=>{fm=x.dataset.m;fui()});
 document.querySelectorAll('#fbreast button').forEach(x=>x.onclick=()=>feed({kind:x.dataset.s}));
 $('fgo').onclick=()=>{const ml=+$('ml').value;if(!(ml>0)){$('err').textContent='Skriv hvor mange ml';return}feed({kind:'bottle',milk:fm,amount:ml})};
+// ---------- Udpumpning ----------
+const SIDE={left:'venstre',right:'højre',both:'begge'};let ps=null,P=null,ped=null,peSide=null,parm=false;
+const pdesc=x=>[Math.round(+x.amount)+' ml',x.side&&SIDE[x.side],x.minutes&&Math.round(x.minutes)+' min'].filter(Boolean).join(' · ');
+function pumpUI(){const F=S.features||{},u=S.pump||{},det=S.backend==='sqlite';$('pumpc').hidden=!F.pump;$('pside').hidden=$('pmin').hidden=!det;
+const last=u.last?`sidst kl. ${hm(u.last.start)} · for ${ago(u.last.start)} siden`:'';
+$('psum').textContent=u.today_count?`I dag: ${u.today_count} ${u.today_count>1?'gange':'gang'} · ${u.today_ml} ml${last?' · '+last:''}`:(last?'Ingen i dag · '+last:'Ingen udpumpninger endnu');
+document.querySelectorAll('#pside button').forEach(x=>x.classList.toggle('on',x.dataset.s===ps))}
+document.querySelectorAll('#pside button').forEach(x=>x.onclick=()=>{ps=ps===x.dataset.s?null:x.dataset.s;pumpUI()});
+$('pgo').onclick=async()=>{const ml=+String($('pml').value).replace(',','.');if(!(ml>0)){$('err').textContent='Skriv hvor mange ml';return}
+$('pgo').disabled=true;try{await api('/api/pump',{amount:ml,side:ps,minutes:$('pmin').value||null,at:$('pat').value||null});ps=null;$('pml').value=$('pmin').value=$('pat').value=''}
+catch(e){$('err').textContent=e.message}$('pgo').disabled=false;load()};
+$('cp').onchange=()=>api('/api/feature',{name:'pump',on:$('cp').checked}).then(load);
+$('prem').onchange=()=>api('/api/pump/remind',{hours:+$('prem').value}).then(load).catch(e=>$('err').textContent=e.message);
+async function loadP(){try{P=await api('/api/pump/history?days=14');$('perr').textContent=''}catch(e){$('perr').textContent=e.message}drawP()}
+function drawP(){if(!P)return;const D=P.days,W=340,H=200,L=34,R=6,T=26,B=26,n=D.length,bw=(W-L-R)/n,f=v=>v.toFixed(1);
+const mx=Math.max(100,...D.map(d=>d.ml)),st=[50,100,200,250,500,1000].find(s=>mx/s<=5)||1000,top=Math.ceil(mx/st)*st,sy=v=>H-B-(H-T-B)*v/top;let s='';
+for(let v=0;v<=top;v+=st)s+=`<path d="M${L} ${f(sy(v))}H${W-R}" stroke="rgba(255,255,255,.07)"/><text x="${L-6}" y="${f(sy(v)+4)}" text-anchor="end">${v}</text>`;
+D.forEach((d,i)=>{const x=L+i*bw,today=i===n-1;if(d.ml)s+=`<rect x="${f(x+bw*.18)}" y="${f(sy(d.ml))}" width="${f(bw*.64)}" height="${f(sy(0)-sy(d.ml))}" rx="3" fill="${today?'#ffd27a':'#8fb0ff'}"/>`;
+if(i%2===(n-1)%2)s+=`<text x="${f(x+bw/2)}" y="${H-8}" text-anchor="middle">${today?'i dag':new Date(d.date+'T12:00').getDate()+'.'}</text>`});
+if(P.avg_ml)s+=`<path d="M${L} ${f(sy(P.avg_ml))}H${W-R}" stroke="#e9edf8" stroke-dasharray="4 3" opacity=".6"/>`;
+s+=`<text x="${L-6}" y="10" text-anchor="end">ml</text>`;$('psvg').innerHTML=s;
+const td=D[n-1];$('psum2').innerHTML=`<b>I dag: ${td.ml} ml</b> · ${td.count} ${td.count===1?'gang':'gange'}${P.avg_ml?` · gennemsnit ${P.avg_ml} ml/dag (stiplet)`:''}`;
+const wk=P.items.filter(x=>Date.now()-new Date(x.start)<7*864e5);$('plist').hidden=!wk.length;
+$('plist').innerHTML=wk.map(x=>`<li data-id="${x.id}"><div><div class="tm">${cap(new Date(x.start).toLocaleDateString('da-DK',{weekday:'short',day:'numeric',month:'short'}))} kl. ${hm(x.start)}</div><div class="lb">${pdesc(x)}</div></div><svg class="ch" viewBox="0 0 24 24"><path d="m9 6 6 6-6 6"/></svg></li>`).join('');
+$('pnote').textContent='Grafen viser de seneste 14 dage, listen de seneste 7. Gennemsnittet regnes kun af hele dage med udpumpning.'+(P.remind?` Påmindelse efter ${String(P.remind).replace('.5','½')} timer.`:' Påmindelser kan slås til under Indstillinger.')}
+function peui(){document.querySelectorAll('#peside button').forEach(x=>x.classList.toggle('on',x.dataset.s===peSide));$('pedel').textContent=parm?'Tryk igen for at slette':'Slet udpumpning'}
+$('plist').onclick=e=>{const li=e.target.closest('li');if(!li)return;ped=P.items.find(x=>x.id==li.dataset.id);peSide=ped.side;parm=false;
+$('pes').value=loc(ped.start);$('peml').value=Math.round(+ped.amount*10)/10;$('pemin').value=ped.minutes?Math.round(ped.minutes):'';$('pedet').hidden=!P.detail;$('perr2').textContent='';$('psheet').hidden=false;peui()};
+document.querySelectorAll('#peside button').forEach(x=>x.onclick=()=>{peSide=peSide===x.dataset.s?null:x.dataset.s;peui()});
+$('pecancel').onclick=()=>{$('psheet').hidden=true;ped=null};$('psheet').onclick=e=>{if(e.target.id==='psheet')$('pecancel').onclick()};
+$('pesave').onclick=async()=>{try{await api('/api/pump/'+ped.id,{start:$('pes').value,amount:$('peml').value,side:peSide,minutes:$('pemin').value||null});$('psheet').hidden=true;loadP();load()}catch(e){$('perr2').textContent=e.message}};
+$('pedel').onclick=async()=>{if(!parm){parm=true;peui();return}
+try{await api('/api/pump/'+ped.id,{},'DELETE');$('psheet').hidden=true;loadP();load()}catch(e){$('perr2').textContent=e.message;parm=false;peui()}};
 sky();route();fui();load();setInterval(load,15000);setInterval(render,1000);setInterval(sky,60000);
 </script></body></html>

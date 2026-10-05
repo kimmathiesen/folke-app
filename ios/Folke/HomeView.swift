@@ -43,6 +43,22 @@ struct HomeView: View {
     var header: some View {
         VStack(spacing: 0) {
             MoonLogo()
+                .frame(maxWidth: .infinity)
+                .overlay(alignment: .topLeading) {
+                    // Som `#setbtn` i webappen
+                    Button { model.page = .settings } label: {
+                        HStack(spacing: 6) {
+                            Image(systemName: "slider.horizontal.3").font(.system(size: 14))
+                            Text("Indstillinger").font(.system(size: 14))
+                        }
+                        .foregroundStyle(Color.fg)
+                        .padding(.vertical, 8).padding(.horizontal, 14)
+                        .background(Color.card, in: Capsule())
+                        .overlay(Capsule().strokeBorder(Color.line))
+                    }
+                    .buttonStyle(.plain)
+                    .padding(.top, 8)
+                }
             Text(Format.greeting(name: model.snapshot.childName, role: model.role))
                 .font(.system(size: 30, weight: .semibold))
                 .foregroundStyle(Color.fg)

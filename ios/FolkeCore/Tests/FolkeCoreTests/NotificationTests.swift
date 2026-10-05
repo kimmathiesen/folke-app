@@ -97,6 +97,21 @@ import Testing
         #expect(n.first?.body == "Det er 11 timer siden sidste udpumpning (kl. 20:00)")
     }
 
+    @Test func forsinketUdpumpningVenterTilMorgenen() {
+        // Appen åbnes kl. 22:38, og påmindelsen skulle have været sendt kl. 16:40
+        var i = input(at(d, 22, 38), nil, enabled: [.pump])
+        i.pumpFeature = true
+        i.pumpRemindHours = 3
+        i.lastPump = (id(7), at(d, 13, 40))
+        let n = planner.plan(i, log: .init()).notifications
+        #expect(n.first?.fireDate == at(plusDays(d, 1), 7, 0))
+        #expect(n.first?.body == "Det er 17 timer siden sidste udpumpning (kl. 13:40)")
+        // Om dagen sendes en forsinket påmindelse med det samme
+        i.now = at(d, 18, 0)
+        #expect(planner.plan(i, log: .init()).notifications.first?.fireDate == at(d, 18, 0))
+        #expect(planner.plan(i, log: .init()).notifications.first?.body == "Det er 4 timer siden sidste udpumpning (kl. 13:40)")
+    }
+
     @Test func udpumpningFraSomStandard() {
         var i = input(at(d, 9, 30), nil)
         i.pumpFeature = true

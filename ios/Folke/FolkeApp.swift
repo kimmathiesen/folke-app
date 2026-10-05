@@ -24,6 +24,8 @@ struct RootView: View {
                 SkyBackground(hour: hour)
                 if model.needsOnboarding {
                     OnboardingView()
+                } else if model.page == .settings {
+                    SettingsView()
                 } else {
                     HomeView()
                 }

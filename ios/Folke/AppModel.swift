@@ -24,6 +24,8 @@ struct Snapshot {
     var lastFeed: (kind: FeedKind, amountMl: Double, time: Date)?
     var pump = PumpSummary(todayCount: 0, todayMl: 0, last: nil)
     var suggestion: Suggestions.Suggestion?
+    var pumpRemindHours = 3.0
+    var sex = Sex.boy
 }
 
 @MainActor @Observable
@@ -32,10 +34,15 @@ final class AppModel {
     static let cloudKitContainer: String? = nil
 
     let store: FolkeStore
+    let notifier = Notifier()
     private(set) var snapshot = Snapshot()
     var error: String?
     /// Lur/Nat-valg, mens søvnen kører (nil = gæt ud fra klokkeslættet)
     var napSelection: Bool?
+    /// Siden, der vises (som hash-ruterne i webappen)
+    var page: Page = .home
+
+    enum Page { case home, settings }
 
     var role: Role? {
         didSet { UserDefaults.standard.set(role?.rawValue, forKey: "folke.role") }
@@ -45,6 +52,10 @@ final class AppModel {
         self.store = store
         role = UserDefaults.standard.string(forKey: "folke.role").flatMap(Role.init(rawValue:))
         refresh()
+        Task {
+            await notifier.refreshStatus()
+            refresh()
+        }
         NotificationCenter.default.addObserver(forName: .NSPersistentStoreRemoteChange, object: nil, queue: .main) { [weak self] _ in
             MainActor.assumeIsolated { self?.refresh() }
         }
@@ -91,13 +102,18 @@ final class AppModel {
             s.featureBreast = set.featureBreast
             s.featureSolids = set.featureSolids
             s.featurePump = set.featurePump
+            s.pumpRemindHours = set.pumpRemindHours
         }
+        s.sex = child?.sex.flatMap(Sex.init(rawValue:)) ?? .boy
         if let f = store.lastFeeding(now: now), let t = f.time, let k = f.kind.flatMap(FeedKind.init(rawValue:)) {
             s.lastFeed = (k, f.amountMl, t)
         }
         s.pump = store.pumpSummary(now: now)
         s.suggestion = store.suggestions(now: now).first
         snapshot = s
+        notifier.reschedule(.init(now: now, prediction: s.prediction, sleeping: s.running != nil, childName: s.childName,
+                                  enabled: [], pumpFeature: s.featurePump, pumpRemindHours: s.pumpRemindHours,
+                                  lastPump: store.lastPumping(now: now)))
     }
 
     /// Lur eller nat for den kørende søvn: brugerens valg, ellers gættet.
@@ -179,6 +195,25 @@ final class AppModel {
     func answer(_ answer: Suggestions.Answer) {
         guard let id = snapshot.suggestion?.id else { return }
         perform { try store.answer(id, answer) }
+    }
+
+    // MARK: Indstillinger
+
+    func setFeature(_ f: Feature, _ on: Bool) { perform { try store.setFeature(f, on) } }
+    func setPumpRemind(_ hours: Double) { perform { try store.setPumpRemind(hours: hours) } }
+    func setSex(_ sex: Sex) { perform { try store.setSex(sex) } }
+    @discardableResult
+    func rename(_ name: String) -> Bool { perform { try store.renameChild(name) } }
+
+    func requestNotifications() async -> Bool {
+        let ok = await notifier.requestPermission()
+        refresh()
+        return ok
+    }
+
+    func setNotification(_ kind: NotificationKind, _ on: Bool) {
+        notifier.setEnabled(kind, on)
+        refresh()
     }
 
     func finishOnboarding(name: String, birthDate: Date?, role: Role) {

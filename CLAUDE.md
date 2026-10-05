@@ -63,3 +63,4 @@ forudsigelse af næste lur/sengetid, notifikation via Home Assistant.
 - iCloud er slået fra (`AppModel.cloudKitContainer = nil`), indtil appen signeres med udviklerkontoen (milepæl 6). Bundle id `dk.folkeapp.folke` er et arbejdsnavn.
 - Debug: start med `-demoData YES` (evt. `-demoMonths 7` for forslaget om fast føde) for et barn med 10 dages søvn, måltider og udpumpning i hukommelsen (skærmbilleder).
 - Klokkeslæt i UI'et vises med punktum («kl. 14.05», `Format.time`) som i webappen. Notifikationer og fejl bruger kolon (`Format.clock`) som serveren.
+- Notifikationer: `Folke/Notifier.swift` planlægger lokale notifikationer ud fra `NotificationPlanner` ved hver `refresh()` (fast id pr. type). Beskedtyper pr. enhed og log over sendte i `UserDefaults` (`folke.kinds`, `folke.notificationLog`). Se planen: `xcrun simctl spawn "iPhone 17" log show --last 5m --predicate 'subsystem == "dk.folkeapp.folke"' --info`

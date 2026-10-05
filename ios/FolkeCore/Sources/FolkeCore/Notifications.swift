@@ -100,7 +100,8 @@ public struct NotificationPlanner: Sendable {
         }
 
         if input.pumpFeature, input.pumpRemindHours > 0, let last = input.lastPump {
-            let fire = outsideQuiet(last.time.addingTimeInterval(input.pumpRemindHours * 3600))
+            // Er tiden allerede gået, sendes den nu, men aldrig mellem 22 og 7. Timerne regnes fra afsendelsen (som app.py)
+            let fire = outsideQuiet(max(last.time.addingTimeInterval(input.pumpRemindHours * 3600), now))
             let hours = fire.timeIntervalSince(last.time) / 3600
             add(.pump, key: last.id.uuidString, at: fire, latest: .distantFuture, title: "Udpumpning",
                 body: "Det er \(String(format: "%.0f", hours)) timer siden sidste udpumpning (kl. \(clock(last.time)))")

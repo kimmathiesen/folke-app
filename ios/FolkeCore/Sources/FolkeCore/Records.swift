@@ -189,3 +189,57 @@ public extension FolkeStore {
         try save()
     }
 }
+
+// MARK: Indstillinger (fælles for familien)
+
+public enum Feature: String, CaseIterable, Sendable {
+    case breast, solids, pump
+}
+
+public enum SettingsError: Error, Equatable, LocalizedError {
+    case invalidName
+    case invalidHours
+
+    public var errorDescription: String? {
+        switch self {
+        case .invalidName: "Skriv barnets navn (højst 40 tegn)"
+        case .invalidHours: "Vælg 0-12 timer"
+        }
+    }
+}
+
+public extension FolkeStore {
+    func setFeature(_ f: Feature, _ on: Bool) throws {
+        guard let s = settings() else { return }
+        switch f {
+        case .breast: s.featureBreast = on
+        case .solids: s.featureSolids = on
+        case .pump: s.featurePump = on
+        }
+        try save()
+    }
+
+    /// Påmindelse om udpumpning efter så mange timer (0 = fra), som `/api/pump/remind`.
+    func setPumpRemind(hours: Double) throws {
+        guard (0...12).contains(hours) else { throw SettingsError.invalidHours }
+        settings()?.pumpRemindHours = hours
+        try save()
+    }
+
+    func renameChild(_ name: String) throws {
+        guard let clean = Format.cleanName(name) else { throw SettingsError.invalidName }
+        child()?.name = clean
+        try save()
+    }
+
+    func setSex(_ sex: Sex) throws {
+        child()?.sex = sex.rawValue
+        try save()
+    }
+
+    /// Seneste udpumpning (til påmindelsen), de sidste 2 døgn.
+    func lastPumping(now: Date = .now) -> (id: UUID, time: Date)? {
+        guard let p = pumpings(since: now.addingTimeInterval(-2 * 86400)).last, let id = p.id, let t = p.time else { return nil }
+        return (id, t)
+    }
+}

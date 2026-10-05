@@ -1,8 +1,8 @@
-"""Falsk Baby Buddy i hukommelsen. Erstatter napper.call, så intet går på netværket."""
+"""Falsk Baby Buddy i hukommelsen. Erstatter folke.call, så intet går på netværket."""
 import urllib.parse
 from datetime import datetime
 
-import napper
+import folke
 
 
 class FakeBB:
@@ -22,7 +22,7 @@ class FakeBB:
 
     def __call__(self, url, token, method="GET", body=None, scheme="Token"):
         u = urllib.parse.urlsplit(url)
-        assert url.startswith(napper.BB_URL + "/api/"), url
+        assert url.startswith(folke.BB_URL + "/api/"), url
         parts = [p for p in u.path.split("/")[2:] if p]
         q = dict(urllib.parse.parse_qsl(u.query))
         self.calls.append((method, "/".join(parts), body))

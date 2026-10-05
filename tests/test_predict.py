@@ -3,8 +3,8 @@ from datetime import date, datetime, timedelta
 
 import pytest
 
-import napper
-from napper import TZ, default_window, predict
+import folke
+from folke import TZ, default_window, predict
 
 BIRTH = date(2026, 2, 1)
 NIGHT = (19, 30)
@@ -104,4 +104,4 @@ def test_urimelige_huller_ignoreres():
 @pytest.mark.parametrize("days,mins", [(0, 60), (70, 75), (100, 90), (150, 120), (250, 150),
                                        (330, 180), (500, 210), (700, 270)])
 def test_default_window(days, mins):
-    assert napper.default_window(days) == mins
+    assert folke.default_window(days) == mins

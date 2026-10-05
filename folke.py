@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""napper.py - simpel selfhostet søvnforudsigelse oven på Baby Buddy.
+"""folke.py - simpel selfhostet søvnforudsigelse oven på Baby Buddy.
 
 Henter søvnlog fra Baby Buddy, beregner næste lur/sengetid og
 - opdaterer sensor.baby_next_sleep i Home Assistant
@@ -201,7 +201,7 @@ def parse(s):
 
 
 def main():
-    import store  # her og ikke øverst: store importerer napper
+    import store  # her og ikke øverst: store importerer folke
 
     db = store.get()
     now = datetime.now(TZ)

@@ -32,7 +32,7 @@ public struct NotificationLog: Codable, Equatable, Sendable {
     public init() {}
 }
 
-/// Regler for lokale notifikationer (port af `napper.main` og `pump_reminder` i app.py).
+/// Regler for lokale notifikationer (port af `folke.main` og `pump_reminder` i app.py).
 public struct NotificationPlanner: Sendable {
     public static let leadMin = 30
     public static let overdueMin = 15

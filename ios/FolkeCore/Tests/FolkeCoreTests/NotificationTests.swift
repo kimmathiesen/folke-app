@@ -2,7 +2,7 @@ import Foundation
 import Testing
 @testable import FolkeCore
 
-/// Reglerne for lokale notifikationer (ios/PLAN.md afsnit 4, napper.main og pump_reminder i app.py).
+/// Reglerne for lokale notifikationer (ios/PLAN.md afsnit 4, folke.main og pump_reminder i app.py).
 @Suite("Notifikationer") struct NotificationTests {
     let planner = NotificationPlanner(calendar: cph)
     let d = day(2026, 6, 10)

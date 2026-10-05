@@ -42,7 +42,7 @@ public struct Prediction: Equatable, Sendable {
     public var lastID: UUID
 }
 
-/// Port af `napper.predict` på branchen `standalone`.
+/// Port af `folke.predict` på branchen `standalone`.
 public enum Predictor {
     /// Hvor mange dages søvn forudsigelsen bruger.
     public static let historyDays = 10

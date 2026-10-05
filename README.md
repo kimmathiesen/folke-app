@@ -22,14 +22,14 @@ Selfhostet baby-tracker oven på [Baby Buddy](https://github.com/babybuddy/babyb
 
 | Fil | Rolle |
 |---|---|
-| `napper.py` | Forudsigelsesmotor, HA-sensor og notifikationer (kan også køre alene via cron) |
-| `app.py` | Flask-API og baggrundstråd (kalder `napper.main()` hvert minut) |
+| `folke.py` | Forudsigelsesmotor, HA-sensor og notifikationer (kan også køre alene via cron) |
+| `app.py` | Flask-API og baggrundstråd (kalder `folke.main()` hvert minut) |
 | `store.py` | Datalag: samme funktioner mod Baby Buddy eller SQLite, import og backup |
 | `who.py` | WHO's vækststandarder (LMS-tabeller) og percentilberegning |
 | `index.html` | Hele brugerfladen, ingen build |
 | `Dockerfile` | Python 3.12 slim + gunicorn (1 worker, så baggrundstråden kun kører ét sted) |
 | `.github/workflows/docker.yml` | Bygger og pusher image til `ghcr.io/kimmathiesen/folke-app:latest` |
-| `unraid/my-napper.xml` | Unraid-skabelon (`unraid/update-local.sh`: lokal variant uden GitHub) |
+| `unraid/my-folke.xml` | Unraid-skabelon (`unraid/update-local.sh`: lokal variant uden GitHub) |
 | `unraid/my-folke-standalone.xml` | Unraid-skabelon til stand-alone ved siden af den kørende app |
 | `tests/` | pytest: `predict()`, WHO-kurver og API mod en falsk Baby Buddy |
 
@@ -71,7 +71,7 @@ docker run -d --name folke-app --restart unless-stopped \
 
 ## Unraid
 
-Læg `unraid/my-napper.xml` i `/boot/config/plugins/dockerMan/templates-user/`, og opret containeren via *Docker → Add Container*. Slå automatisk opdatering til med pluginet *CA Auto Update Applications*. Et push til `main` bygger så et nyt image, som Unraid henter selv.
+Læg `unraid/my-folke.xml` i `/boot/config/plugins/dockerMan/templates-user/`, og opret containeren via *Docker → Add Container*. Slå automatisk opdatering til med pluginet *CA Auto Update Applications*. Et push til `main` bygger så et nyt image, som Unraid henter selv.
 
 ## API
 

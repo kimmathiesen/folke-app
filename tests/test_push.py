@@ -6,10 +6,10 @@ from datetime import datetime, timedelta
 import pytest
 import pywebpush
 
-import napper
+import folke
 import push
 
-TZ = napper.TZ
+TZ = folke.TZ
 SUB = {"endpoint": "https://web.push.apple.com/abc", "keys": {"p256dh": "BPk", "auth": "xyz"}}
 
 
@@ -26,9 +26,9 @@ class Resp:
 def sent(monkeypatch, tmp_path):
     monkeypatch.setattr(push, "KEY", str(tmp_path / "vapid.pem"))
     monkeypatch.setattr(push, "SUBS", str(tmp_path / "push.json"))
-    monkeypatch.setattr(napper, "STATE_FILE", str(tmp_path / "state.json"))
-    monkeypatch.setattr(napper, "HA_URL", "")
-    monkeypatch.setattr(napper, "HA_NOTIFY", "")
+    monkeypatch.setattr(folke, "STATE_FILE", str(tmp_path / "state.json"))
+    monkeypatch.setattr(folke, "HA_URL", "")
+    monkeypatch.setattr(folke, "HA_NOTIFY", "")
     calls, fail = Calls(), {}
 
     def webpush(info, data, vapid_private_key=None, vapid_claims=None, **kw):

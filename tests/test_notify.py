@@ -4,11 +4,11 @@ from datetime import datetime, timedelta
 
 import pytest
 
-import napper
+import folke
 import push
 from test_push import SUB, sent  # noqa: F401 (fixture)
 
-TZ = napper.TZ
+TZ = folke.TZ
 SUB2 = {**SUB, "endpoint": "https://web.push.apple.com/far"}
 
 
@@ -89,12 +89,12 @@ def test_valg_bevares_ved_ny_tilmelding(sent):  # noqa: F811
 
 def test_home_assistant_faar_ikke_udpumpning_som_standard(monkeypatch, sent):  # noqa: F811
     calls = []
-    monkeypatch.setattr(napper, "HA_URL", "http://ha.test")
-    monkeypatch.setattr(napper, "HA_NOTIFY", "notify.mobile_app_x")
-    monkeypatch.setattr(napper, "call", lambda url, *a, **k: calls.append(url))
-    napper.notify("Udpumpning", "…", kind="pump")
-    assert calls == [] and napper.can_notify("pump") is False
-    napper.notify("Søvn", "…", kind="overdue")
+    monkeypatch.setattr(folke, "HA_URL", "http://ha.test")
+    monkeypatch.setattr(folke, "HA_NOTIFY", "notify.mobile_app_x")
+    monkeypatch.setattr(folke, "call", lambda url, *a, **k: calls.append(url))
+    folke.notify("Udpumpning", "…", kind="pump")
+    assert calls == [] and folke.can_notify("pump") is False
+    folke.notify("Søvn", "…", kind="overdue")
     assert calls == ["http://ha.test/api/services/notify/mobile_app_x"]
 
 

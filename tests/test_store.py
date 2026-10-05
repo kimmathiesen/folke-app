@@ -1,4 +1,4 @@
-"""SQLite-lageret: import fra Baby Buddy, eksport, backup, skema og napper.main() uden Baby Buddy."""
+"""SQLite-lageret: import fra Baby Buddy, eksport, backup, skema og folke.main() uden Baby Buddy."""
 import json
 import os
 import sqlite3
@@ -6,11 +6,11 @@ from datetime import datetime, timedelta
 
 import pytest
 
-import napper
+import folke
 import store
 from conftest import EPOCH
 
-TZ = napper.TZ
+TZ = folke.TZ
 
 
 def now():
@@ -52,7 +52,7 @@ def test_tider_gemmes_i_utc(db):
     db.add_sleep(1, s, s + timedelta(hours=1), True)
     [row] = db.sleeps(1, EPOCH)
     assert row["start"] == "2026-06-01T11:00:30+00:00"
-    assert napper.parse(row["start"]) == s.replace(microsecond=0)
+    assert folke.parse(row["start"]) == s.replace(microsecond=0)
     assert row["nap"] is True
 
 
@@ -72,8 +72,8 @@ def test_import(db, fake_bb):
     c = db.child()
     assert c["birth_date"] == fake_bb.db["children"][0]["birth_date"]
     [s] = db.sleeps(c["id"], EPOCH)
-    assert napper.parse(s["end"]) == t - timedelta(hours=4)
-    assert napper.parse(db.timer(c["id"])["start"]) == t - timedelta(minutes=10)
+    assert folke.parse(s["end"]) == t - timedelta(hours=4)
+    assert folke.parse(db.timer(c["id"])["start"]) == t - timedelta(minutes=10)
     assert db.feedings(c["id"], EPOCH)[0]["method"] == "left breast"
     assert sorted(p["amount"] for p in db.pumpings(c["id"], EPOCH)) == [60.0, 80.0]
 
@@ -156,14 +156,14 @@ def test_import_og_eksport_kraever_sqlite(fake_bb, app_client, monkeypatch):
     assert app_client.get("/api/export").status_code == 400
 
 
-# ---------- napper.main() uden Baby Buddy ----------
+# ---------- folke.main() uden Baby Buddy ----------
 def test_main_med_sqlite_opdaterer_valgt_sensor(db, fake_bb, real_main, monkeypatch):
     db._exec("INSERT INTO child (birth_date) VALUES (?)", ((now() - timedelta(days=100)).date().isoformat(),))
     db.add_sleep(1, now() - timedelta(hours=2), now() - timedelta(hours=1), True)
     sent = []
-    monkeypatch.setattr(napper, "HA_URL", "http://ha.test")
-    monkeypatch.setattr(napper, "HA_SENSOR", "sensor.folke_test")
-    monkeypatch.setattr(napper, "call", lambda url, *a, **k: sent.append(url))
+    monkeypatch.setattr(folke, "HA_URL", "http://ha.test")
+    monkeypatch.setattr(folke, "HA_SENSOR", "sensor.folke_test")
+    monkeypatch.setattr(folke, "call", lambda url, *a, **k: sent.append(url))
     real_main()
     assert sent == ["http://ha.test/api/states/sensor.folke_test"]  # og intet kald til Baby Buddy
 

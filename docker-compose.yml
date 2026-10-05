@@ -1,7 +1,7 @@
 services:
-  napper:
+  folke:
     build: .
-    container_name: napper
+    container_name: folke
     restart: unless-stopped
     env_file: .env
     environment:

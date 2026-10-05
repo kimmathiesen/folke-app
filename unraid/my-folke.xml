@@ -11,7 +11,7 @@
   <Category>HomeAutomation:</Category>
   <WebUI>http://[IP]:[PORT:6660]/</WebUI>
   <Config Name="WebUI port" Target="8080" Default="6660" Mode="tcp" Description="" Type="Port" Display="always" Required="true" Mask="false">6660</Config>
-  <Config Name="Data" Target="/data" Default="/mnt/user/appdata/napper-app/data" Mode="rw" Description="" Type="Path" Display="always" Required="true" Mask="false">/mnt/user/appdata/napper-app/data</Config>
+  <Config Name="Data" Target="/data" Default="/mnt/user/appdata/folke-app/data" Mode="rw" Description="" Type="Path" Display="always" Required="true" Mask="false">/mnt/user/appdata/folke-app/data</Config>
   <Config Name="BB_URL" Target="BB_URL" Default="http://192.168.68.58:8000" Mode="" Description="Baby Buddy adresse" Type="Variable" Display="always" Required="true" Mask="false">http://192.168.68.58:8000</Config>
   <Config Name="BB_TOKEN" Target="BB_TOKEN" Default="" Mode="" Description="Baby Buddy API-nøgle" Type="Variable" Display="always" Required="true" Mask="true"></Config>
   <Config Name="HA_URL" Target="HA_URL" Default="http://192.168.68.72:8123" Mode="" Description="Home Assistant adresse" Type="Variable" Display="always" Required="true" Mask="false">http://192.168.68.72:8123</Config>

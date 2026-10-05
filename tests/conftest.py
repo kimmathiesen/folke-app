@@ -1,4 +1,4 @@
-"""Fælles opsætning: miljøet sættes, før napper/app importeres (de læser env ved import)."""
+"""Fælles opsætning: miljøet sættes, før folke/app importeres (de læser env ved import)."""
 import os
 import sys
 import tempfile
@@ -22,12 +22,12 @@ from datetime import datetime, timedelta, timezone  # noqa: E402
 
 import pytest  # noqa: E402
 
-import napper  # noqa: E402
+import folke  # noqa: E402
 import store  # noqa: E402
 
-# app.py starter en baggrundstråd ved import, som kalder napper.main() - ingen netværk i tests
-_real_main = napper.main
-napper.main = lambda: None
+# app.py starter en baggrundstråd ved import, som kalder folke.main() - ingen netværk i tests
+_real_main = folke.main
+folke.main = lambda: None
 
 from fakebb import FakeBB  # noqa: E402
 
@@ -41,8 +41,8 @@ def real_main():
 
 @pytest.fixture
 def fake_bb(monkeypatch):
-    fake = FakeBB(birth=datetime.now(napper.TZ).date() - timedelta(days=120))
-    monkeypatch.setattr(napper, "call", fake)
+    fake = FakeBB(birth=datetime.now(folke.TZ).date() - timedelta(days=120))
+    monkeypatch.setattr(folke, "call", fake)
     return fake
 
 
@@ -132,7 +132,7 @@ def world(request, fake_bb, tmp_path, monkeypatch):
         w = BBWorld(fake_bb)
     else:
         fake_bb.db["children"] = []  # SQLite-testene må ikke ramme Baby Buddy
-        w = SqliteWorld(str(tmp_path / "folke.db"), datetime.now(napper.TZ).date() - timedelta(days=120))
+        w = SqliteWorld(str(tmp_path / "folke.db"), datetime.now(folke.TZ).date() - timedelta(days=120))
     yield w
     store._current.clear()
 

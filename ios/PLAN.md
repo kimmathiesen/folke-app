@@ -4,7 +4,7 @@ Mål: en native iPhone- og iPad-app i App Store, som andre forældre kan hente o
 eller login. Den skal kunne alt det, webappen på branchen `standalone` kan, og mere til (Live Activity,
 widgets, Siri). Kun Apple: data deles mellem forældrene via iCloud.
 
-Webappen og serveren (`app.py`, `napper.py`, `store.py`, `index.html`) er **facit** for regler, tekster og
+Webappen og serveren (`app.py`, `folke.py`, `store.py`, `index.html`) er **facit** for regler, tekster og
 udseende. Er noget uklart i denne plan, så læs koden på branchen `standalone`. Serveren kører videre for
 familien, indtil appen kan overtage.
 
@@ -38,7 +38,7 @@ alle relationer valgfri og med inverse. Brug UUID-felter som stabile id'er.
 
 Pr. enhed (`UserDefaults`, deles ikke): rolle (mor/far), beskedtyper til/fra, sidst sete tavleversion.
 
-## 3. Forudsigelse (port af `napper.predict`)
+## 3. Forudsigelse (port af `folke.predict`)
 
 Input: søvn de sidste 10 dage (kun afsluttede), fødselsdato, nu.
 
@@ -215,10 +215,14 @@ så prisen kan holdes lav.
 - Data forsvinder aldrig, hvis Plus udløber eller ikke købes: alt registreret kan stadig ses og eksporteres.
 
 **Ikke en kopi af Napper eller andre apps.** Vi har ikke kigget i deres kode, tekster eller design og skal heller ikke:
-- Forudsigelsen er vores egen (vågenvinduer pr. position fra `napper.py`, som er skrevet fra bunden til Baby Buddy).
-  Navnet `napper.py` er internt og skal ikke bruges udadtil.
+- Forudsigelsen er vores egen (vågenvinduer pr. position fra `folke.py`, som er skrevet fra bunden til Baby Buddy).
+- Alt i projektet er navngivet efter Folke. Motoren hed tidligere `napper.py` og er omdøbt for at undgå enhver forveksling.
 - Udseendet (døgnringen med himmel efter tid på dagen, månen, tavlen) kommer fra vores egen webapp.
 - Appnavn, ikon og App Store-tekster skal være vores egne. Tjek varemærker og eksisterende appnavne, før navnet låses.
+- **Måske et redesign før lancering.** Nuværende udseende er porteret 1:1 fra familiens webapp og er godt til os selv.
+  Før App Store bør vi vurdere, om det skal have et mere gennemarbejdet og genkendeligt udtryk: eget ikon og logo,
+  farver og typografi, illustrationer, tilgængelighed (Dynamic Type, VoiceOver, kontrast) og et lyst tema. Tag stilling
+  efter TestFlight med forældre uden for familien (milepæl 9), så redesignet bygger på deres feedback og ikke på gæt.
 
 **Før lancering:** TestFlight til 20-30 forældre uden for familien (mødregrupper). Spørg, om de ville betale, og hvad de savner.
 Afgør derefter prisen. Indtægter er skattepligtige: tjek CVR og moms (Apple afregner moms i EU, men indkomsten skal opgives).
@@ -235,6 +239,6 @@ Afgør derefter prisen. Indtægter er skattepligtige: tjek CVR og moms (Apple af
 8. Import fra serveren. TestFlight til familien.
 9. **Folke Plus** (afsnit 9): StoreKit 2-engangskøb med familiedeling, 14 dages prøve, låste funktioner, «Gendan køb».
    Test med StoreKit-konfigurationsfil i simulatoren. TestFlight til forældre uden for familien.
-10. Engelsk, privatlivspolitik, App Store.
+10. Evt. redesign (afsnit 9), engelsk, privatlivspolitik, App Store.
 
 Hver milepæl afsluttes med grønne tests, et skærmbillede fra simulatoren og en commit.

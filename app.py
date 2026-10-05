@@ -1,12 +1,12 @@
-"""Napper webapp: start/stop søvn + forudsigelse. Bruger napper.py som motor."""
+"""Folke webapp: start/stop søvn + forudsigelse. Bruger folke.py som motor."""
 import json, math, os, struct, threading, time, zlib
 from datetime import datetime, timedelta, date
 from flask import Flask, Response, jsonify, request, send_from_directory
-import napper, push, store, who
+import folke, push, store, who
 
 app = Flask(__name__)
-TZ = napper.TZ
-napper.push = push
+TZ = folke.TZ
+folke.push = push
 
 
 def db():
@@ -30,7 +30,7 @@ def sleep_timer(cid):
 
 def last_sleep_end(cid, now):
     raw = db().sleeps(cid, now - timedelta(days=3))
-    return max((napper.parse(x["end"]) for x in raw), default=None)
+    return max((folke.parse(x["end"]) for x in raw), default=None)
 
 
 @app.get("/api/status")
@@ -38,19 +38,19 @@ def status():
     now = datetime.now(TZ)
     c = db().child()
     if not c:  # første opstart uden import: UI'et spørger om navn og fødselsdato
-        return jsonify(setup=True, backend=db().name, can_import=db().name == "sqlite" and bool(napper.BB_TOKEN))
+        return jsonify(setup=True, backend=db().name, can_import=db().name == "sqlite" and bool(folke.BB_TOKEN))
     t = sleep_timer(c["id"])
-    raw = db().sleeps(c["id"], now - timedelta(days=napper.HISTORY_DAYS))
-    sleeps = [{"id": s["id"], "start": napper.parse(s["start"]), "end": napper.parse(s["end"]),
+    raw = db().sleeps(c["id"], now - timedelta(days=folke.HISTORY_DAYS))
+    sleeps = [{"id": s["id"], "start": folke.parse(s["start"]), "end": folke.parse(s["end"]),
                "nap": s["nap"]} for s in raw]
-    pred = None if t else napper.predict(sleeps, date.fromisoformat(c["birth_date"]), now)
+    pred = None if t else folke.predict(sleeps, date.fromisoformat(c["birth_date"]), now)
     if pred:
         pred["time"] = pred["time"].isoformat()
-    start = napper.parse(t["start"]) if t else None
+    start = folke.parse(t["start"]) if t else None
     try:
         fs = db().feedings(c["id"], now - timedelta(days=2))
-        lf = max(fs, key=lambda f: napper.parse(f["start"]), default=None)
-        last_feed = lf and {"time": napper.parse(lf["start"]).isoformat(), "method": lf["method"],
+        lf = max(fs, key=lambda f: folke.parse(f["start"]), default=None)
+        last_feed = lf and {"time": folke.parse(lf["start"]).isoformat(), "method": lf["method"],
                             "type": lf["type"], "amount": lf.get("amount")}
     except Exception:
         last_feed = None
@@ -63,18 +63,18 @@ def status():
         last_feed=last_feed,
         pump=pump_summary(c["id"], now),
         pump_remind=prefs()["pump_remind"],
-        can_notify=napper.can_notify(),
+        can_notify=folke.can_notify(),
         child_name=child_name(c),
         birth_date=c["birth_date"],
         push_devices=len(push.load()),
-        notify_lead=napper.LEAD_MIN,
-        notify_overdue=napper.OVERDUE_MIN,
+        notify_lead=folke.LEAD_MIN,
+        notify_overdue=folke.OVERDUE_MIN,
         board=(lambda b: b["version"] if b["strokes"] else 0)(load_board()),
         features=prefs()["features"],
         sex=prefs()["sex"],
         suggestions=current_suggestions(c, now, prefs()),
         backend=db().name,
-        can_import=db().name == "sqlite" and bool(napper.BB_TOKEN),
+        can_import=db().name == "sqlite" and bool(folke.BB_TOKEN),
         today=[{"id": s["id"], "start": s["start"].isoformat(), "end": s["end"].isoformat(), "nap": s["nap"]}
                for s in sorted(sleeps, key=lambda s: s["start"])
                if now.date() in (s["start"].date(), s["end"].date())],
@@ -111,7 +111,7 @@ def stop():
         return jsonify(ok=False, error="Ingen søvn i gang"), 409
     now = datetime.now(TZ)
     body = request.get_json(silent=True) or {}
-    s, e = napper.parse(t["start"]), now
+    s, e = folke.parse(t["start"]), now
     if body.get("wake"):  # "HH:MM" = vågnede kl.
         try:
             h, m = map(int, str(body["wake"]).split(":")[:2])
@@ -205,7 +205,7 @@ def delete_pump(pid):
 
 
 def pump_rows(cid, since):
-    return [{"id": r["id"], "start": napper.parse(r["start"]).isoformat(), "amount": r.get("amount"),
+    return [{"id": r["id"], "start": folke.parse(r["start"]).isoformat(), "amount": r.get("amount"),
              "side": r.get("side"), "minutes": r.get("minutes")}
             for r in sorted(db().pumpings(cid, since), key=lambda r: r["start"])]
 
@@ -260,7 +260,7 @@ def pump_reminder(now):
     Én gang pr. udpumpning, og ikke om natten."""
     p = prefs()
     h = p["pump_remind"]
-    if not (h and p["features"]["pump"] and napper.can_notify("pump")):
+    if not (h and p["features"]["pump"] and folke.can_notify("pump")):
         return False
     if now.hour >= QUIET[0] or now.hour < QUIET[1]:
         return False
@@ -271,17 +271,17 @@ def pump_reminder(now):
     t = datetime.fromisoformat(last["start"])
     if now - t < timedelta(hours=h):
         return False
-    state = napper.load_state()
+    state = folke.load_state()
     if state.get("pump_notified") == last["id"]:
         return False
     hrs = (now - t).total_seconds() / 3600
-    napper.notify("Udpumpning", f"Det er {hrs:.0f} timer siden sidste udpumpning (kl. {t:%H:%M})", kind="pump")
+    folke.notify("Udpumpning", f"Det er {hrs:.0f} timer siden sidste udpumpning (kl. {t:%H:%M})", kind="pump")
     state["pump_notified"] = last["id"]
-    napper.save_state(state)
+    folke.save_state(state)
     return True
 
 
-PREFS = os.path.join(os.path.dirname(napper.STATE_FILE) or ".", "prefs.json")
+PREFS = os.path.join(os.path.dirname(folke.STATE_FILE) or ".", "prefs.json")
 _sc = {"t": 0, "v": []}
 
 
@@ -301,7 +301,7 @@ def child_name(c=None):
     return prefs()["child_name"] or ((c or db().child() or {}).get("first_name") or "")
 
 
-napper.display_name = child_name
+folke.display_name = child_name
 
 
 def save_prefs(p):
@@ -325,7 +325,7 @@ def suggestions(c, now, p):
         out.append({"id": "solids", "text": f"Han er nu {int(months)} måneder. Vil du tilføje «Fast føde» til Mad-kortet?"})
     if p["features"]["breast"] and open_("hide_breast"):
         fs = db().feedings(c["id"], now - timedelta(days=60))
-        b = [napper.parse(f["start"]) for f in fs if "breast" in (f.get("method") or "")]
+        b = [folke.parse(f["start"]) for f in fs if "breast" in (f.get("method") or "")]
         if b and (now - max(b)).days >= 21:
             out.append({"id": "hide_breast", "text": f"Du har ikke registreret amning i {(now - max(b)).days // 7} uger. Skal Amning-knappen skjules?"})
     return out
@@ -421,7 +421,7 @@ def create_child():
 
 
 # ---------- Vækst (egen fil: growth.json) ----------
-GROWTH = os.path.join(os.path.dirname(napper.STATE_FILE) or ".", "growth.json")
+GROWTH = os.path.join(os.path.dirname(folke.STATE_FILE) or ".", "growth.json")
 RANGES = {"w": (0.5, 30, "Vægt"), "l": (30, 120, "Længde"), "h": (25, 60, "Hovedomfang")}
 
 
@@ -563,7 +563,7 @@ def import_bb():
     """Envejs-import fra Baby Buddy til SQLite. Kan køres igen uden dubletter."""
     if db().name != "sqlite":
         return jsonify(ok=False, error="Import kræver BACKEND=sqlite"), 400
-    if not napper.BB_TOKEN:
+    if not folke.BB_TOKEN:
         return jsonify(ok=False, error="BB_URL og BB_TOKEN mangler"), 400
     _sc["t"] = 0
     return jsonify(ok=True, **db().import_bb())
@@ -636,7 +636,7 @@ def manifest():
 # ---------- Tavlen (easter egg: tryk på månen) ----------
 # Fælles tegning for begge forældre. Streger gemmes som punkter i 0..1 (tavlen har fast format 3:4),
 # så den ser ens ud på telefon og iPad. Ingen push: man ser den, når man åbner tavlen.
-BOARD = os.path.join(os.path.dirname(napper.STATE_FILE) or ".", "board.json")
+BOARD = os.path.join(os.path.dirname(folke.STATE_FILE) or ".", "board.json")
 CHALK = ("#f4f1ea", "#ff8fa3", "#ffd27a", "#8fb0ff")
 MAX_POINTS, MAX_TOTAL = 2000, 30000
 _board_lock = threading.Lock()
@@ -784,12 +784,12 @@ def tick():
     """Ét gennemløb: første import (tom SQLite), HA-sensor og notifikationer, daglig backup."""
     if db().name == "sqlite":
         try:
-            if not db().child() and napper.BB_TOKEN:
+            if not db().child() and folke.BB_TOKEN:
                 print("import:", db().import_bb(), flush=True)
         except Exception as e:
             print("import:", e, flush=True)
     try:
-        napper.main()
+        folke.main()
     except (Exception, SystemExit) as e:
         print("loop:", e, flush=True)
     try:

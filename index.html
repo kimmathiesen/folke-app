@@ -66,7 +66,7 @@ input[type=number]{flex:1;min-width:0;padding:10px 12px;border-radius:12px;borde
 .sum{display:flex;justify-content:space-between;margin:6px 4px 0;padding-top:12px;border-top:1px solid var(--line);color:var(--mut)}.sum b{color:var(--fg);font-weight:500}
 .ch{width:18px;height:18px;flex:none;stroke:var(--mut);fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
 #tl li{cursor:pointer}#tl li:active .pill{background:rgba(255,255,255,.09)}
-#sheet,#gsheet,#psheet{position:fixed;inset:0;z-index:10;display:flex;align-items:flex-end;justify-content:center;background:rgba(3,6,16,.62)}
+#sheet,#gsheet,#psheet,#onb{position:fixed;inset:0;z-index:10;display:flex;align-items:flex-end;justify-content:center;background:rgba(3,6,16,.62)}
 .sh{width:100%;max-width:440px;max-height:92vh;overflow:auto;background:#131c36;border:1px solid var(--line);border-radius:24px 24px 0 0;padding:20px 18px calc(env(safe-area-inset-bottom) + 18px);text-align:left}
 .sh label{display:block;margin-top:14px;color:var(--mut);font-size:14px}
 .sh input{display:block;width:100%;margin-top:6px;text-align:left;padding:11px 12px;border-radius:12px;border:1px solid var(--line);background:rgba(255,255,255,.04);color:var(--fg);font-size:17px}
@@ -76,6 +76,8 @@ input[type=number]{flex:1;min-width:0;padding:10px 12px;border-radius:12px;borde
 #sug b{font-weight:500}#sug .seg button{font-size:15px}
 #fnote{flex:1;min-width:0;padding:10px 12px;border-radius:12px;border:1px solid var(--line);background:rgba(255,255,255,.04);color:var(--fg);font-size:17px}
 .sw{display:flex;justify-content:space-between;align-items:center;margin-top:12px}.sw input{width:22px;height:22px;accent-color:#5b8def}
+.sw input.tin{width:150px;height:auto;padding:8px 10px;border-radius:10px;border:1px solid var(--line);background:rgba(255,255,255,.06);color:var(--fg);font-size:15px;text-align:right}
+#onb{z-index:20;background:rgba(3,6,16,.82)}#onb .sh{border-radius:24px 24px 0 0}#onb p{color:var(--mut);font-size:15px;margin:6px 0 4px}#orole{margin-top:8px}#oerr{color:#ff9b8f;margin-top:10px;font-size:14px}
 header{position:relative}
 #gobtn,#setbtn{position:absolute;right:0;top:8px;display:flex;align-items:center;gap:6px;padding:8px 14px;border-radius:99px;border:1px solid var(--line);background:var(--card);color:var(--fg);font-size:14px;text-decoration:none}
 #setbtn{left:0;right:auto}
@@ -84,11 +86,11 @@ header{position:relative}
 #gsvg,#psvg{display:block;width:100%;height:auto}#gsvg text,#psvg text{fill:var(--mut);font-size:11px}#gsum,#psum2{margin-top:8px;font-size:15px}
 #gnote{margin:16px 4px 0;color:var(--mut);font-size:13px;text-align:left}#gadd{margin-top:14px}
 #glist,#plist{list-style:none;margin:16px 0 0}#plist li,#glist li{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:12px 0;border-top:1px solid var(--line);cursor:pointer}#glist li:first-child,#plist li:first-child{border:0}
-.more{flex:none;color:var(--acc);text-decoration:none;font-size:14px}#pnote{margin:16px 4px 0;color:var(--mut);font-size:13px;text-align:left}#premnote,#pushmsg{font-size:13px;color:var(--mut);margin-top:6px;text-align:left}#pushst{color:var(--mut);font-size:14px;text-align:right;max-width:60%}
+.more{flex:none;color:var(--acc);text-decoration:none;font-size:14px}#pnote{margin:16px 4px 0;color:var(--mut);font-size:13px;text-align:left}#premnote,#pushmsg,#pushkh{font-size:13px;color:var(--mut);margin-top:6px;text-align:left}#pushst{color:var(--mut);font-size:14px;text-align:right;max-width:60%}
 .sw select{background:rgba(255,255,255,.06);color:var(--fg);border:1px solid var(--line);border-radius:10px;padding:8px 10px;font-size:15px}
 /* iPad på højkant: én bredere kolonne */
 @media (min-width:600px){main{max-width:600px}#dial{width:min(100%,420px)}
-#sheet,#gsheet,#psheet{align-items:center}.sh{border-radius:24px;max-width:480px}}
+#sheet,#gsheet,#psheet,#onb{align-items:center}.sh{border-radius:24px;max-width:480px}}
 /* iPad på langs og pc: ring til venstre (bliver stående), kort til højre */
 @media (min-width:900px){main{max-width:1040px}
 #v-main{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);column-gap:40px;align-items:start}
@@ -104,7 +106,7 @@ header{position:relative}
 <path d="M82 14l1.8 4.2L88 20l-4.2 1.8L82 26l-1.8-4.2L76 20l4.2-1.8z" fill="#ffe28a"/>
 <path d="M18 30l1.3 3L22 34.3 19.3 35.6 18 39l-1.3-3.4L14 34.3 16.7 33z" fill="#ffe28a"/>
 <path d="M30 8l1 2.4 2.4 1-2.4 1L30 15l-1-2.6-2.4-1 2.4-1z" fill="#ffe28a"/></svg>
-<h1>Baby Søvn</h1><div class="tag">Små drømme, store øjeblikke ♡</div>
+<h1 id="hi">Baby Søvn</h1><div class="tag">Små drømme, store øjeblikke ♡</div>
 </header>
 <div id="sug" class="card" hidden><div class="t"><span>Forslag</span><b id="sugt" style="display:block"></b></div>
 <div class="seg"><button id="sy">Ja, gør det</button><button id="sl">Ikke nu</button><button id="sn">Aldrig</button></div></div>
@@ -156,11 +158,11 @@ header{position:relative}
 </div>
 <div id="v-settings" hidden>
 <div class="gh"><a href="#">‹ Tilbage</a><div class="dl">Indstillinger</div><span></span></div>
-<div class="card"><div class="dl">Tilpas</div><label class="sw">Amning i Mad-kortet<input type="checkbox" id="cb"></label><label class="sw">Fast føde i Mad-kortet<input type="checkbox" id="cs"></label>
+<div class="card"><div class="dl">Tilpas</div><label class="sw">Barnets navn<input type="text" id="sname" class="tin" maxlength="40" autocomplete="off"></label><label class="sw">Jeg er<select id="srole"><option value="mor">Mor</option><option value="far">Far</option></select></label><label class="sw">Amning i Mad-kortet<input type="checkbox" id="cb"></label><label class="sw">Fast føde i Mad-kortet<input type="checkbox" id="cs"></label>
 <label class="sw">Udpumpning<input type="checkbox" id="cp"></label>
-<label class="sw" id="premrow">Påmind om udpumpning<select id="prem"><option value="0">Fra</option><option value="2">efter 2 t</option><option value="2.5">efter 2½ t</option><option value="3">efter 3 t</option><option value="3.5">efter 3½ t</option><option value="4">efter 4 t</option><option value="5">efter 5 t</option><option value="6">efter 6 t</option></select></label>
-<div id="premnote" hidden>Påmindelser kræver notifikationer: slå dem til herunder (eller brug Home Assistant). Ingen påmindelser mellem 22 og 7.</div>
-<label class="sw">Notifikationer på denne enhed<span id="pushst"></span></label><div class="seg" style="margin-top:10px"><button id="pushbtn" hidden>Slå til</button><button id="pushtest" hidden>Send test</button></div><div id="pushmsg"></div>
+<label class="sw" id="premrow">Påmind om udpumpning<select id="prem"><option value="2">efter 2 t</option><option value="2.5">efter 2½ t</option><option value="3">efter 3 t</option><option value="3.5">efter 3½ t</option><option value="4">efter 4 t</option><option value="5">efter 5 t</option><option value="6">efter 6 t</option></select></label>
+<div id="premnote" hidden>Påmindelsen sendes kun til enheder, der har slået «Påmindelse om udpumpning» til under notifikationer herunder. Ingen påmindelser mellem 22 og 7.</div>
+<label class="sw">Notifikationer på denne enhed<span id="pushst"></span></label><div class="seg" style="margin-top:10px"><button id="pushbtn" hidden>Slå til</button><button id="pushtest" hidden>Send test</button></div><div id="pushkinds" hidden><div id="pushkh">Send til denne enhed:</div><label class="sw"><span id="klead">Tid til at slappe af</span><input type="checkbox" data-k="sleep_soon"></label><label class="sw"><span id="klate">Hvis lurtiden er gået</span><input type="checkbox" data-k="overdue"></label><label class="sw" id="kpump">Påmindelse om udpumpning<input type="checkbox" data-k="pump"></label></div><div id="pushmsg"></div>
 <label class="sw">Vækstkurver<select id="sx"><option value="boy">Dreng</option><option value="girl">Pige</option></select></label>
 <div id="dsrc" hidden><label class="sw">Data<span>Lokal (SQLite)</span></label><div class="seg" style="margin-top:10px"><button id="imp">Importér fra Baby Buddy</button><button id="exp">Eksportér</button></div><div id="impmsg" class="dl" style="margin-top:8px"></div></div></div>
 </div>
@@ -185,6 +187,12 @@ header{position:relative}
 <ul id="glist" class="card" hidden></ul>
 <div id="gnote"></div><div id="gerr"></div>
 </div>
+<div id="onb" hidden><div class="sh"><div class="dl">Velkommen til Folke-App</div>
+<p>Et par ting, før vi går i gang.</p>
+<label>Barnets navn<input type="text" id="oname" maxlength="40" autocomplete="off" placeholder="fx Folke"></label>
+<label id="obirthl" hidden>Fødselsdato<input type="date" id="obirth"></label>
+<label>Jeg er</label><div class="seg" id="orole"><button data-r="mor">Mor</button><button data-r="far">Far</button></div>
+<div id="oerr"></div><button class="go" id="osave">Kom i gang</button><button class="go ghost" id="oimp" hidden>Hent i stedet alt fra Baby Buddy</button></div></div>
 <div id="gsheet" hidden><div class="sh"><div class="dl" id="gtitle">Ny måling</div>
 <label>Dato<input type="date" id="gd"></label>
 <label>Vægt (kg)<input type="text" inputmode="decimal" id="gw" placeholder="fx 6,4"></label>
@@ -209,10 +217,10 @@ async function api(p,body,method='POST'){const r=await fetch(p,body===undefined?
 headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
 const j=await r.json();if(!r.ok)throw new Error(j.error||r.status);return j}
 const isNap=()=>napSel??S.nap_guess;
-async function load(){try{S=await api('/api/status');$('err').textContent='';const F=S.features||{};$('cb').checked=!!F.breast;$('cs').checked=!!F.solids;$('sx').value=S.sex||'boy';$('dsrc').hidden=S.backend!=='sqlite';$('cp').checked=!!F.pump;$('prem').value=String(S.pump_remind||0);$('premrow').hidden=!F.pump;$('premnote').hidden=!F.pump||!!S.can_notify;$('imp').hidden=!S.can_import;
+async function load(){try{S=await api('/api/status');$('err').textContent='';if(S.setup||!S.child_name||!role())onb();if(S.setup)return;hello();if(document.activeElement!==$('sname'))$('sname').value=S.child_name;$('srole').value=role()||'mor';const F=S.features||{};$('cb').checked=!!F.breast;$('cs').checked=!!F.solids;$('sx').value=S.sex||'boy';$('dsrc').hidden=S.backend!=='sqlite';$('cp').checked=!!F.pump;$('prem').value=String(S.pump_remind||3);$('premrow').hidden=$('premnote').hidden=$('kpump').hidden=!F.pump;$('imp').hidden=!S.can_import;
 if(S.sleeping){$('st').value='';$('lb').hidden=true}else{napSel=null;$('wt').value='';$('wb').hidden=true}}
 catch(e){$('err').textContent=e.message}render()}
-function render(){if(!S)return;const sl=S.sleeping,p=S.prediction,b=sl?S.since:S.awake_since;let secs=0;
+function render(){if(!S||S.setup)return;const sl=S.sleeping,p=S.prediction,b=sl?S.since:S.awake_since;let secs=0;
 $('state').textContent=sl?'Sover':'Vågen';
 if(b){secs=Math.max(0,(Date.now()-new Date(b))/1000|0);const z=n=>String(n).padStart(2,'0');
 $('clock').textContent=`${z(secs/3600|0)}:${z(secs/60%60|0)}:${z(secs%60)}`}else $('clock').textContent='--';
@@ -369,23 +377,50 @@ const INST=matchMedia('(display-mode: standalone)').matches||navigator.standalon
 const IPAD=/iPad/.test(navigator.userAgent)||(navigator.maxTouchPoints>1&&/Macintosh/.test(navigator.userAgent)),IOS=IPAD||/iPhone|iPod/.test(navigator.userAgent);
 if('serviceWorker' in navigator&&isSecureContext)navigator.serviceWorker.register('/sw.js').catch(()=>{});
 const u8=b=>{b=b.replace(/-/g,'+').replace(/_/g,'/');const r=atob(b+'='.repeat((4-b.length%4)%4));return Uint8Array.from(r,c=>c.charCodeAt(0))};
-let pushOn=false;
-async function pushUI(){let txt,can=true;pushOn=false;
+let pushOn=false,pushEp=null;
+async function pushUI(){let txt,can=true;pushOn=false;pushEp=null;$('pushkinds').hidden=true;
 if(!isSecureContext){txt='Kræver https';can=false}
 else if(!PUSHOK){txt=IOS&&!INST?'Føj appen til hjemmeskærmen (Del → Føj til hjemmeskærm), og åbn den derfra':'Understøttes ikke i denne browser';can=false}
 else if(Notification.permission==='denied'){txt='Blokeret. Tillad notifikationer for Folke-App under Indstillinger → Notifikationer';can=false}
-else{pushOn=!!(await (await navigator.serviceWorker.ready).pushManager.getSubscription());txt=pushOn?'Slået til':'Slået fra'}
-$('pushst').textContent=txt;$('pushbtn').hidden=!can;$('pushbtn').textContent=pushOn?'Slå fra':'Slå til';$('pushtest').hidden=!pushOn}
+else{const sub=await (await navigator.serviceWorker.ready).pushManager.getSubscription();pushOn=!!sub;pushEp=sub&&sub.endpoint;txt=pushOn?'Slået til':'Slået fra'}
+$('pushst').textContent=txt;$('pushbtn').hidden=!can;$('pushbtn').textContent=pushOn?'Slå fra':'Slå til';$('pushtest').hidden=!pushOn;
+if(pushEp){$('klead').textContent=`Tid til at slappe af (${S&&S.notify_lead||30} min før)`;$('klate').textContent=`Hvis lurtiden er gået (${S&&S.notify_overdue||15} min efter)`;try{const{kinds}=await api('/api/push/kinds',{endpoint:pushEp});document.querySelectorAll('#pushkinds input').forEach(x=>x.checked=kinds[x.dataset.k]!==false);$('pushkinds').hidden=false}catch(e){$('pushmsg').textContent=e.message}}}
+document.querySelectorAll('#pushkinds input').forEach(x=>x.onchange=()=>api('/api/push/kinds',{endpoint:pushEp,kinds:{[x.dataset.k]:x.checked}}).catch(e=>{$('pushmsg').textContent=e.message;x.checked=!x.checked}));
 $('pushbtn').onclick=async()=>{$('pushbtn').disabled=true;$('pushmsg').textContent='';
 try{if(!pushOn){// iOS kræver, at tilladelsen bedes om direkte fra trykket
 if(await Notification.requestPermission()!=='granted')throw new Error('Notifikationer blev ikke tilladt');
 const reg=await navigator.serviceWorker.ready,{key}=await api('/api/push/key');
 const sub=await reg.pushManager.subscribe({userVisibleOnly:true,applicationServerKey:u8(key)});
-await api('/api/push/subscribe',{subscription:sub.toJSON(),origin:location.origin,name:IPAD?'iPad':IOS?'iPhone':(navigator.userAgentData?.platform||'Browser')});
-$('pushmsg').textContent='Du får nu besked om næste lur og påmindelser om udpumpning. Tryk «Send test» for at prøve.'}
+await api('/api/push/subscribe',{subscription:sub.toJSON(),origin:location.origin,name:devName()});
+$('pushmsg').textContent='Slået til. Vælg herover, hvilke beskeder denne enhed skal have, og tryk «Send test» for at prøve.'}
 else{const sub=await (await navigator.serviceWorker.ready).pushManager.getSubscription();
 if(sub){await api('/api/push/unsubscribe',{endpoint:sub.endpoint});await sub.unsubscribe()}}}
 catch(e){$('pushmsg').textContent=e.message}$('pushbtn').disabled=false;pushUI();load()};
 $('pushtest').onclick=async()=>{$('pushmsg').textContent='';try{const r=await api('/api/push/test',{});$('pushmsg').textContent=`Sendt til ${r.sent} ${r.sent===1?'enhed':'enheder'}`}catch(e){$('pushmsg').textContent=e.message}};
+// ---------- Barnets navn (fælles) og mor/far (gemmes på denne enhed) ----------
+const role=()=>{try{return localStorage.getItem('folke.role')}catch(e){return null}};
+const setRole=r=>{try{localStorage.setItem('folke.role',r)}catch(e){}};
+const gen=n=>/[sxz]$/i.test(n)?n+"'":n+'s';// Folkes, men Mads'
+function hello(){const n=S&&S.child_name,r=role();$('hi').textContent=n&&r?`Hej ${gen(n)} ${r}`:'Baby Søvn'}
+const devName=()=>{const r=role(),d=IPAD?'iPad':IOS?'iPhone':(navigator.userAgentData?.platform||'browser');return r?`${cap(r)}s ${d}`:cap(d)};
+let oRole=null;
+function onb(){if(!$('onb').hidden)return;oRole=role();$('oname').value=(S&&S.child_name)||'';$('obirthl').hidden=!S.setup;
+$('oimp').hidden=!(S.setup&&S.can_import);$('oerr').textContent='';$('onb').hidden=false;orui()}
+function orui(){document.querySelectorAll('#orole button').forEach(x=>x.classList.toggle('on',x.dataset.r===oRole))}
+document.querySelectorAll('#orole button').forEach(x=>x.onclick=()=>{oRole=x.dataset.r;orui()});
+$('osave').onclick=async()=>{const n=$('oname').value.trim();$('oerr').textContent='';
+if(!n){$('oerr').textContent='Skriv barnets navn';return}
+if(S.setup&&!$('obirth').value){$('oerr').textContent='Vælg fødselsdato';return}
+if(!oRole){$('oerr').textContent='Vælg, om du er mor eller far';return}
+$('osave').disabled=true;
+try{if(S.setup)await api('/api/child',{name:n,birth_date:$('obirth').value});else if(n!==S.child_name)await api('/api/profile',{name:n});
+setRole(oRole);$('onb').hidden=true;await syncDev();load()}catch(e){$('oerr').textContent=e.message}$('osave').disabled=false};
+$('oimp').onclick=async()=>{$('oimp').disabled=true;$('oerr').textContent='Henter fra Baby Buddy …';
+try{await api('/api/import',{});$('oerr').textContent='';$('onb').hidden=true;await load()}catch(e){$('oerr').textContent=e.message}$('oimp').disabled=false};
+$('sname').onchange=()=>api('/api/profile',{name:$('sname').value}).then(load).catch(e=>{$('err').textContent=e.message;$('sname').value=S.child_name});
+$('srole').onchange=async()=>{setRole($('srole').value);hello();await syncDev()};
+// Giver push-tilmeldingen et navn som «Mors iPhone», så man kan se, hvis enhed det er
+async function syncDev(){try{if(!PUSHOK||!isSecureContext)return;const sub=await (await navigator.serviceWorker.ready).pushManager.getSubscription();
+if(sub)await api('/api/push/subscribe',{subscription:sub.toJSON(),origin:location.origin,name:devName()})}catch(e){}}
 sky();route();fui();load();setInterval(load,15000);setInterval(render,1000);setInterval(sky,60000);
 </script></body></html>

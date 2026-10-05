@@ -94,6 +94,8 @@ def test_udpumpningspaamindelse_kun_via_push(client, world, sent):
     client.post("/api/pump/remind", json={"hours": 3})
     assert app_module.pump_reminder(noon) is False  # ingen kanal endnu
     push.subscribe(SUB, "https://folke.test")
+    assert app_module.pump_reminder(noon) is False  # udpumpning er slået fra på nye enheder
+    push.set_kinds(SUB["endpoint"], {"pump": True})
     assert app_module.pump_reminder(noon) is True
     assert "udpumpning" in json.loads(sent[0][1])["body"]
 

@@ -3,7 +3,8 @@
 
 Henter søvnlog fra Baby Buddy, beregner næste lur/sengetid og
 - opdaterer sensor.baby_next_sleep i Home Assistant
-- sender en notifikation LEAD_MIN minutter før (én gang pr. forudsigelse)
+- sender en notifikation LEAD_MIN minutter før, og en til, hvis tiden er overskredet med OVERDUE_MIN
+  (hver kun én gang pr. forudsigelse)
 
 Kun standardbibliotek (Python 3.11+). Kør fx hvert 5. minut.
 """
@@ -20,8 +21,11 @@ HA_URL = os.environ.get("HA_URL", "").rstrip("/")
 HA_TOKEN = os.environ.get("HA_TOKEN", "")
 HA_NOTIFY = os.environ.get("HA_NOTIFY", "")  # fx notify.mobile_app_min_telefon
 HA_SENSOR = os.environ.get("HA_SENSOR", "sensor.baby_next_sleep")
+# Beskedtyper, Home Assistant får (udpumpning kun, hvis man selv tilføjer "pump")
+HA_KINDS = os.environ.get("HA_KINDS", "sleep_soon,overdue").replace(" ", "").split(",")
 CHILD_ID = os.environ.get("CHILD_ID")
-LEAD_MIN = int(os.environ.get("LEAD_MIN", "10"))
+LEAD_MIN = int(os.environ.get("LEAD_MIN", "30"))
+OVERDUE_MIN = int(os.environ.get("OVERDUE_MIN", "15"))
 HISTORY_DAYS = int(os.environ.get("HISTORY_DAYS", "10"))
 DEFAULT_BEDTIME = int(os.environ.get("DEFAULT_BEDTIME_MIN", str(19 * 60 + 30)))
 STATE_FILE = os.environ.get("STATE_FILE", "/data/state.json")
@@ -135,30 +139,46 @@ def ha_update(pred):
 
 # Ekstra notifikationskanal ud over Home Assistant (web push), sat af app.py: objekt med active() og send()
 push = None
+# Barnets visningsnavn (sat af app.py fra prefs.json), ellers navnet fra databasen
+display_name = None
+
+# Beskedtyper, som hver enhed kan slå til og fra (push.json). Home Assistant får dem i HA_KINDS.
+KINDS = ("sleep_soon", "overdue", "pump")
 
 
-def can_notify():
-    return bool(HA_URL and HA_NOTIFY) or bool(push and push.active())
+def _ha(kind):
+    return bool(HA_URL and HA_NOTIFY) and (kind is None or kind in HA_KINDS)
 
 
-def notify(title, msg):
-    """Send via alle kanaler, der er sat op. En fejl i den ene stopper ikke den anden."""
-    if HA_URL and HA_NOTIFY:
+def can_notify(kind=None):
+    """Er der nogen, der vil have denne beskedtype (eller nogen besked overhovedet)?"""
+    return _ha(kind) or bool(push and push.active(kind))
+
+
+def notify(title, msg, kind=None):
+    """Send via alle kanaler, der vil have beskedtypen. En fejl i den ene stopper ikke den anden."""
+    if _ha(kind):
         try:
             path = HA_NOTIFY.replace(".", "/", 1)
             call(f"{HA_URL}/api/services/{path}", HA_TOKEN, "POST",
                  {"title": title, "message": msg}, scheme="Bearer")
         except Exception as e:
             print("notify ha:", e, flush=True)
-    if push and push.active():
+    if push and push.active(kind):
         try:
-            push.send(title, msg)
+            push.send(title, msg, kind=kind)
         except Exception as e:
             print("notify push:", e, flush=True)
 
 
-def ha_notify(pred):
-    notify("Søvn", f"Næste {pred['kind']} ca. kl. {pred['time'].astimezone(TZ):%H:%M}")
+def soon_text(pred):
+    t = f"{pred['time'].astimezone(TZ):%H:%M}"
+    return f"Tid til at slappe af. {'Næste lur' if pred['kind'] == 'lur' else 'Sengetid'} ca. kl. {t}"
+
+
+def overdue_text(pred, name):
+    what = "en lur" if pred["kind"] == "lur" else "at putte til natten"
+    return f"{name or 'Babyen'} virker meget frisk. Prøv alligevel {what}"
 
 
 def load_state():
@@ -206,9 +226,12 @@ def main():
     if HA_URL:
         ha_update(pred)
 
-    # Notifikation: kun i tidsvinduet, kun én gang, ikke hvis en timer kører
+    # Notifikationer: LEAD_MIN før ("slap af") og OVERDUE_MIN efter ("virker frisk"),
+    # hver kun én gang pr. forudsigelse, og ikke hvis søvnen allerede er startet
     until = (pred["time"] - now).total_seconds() / 60
-    if not can_notify() or not (0 <= until <= LEAD_MIN):
+    soon = 0 <= until <= LEAD_MIN
+    late = -120 <= until <= -OVERDUE_MIN  # ikke flere timer efter, fx hvis appen har været nede
+    if not (soon or late) or not can_notify("sleep_soon" if soon else "overdue"):
         return
     try:
         if db.timer(child["id"]):
@@ -216,10 +239,16 @@ def main():
     except Exception:
         pass
     state = load_state()
-    if state.get("notified") != pred["last_id"]:
-        ha_notify(pred)
-        state["notified"] = pred["last_id"]
-        save_state(state)
+    key = "notified" if soon else "overdue"
+    if state.get(key) == pred["last_id"]:
+        return
+    if soon:
+        notify("Søvn", soon_text(pred), kind="sleep_soon")
+    else:
+        name = (display_name and display_name()) or child.get("first_name")
+        notify("Søvn", overdue_text(pred, name), kind="overdue")
+    state[key] = pred["last_id"]
+    save_state(state)
 
 
 if __name__ == "__main__":

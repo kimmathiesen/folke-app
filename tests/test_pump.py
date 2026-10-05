@@ -99,17 +99,18 @@ def ha(monkeypatch, tmp_path):
     monkeypatch.setattr(napper, "HA_URL", "http://ha.test")
     monkeypatch.setattr(napper, "HA_NOTIFY", "notify.mobile_app_test")
     monkeypatch.setattr(napper, "STATE_FILE", str(tmp_path / "state.json"))
-    monkeypatch.setattr(napper, "notify", lambda title, msg: sent.append((title, msg)))
+    monkeypatch.setattr(napper, "notify", lambda title, msg, kind=None: sent.append((title, msg)))
     return sent
 
 
-def test_paamindelse(client, world, ha):
+def test_paamindelse(client, world, ha, monkeypatch):
     import app as app_module
 
     noon = now().replace(hour=12, minute=0)
     t = noon - timedelta(hours=4)
     world.store.add_pumping(world.cid, start=t, end=t, amount=100)
-    assert app_module.pump_reminder(noon) is False  # slået fra som standard
+    assert app_module.pump_reminder(noon) is False  # Home Assistant får ikke udpumpning som standard
+    monkeypatch.setattr(napper, "HA_KINDS", ["sleep_soon", "overdue", "pump"])
     client.post("/api/pump/remind", json={"hours": 5})
     assert app_module.pump_reminder(noon) is False  # kun 4 timer siden
     client.post("/api/pump/remind", json={"hours": 3})

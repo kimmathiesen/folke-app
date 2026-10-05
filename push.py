@@ -18,6 +18,8 @@ DIR = os.path.dirname(napper.STATE_FILE) or "."
 KEY = os.path.join(DIR, "vapid.pem")
 SUBS = os.path.join(DIR, "push.json")
 FALLBACK_SUB = "mailto:folke-app@users.noreply.github.com"
+# Beskedtyper pr. enhed: søvnbeskeder til, udpumpning fra, indtil man selv slår det til
+DEFAULT_KINDS = {"sleep_soon": True, "overdue": True, "pump": False}
 _lock = threading.Lock()
 
 
@@ -60,12 +62,37 @@ def subscribe(sub, origin="", name=""):
     if not endpoint.startswith("https://") or not keys.get("p256dh") or not keys.get("auth"):
         raise ValueError("Ugyldigt abonnement")
     with _lock:
+        old = next((s for s in load() if s["endpoint"] == endpoint), {})
         subs = [s for s in load() if s["endpoint"] != endpoint]
         subs.append({"endpoint": endpoint, "keys": {"p256dh": keys["p256dh"], "auth": keys["auth"]},
                      "origin": origin if str(origin).startswith("https://") else "",
-                     "name": str(name)[:60], "added": datetime.now(napper.TZ).isoformat(timespec="seconds")})
+                     "name": str(name)[:60], "kinds": {**DEFAULT_KINDS, **old.get("kinds", {})},
+                     "added": old.get("added") or datetime.now(napper.TZ).isoformat(timespec="seconds")})
         _save(subs)
     return len(subs)
+
+
+def kinds(endpoint):
+    """Beskedtyper for én enhed. KeyError, hvis enheden ikke er tilmeldt."""
+    s = next((s for s in load() if s["endpoint"] == endpoint), None)
+    if s is None:
+        raise KeyError(endpoint)
+    return {**DEFAULT_KINDS, **s.get("kinds", {})}
+
+
+def set_kinds(endpoint, changes):
+    with _lock:
+        subs = load()
+        s = next((s for s in subs if s["endpoint"] == endpoint), None)
+        if s is None:
+            raise KeyError(endpoint)
+        s["kinds"] = {**DEFAULT_KINDS, **s.get("kinds", {}),
+                      **{k: bool(v) for k, v in changes.items() if k in DEFAULT_KINDS}}
+        _save(subs)
+
+
+def wants(s, kind):
+    return kind is None or {**DEFAULT_KINDS, **s.get("kinds", {})}.get(kind, True)
 
 
 def unsubscribe(endpoint):
@@ -74,16 +101,17 @@ def unsubscribe(endpoint):
         _save([s for s in subs if s["endpoint"] != endpoint])
 
 
-def active():
-    return bool(load())
+def active(kind=None):
+    """Er der mindst én enhed, der vil have denne beskedtype (eller nogen besked overhovedet)?"""
+    return any(wants(s, kind) for s in load())
 
 
-def send(title, body, url="/"):
-    """Send til alle enheder. Abonnementer, som push-tjenesten siger er udløbet (404/410), fjernes.
-    Returnerer antal enheder, der fik beskeden."""
+def send(title, body, url="/", kind=None):
+    """Send til alle enheder, der vil have beskedtypen `kind` (None = alle, fx testbeskeden).
+    Abonnementer, som push-tjenesten siger er udløbet (404/410), fjernes. Returnerer antal modtagere."""
     from pywebpush import WebPushException, webpush
 
-    subs = load()
+    subs = [s for s in load() if wants(s, kind)]
     if not subs:
         return 0
     key, data, ok, gone = _vapid(), json.dumps({"title": title, "body": body, "url": url}), 0, []

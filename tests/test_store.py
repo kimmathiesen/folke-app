@@ -130,7 +130,7 @@ def app_client(tmp_path, monkeypatch):
 
 
 def test_import_endpoint(db, fake_bb, app_client):
-    assert app_client.get("/api/status").status_code == 409  # intet barn endnu
+    assert app_client.get("/api/status").get_json()["setup"] is True  # intet barn endnu
     seed(fake_bb)
     r = app_client.post("/api/import")
     assert r.status_code == 200 and r.get_json()["sleep"] == 1

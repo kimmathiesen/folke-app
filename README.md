@@ -4,6 +4,8 @@ Selfhostet baby-tracker oven på [Baby Buddy](https://github.com/babybuddy/babyb
 
 ## Funktioner
 
+- **Første opstart:** barnets navn (og fødselsdato, hvis intet er importeret) og «Jeg er mor/far» på hver enhed. Forsiden siger «Hej Folkes mor»
+
 - **Søvn:** start/stop med tæller, lur/nat, og mulighed for at taste "faldt i søvn kl." / "vågnede kl." bagud
 - **Dagsring:** 24-timers ring med dagens søvn som buer, klokkeslæt og forventet næste søvn
 - **Forudsigelse:** næste lur/sengetid ud fra barnets egne vågenvinduer (median af de sidste 10 dage, pr. position på dagen). Aldersbaseret standard bruges, indtil der er data nok
@@ -12,7 +14,7 @@ Selfhostet baby-tracker oven på [Baby Buddy](https://github.com/babybuddy/babyb
 - **Vækst:** egen side (knap øverst til højre) med vægt, længde og hovedomfang på WHO's kurver (2006), 3.-97. percentil. Gemmes i `growth.json`, kurvedata ligger i `who.py`
 - **Udpumpning:** kort på forsiden (ml, tidspunkt og i stand-alone også side og minutter) med dagens total. Egen side med graf over 14 dage og en liste, hvor man kan rette og slette. Påmindelse via Home Assistant efter et valgfrit antal timer (ikke mellem 22 og 7). Kan slås fra under Indstillinger. `POST /api/pump` virker stadig fra Home Assistant
 - **Forslag:** appen foreslår at tilføje eller skjule funktioner efter alder og brug (fast føde ved 6 mdr., skjul amning efter 3 uger uden). Intet ændres uden svar. Alt kan ændres under *Indstillinger* (knap øverst til venstre)
-- **Notifikationer:** besked før næste lur/sengetid og påmindelse om udpumpning. Via web push direkte til telefonen (Indstillinger → *Notifikationer på denne enhed*) og/eller via Home Assistant
+- **Notifikationer:** «Tid til at slappe af. Næste lur ca. kl. 13:40» 30 min før, «Folke virker meget frisk. Prøv alligevel en lur» hvis tiden er gået med 15 min uden søvn, og påmindelse om udpumpning. Hver enhed (fx mors og fars telefon) vælger selv, hvilke den vil have. Søvnbeskederne er slået til, udpumpning fra. Via web push direkte til telefonen (Indstillinger → *Notifikationer på denne enhed*) og/eller via Home Assistant
 - **Home Assistant:** opdaterer `sensor.baby_next_sleep` og kan sende notifikationer
 
 ## Opbygning
@@ -41,7 +43,9 @@ Selfhostet baby-tracker oven på [Baby Buddy](https://github.com/babybuddy/babyb
 | `HA_NOTIFY` | Notify-tjeneste, fx `notify.mobile_app_din_telefon` | |
 | `TZ` | Tidszone | `Europe/Copenhagen` |
 | `CHILD_ID` | Barnets id, hvis der er flere | første barn |
-| `LEAD_MIN` | Minutter før næste søvn, notifikationen sendes | `10` |
+| `LEAD_MIN` | Minutter før næste søvn, beskeden «Tid til at slappe af» sendes | `30` |
+| `OVERDUE_MIN` | Minutter efter forventet søvn, beskeden «… virker meget frisk» sendes | `15` |
+| `HA_KINDS` | Beskedtyper, Home Assistant får (`sleep_soon`, `overdue`, `pump`) | `sleep_soon,overdue` |
 | `HISTORY_DAYS` | Dage søvnhistorik til forudsigelsen | `10` |
 | `STATE_FILE` | Stien til tilstandsfil (`prefs.json` ligger ved siden af) | `/data/state.json` |
 | `BACKEND` | `babybuddy` eller `sqlite` | `babybuddy` |

@@ -151,6 +151,9 @@ class Sqlite:
         finally:
             db.close()
 
+    def add_child(self, name, birth):
+        self._exec("INSERT INTO child (first_name, birth_date) VALUES (?, ?)", (name, birth.isoformat()))
+
     def child(self):
         cs = self._rows("SELECT id, first_name, birth_date FROM child ORDER BY id")
         return next((c for c in cs if not napper.CHILD_ID or str(c["id"]) == napper.CHILD_ID), cs[0] if cs else None)

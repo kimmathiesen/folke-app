@@ -36,7 +36,9 @@ def last_sleep_end(cid, now):
 @app.get("/api/status")
 def status():
     now = datetime.now(TZ)
-    c = get_child()
+    c = db().child()
+    if not c:  # første opstart uden import: UI'et spørger om navn og fødselsdato
+        return jsonify(setup=True, backend=db().name, can_import=db().name == "sqlite" and bool(napper.BB_TOKEN))
     t = sleep_timer(c["id"])
     raw = db().sleeps(c["id"], now - timedelta(days=napper.HISTORY_DAYS))
     sleeps = [{"id": s["id"], "start": napper.parse(s["start"]), "end": napper.parse(s["end"]),
@@ -62,7 +64,11 @@ def status():
         pump=pump_summary(c["id"], now),
         pump_remind=prefs()["pump_remind"],
         can_notify=napper.can_notify(),
+        child_name=child_name(c),
+        birth_date=c["birth_date"],
         push_devices=len(push.load()),
+        notify_lead=napper.LEAD_MIN,
+        notify_overdue=napper.OVERDUE_MIN,
         features=prefs()["features"],
         sex=prefs()["sex"],
         suggestions=current_suggestions(c, now, prefs()),
@@ -253,7 +259,7 @@ def pump_reminder(now):
     Én gang pr. udpumpning, og ikke om natten."""
     p = prefs()
     h = p["pump_remind"]
-    if not (h and p["features"]["pump"] and napper.can_notify()):
+    if not (h and p["features"]["pump"] and napper.can_notify("pump")):
         return False
     if now.hour >= QUIET[0] or now.hour < QUIET[1]:
         return False
@@ -268,7 +274,7 @@ def pump_reminder(now):
     if state.get("pump_notified") == last["id"]:
         return False
     hrs = (now - t).total_seconds() / 3600
-    napper.notify("Udpumpning", f"Det er {hrs:.0f} timer siden sidste udpumpning (kl. {t:%H:%M})")
+    napper.notify("Udpumpning", f"Det er {hrs:.0f} timer siden sidste udpumpning (kl. {t:%H:%M})", kind="pump")
     state["pump_notified"] = last["id"]
     napper.save_state(state)
     return True
@@ -285,7 +291,16 @@ def prefs():
     except (OSError, ValueError):
         p = {}
     return {"features": {"breast": True, "solids": False, "pump": True, **p.get("features", {})},
-            "sug": p.get("sug", {}), "sex": p.get("sex", "boy"), "pump_remind": p.get("pump_remind", 0)}
+            "sug": p.get("sug", {}), "sex": p.get("sex", "boy"), "pump_remind": p.get("pump_remind", 3),
+            "child_name": p.get("child_name", "")}
+
+
+def child_name(c=None):
+    """Navnet fra opsætningen, ellers fra databasen (fx importeret fra Baby Buddy)."""
+    return prefs()["child_name"] or ((c or db().child() or {}).get("first_name") or "")
+
+
+napper.display_name = child_name
 
 
 def save_prefs(p):
@@ -354,14 +369,53 @@ def feature():
     return jsonify(ok=True)
 
 
+def clean_name(v):
+    name = " ".join(str(v or "").split())
+    if not 1 <= len(name) <= 40:
+        raise ValueError("Skriv barnets navn (højst 40 tegn)")
+    return name
+
+
 @app.post("/api/profile")
 def profile():
+    """Køn (vækstkurver) og/eller barnets navn."""
     d = request.get_json(silent=True) or {}
-    if d.get("sex") not in ("boy", "girl"):
-        return jsonify(ok=False, error="Ugyldigt valg"), 400
+    if "sex" not in d and "name" not in d:
+        return jsonify(ok=False, error="Intet at gemme"), 400
     p = prefs()
-    p["sex"] = d["sex"]
+    if "sex" in d:
+        if d["sex"] not in ("boy", "girl"):
+            return jsonify(ok=False, error="Ugyldigt valg"), 400
+        p["sex"] = d["sex"]
+    if "name" in d:
+        try:
+            p["child_name"] = clean_name(d["name"])
+        except ValueError as e:
+            return jsonify(ok=False, error=str(e)), 400
     save_prefs(p)
+    return jsonify(ok=True)
+
+
+@app.post("/api/child")
+def create_child():
+    """Første opstart i stand-alone uden import: opret barnet ud fra navn og fødselsdato."""
+    if db().name != "sqlite":
+        return jsonify(ok=False, error="Kun i stand-alone"), 400
+    if db().child():
+        return jsonify(ok=False, error="Barnet findes allerede"), 409
+    d = request.get_json(silent=True) or {}
+    try:
+        name = clean_name(d.get("name"))
+        birth = date.fromisoformat(str(d.get("birth_date")))
+    except ValueError as e:
+        return jsonify(ok=False, error=str(e) if "navn" in str(e) else "Ugyldig fødselsdato"), 400
+    if not datetime.now(TZ).date() - timedelta(days=6 * 365) <= birth <= datetime.now(TZ).date():
+        return jsonify(ok=False, error="Ugyldig fødselsdato"), 400
+    db().add_child(name, birth)
+    p = prefs()
+    p["child_name"] = name
+    save_prefs(p)
+    _sc["t"] = 0
     return jsonify(ok=True)
 
 
@@ -598,6 +652,18 @@ def push_subscribe():
 def push_unsubscribe():
     push.unsubscribe((request.get_json(silent=True) or {}).get("endpoint", ""))
     return jsonify(ok=True)
+
+
+@app.post("/api/push/kinds")
+def push_kinds():
+    """Hent ({endpoint}) eller sæt ({endpoint, kinds: {type: bool}}) beskedtyper for denne enhed."""
+    d = request.get_json(silent=True) or {}
+    try:
+        if isinstance(d.get("kinds"), dict):
+            push.set_kinds(d.get("endpoint", ""), d["kinds"])
+        return jsonify(ok=True, kinds=push.kinds(d.get("endpoint", "")))
+    except KeyError:
+        return jsonify(ok=False, error="Enheden er ikke tilmeldt"), 404
 
 
 @app.post("/api/push/test")

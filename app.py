@@ -69,6 +69,7 @@ def status():
         push_devices=len(push.load()),
         notify_lead=napper.LEAD_MIN,
         notify_overdue=napper.OVERDUE_MIN,
+        board=(lambda b: b["version"] if b["strokes"] else 0)(load_board()),
         features=prefs()["features"],
         sex=prefs()["sex"],
         suggestions=current_suggestions(c, now, prefs()),
@@ -630,6 +631,90 @@ def manifest():
     return jsonify(name="Folke-App", short_name="Folke-App", start_url="/", display="standalone",
                    background_color="#0a1022", theme_color="#0a1022",
                    icons=[{"src": "/icon.png", "sizes": "512x512", "type": "image/png"}])
+
+
+# ---------- Tavlen (easter egg: tryk på månen) ----------
+# Fælles tegning for begge forældre. Streger gemmes som punkter i 0..1 (tavlen har fast format 3:4),
+# så den ser ens ud på telefon og iPad. Ingen push: man ser den, når man åbner tavlen.
+BOARD = os.path.join(os.path.dirname(napper.STATE_FILE) or ".", "board.json")
+CHALK = ("#f4f1ea", "#ff8fa3", "#ffd27a", "#8fb0ff")
+MAX_POINTS, MAX_TOTAL = 2000, 30000
+_board_lock = threading.Lock()
+
+
+def load_board():
+    try:
+        with open(BOARD) as f:
+            return json.load(f)
+    except (OSError, ValueError):
+        return {"version": 0, "strokes": [], "by": None, "updated": None}
+
+
+def save_board(b, who):
+    b["version"] += 1
+    b["by"] = who if who in ("mor", "far") else None
+    b["updated"] = datetime.now(TZ).isoformat(timespec="seconds")
+    os.makedirs(os.path.dirname(BOARD) or ".", exist_ok=True)
+    with open(BOARD, "w") as f:
+        json.dump(b, f)
+    return b
+
+
+def clean_stroke(s):
+    if not isinstance(s, dict) or s.get("c") not in CHALK:
+        raise ValueError("Ugyldig farve")
+    try:
+        w = float(s.get("w"))
+        pts = [[round(float(x), 4), round(float(y), 4)] for x, y in s.get("p") or []]
+    except (TypeError, ValueError):
+        raise ValueError("Ugyldig streg")
+    if not 0.003 <= w <= 0.05:
+        raise ValueError("Ugyldig stregtykkelse")
+    if not 1 <= len(pts) <= MAX_POINTS or not all(0 <= v <= 1 for p in pts for v in p):
+        raise ValueError("Ugyldig streg")
+    return {"c": s["c"], "w": round(w, 4), "p": pts}
+
+
+@app.get("/api/board")
+def board():
+    """Hele tavlen, eller kun {version}, hvis klienten allerede har den (?v=version)."""
+    b = load_board()
+    if request.args.get("v", type=int) == b["version"]:
+        return jsonify(version=b["version"], same=True)
+    return jsonify(b)
+
+
+@app.post("/api/board/stroke")
+def board_stroke():
+    d = request.get_json(silent=True) or {}
+    try:
+        s = clean_stroke(d.get("stroke"))
+    except ValueError as e:
+        return jsonify(ok=False, error=str(e)), 400
+    with _board_lock:
+        b = load_board()
+        if sum(len(x["p"]) for x in b["strokes"]) + len(s["p"]) > MAX_TOTAL:
+            return jsonify(ok=False, error="Tavlen er fuld. Visk ud først"), 400
+        b["strokes"].append(s)
+        return jsonify(save_board(b, d.get("by")))
+
+
+@app.post("/api/board/undo")
+def board_undo():
+    with _board_lock:
+        b = load_board()
+        if b["strokes"]:
+            b["strokes"].pop()
+            b = save_board(b, (request.get_json(silent=True) or {}).get("by"))
+        return jsonify(b)
+
+
+@app.post("/api/board/clear")
+def board_clear():
+    with _board_lock:
+        b = load_board()
+        b["strokes"] = []
+        return jsonify(save_board(b, (request.get_json(silent=True) or {}).get("by")))
 
 
 # ---------- Web push ----------

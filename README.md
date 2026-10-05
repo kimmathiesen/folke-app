@@ -15,6 +15,7 @@ Selfhostet baby-tracker oven på [Baby Buddy](https://github.com/babybuddy/babyb
 - **Udpumpning:** kort på forsiden (ml, tidspunkt og i stand-alone også side og minutter) med dagens total. Egen side med graf over 14 dage og en liste, hvor man kan rette og slette. Påmindelse via Home Assistant efter et valgfrit antal timer (ikke mellem 22 og 7). Kan slås fra under Indstillinger. `POST /api/pump` virker stadig fra Home Assistant
 - **Forslag:** appen foreslår at tilføje eller skjule funktioner efter alder og brug (fast føde ved 6 mdr., skjul amning efter 3 uger uden). Intet ændres uden svar. Alt kan ændres under *Indstillinger* (knap øverst til venstre)
 - **Notifikationer:** «Tid til at slappe af. Næste lur ca. kl. 13:40» 30 min før, «Folke virker meget frisk. Prøv alligevel en lur» hvis tiden er gået med 15 min uden søvn, og påmindelse om udpumpning. Hver enhed (fx mors og fars telefon) vælger selv, hvilke den vil have. Søvnbeskederne er slået til, udpumpning fra. Via web push direkte til telefonen (Indstillinger → *Notifikationer på denne enhed*) og/eller via Home Assistant
+- **Tavlen:** et lille easter egg. Tryk på månen øverst for at tegne eller skrive til din partner med fingeren. Tavlen er fælles: det, den ene tegner eller visker ud, ser den anden også. Ingen notifikation, men stjernerne ved månen blinker, når der er noget nyt
 - **Home Assistant:** opdaterer `sensor.baby_next_sleep` og kan sende notifikationer
 
 ## Opbygning

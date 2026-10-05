@@ -86,7 +86,9 @@ header{position:relative}
 #gsvg,#psvg{display:block;width:100%;height:auto}#gsvg text,#psvg text{fill:var(--mut);font-size:11px}#gsum,#psum2{margin-top:8px;font-size:15px}
 #gnote{margin:16px 4px 0;color:var(--mut);font-size:13px;text-align:left}#gadd{margin-top:14px}
 #glist,#plist{list-style:none;margin:16px 0 0}#plist li,#glist li{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:12px 0;border-top:1px solid var(--line);cursor:pointer}#glist li:first-child,#plist li:first-child{border:0}
-.more{flex:none;color:var(--acc);text-decoration:none;font-size:14px}#pnote{margin:16px 4px 0;color:var(--mut);font-size:13px;text-align:left}#premnote,#pushmsg,#pushkh{font-size:13px;color:var(--mut);margin-top:6px;text-align:left}#pushst{color:var(--mut);font-size:14px;text-align:right;max-width:60%}
+.more{flex:none;color:var(--acc);text-decoration:none;font-size:14px}#pnote{margin:16px 4px 0;color:var(--mut);font-size:13px;text-align:left}#logo{cursor:pointer;-webkit-user-select:none;user-select:none}#logo.new path[fill="#ffe28a"]{animation:tw 1.4s ease-in-out infinite;transform-box:fill-box;transform-origin:center}#logo.new path[fill="#ffe28a"]:nth-of-type(4){animation-delay:.45s}#logo.new path[fill="#ffe28a"]:nth-of-type(5){animation-delay:.9s}@keyframes tw{50%{opacity:.3;transform:scale(.55)}}
+#bframe{width:min(100%,460px,calc((100vh - 250px)*.75));margin:4px auto 0;padding:10px;border-radius:18px;background:linear-gradient(145deg,#9a7650,#5e4630);box-shadow:0 10px 30px rgba(0,0,0,.35),inset 0 1px 0 rgba(255,255,255,.25)}#bcv{display:block;width:100%;aspect-ratio:3/4;border-radius:9px;background:radial-gradient(120% 90% at 30% 20%,#35554a,#1c2e28);touch-action:none;cursor:crosshair;box-shadow:inset 0 0 24px rgba(0,0,0,.45)}#bpal{display:flex;justify-content:center;gap:14px;margin:14px 0 4px}.bdot{width:34px;height:34px;border-radius:50%;border:2px solid rgba(255,255,255,.25);background:var(--c);padding:0}.bdot.on{border-color:#fff;box-shadow:0 0 0 3px rgba(255,255,255,.25)}#bbtns{max-width:460px;margin:8px auto 0}#binfo,#berr{color:var(--mut);font-size:13px;margin-top:10px}#berr{color:#ff9b8f}
+#premnote,#pushmsg,#pushkh{font-size:13px;color:var(--mut);margin-top:6px;text-align:left}#pushst{color:var(--mut);font-size:14px;text-align:right;max-width:60%}
 .sw select{background:rgba(255,255,255,.06);color:var(--fg);border:1px solid var(--line);border-radius:10px;padding:8px 10px;font-size:15px}
 /* iPad på højkant: én bredere kolonne */
 @media (min-width:600px){main{max-width:600px}#dial{width:min(100%,420px)}
@@ -101,7 +103,7 @@ header{position:relative}
 <header>
 <a href="#indstillinger" id="setbtn" aria-label="Indstillinger"><svg viewBox="0 0 24 24"><path d="M4 6h9M17 6h3M4 12h3M11 12h9M4 18h11M19 18h1"/><circle cx="15" cy="6" r="2"/><circle cx="9" cy="12" r="2"/><circle cx="17" cy="18" r="2"/></svg>Indstillinger</a>
 <a href="#vaekst" id="gobtn"><svg viewBox="0 0 24 24"><path d="M4 19V5M4 19h16M8 15l4-5 3 3 5-6"/></svg>Vækst</a>
-<svg viewBox="0 0 100 100"><path d="M60 14a34 34 0 1 0 25 55A30 30 0 0 1 60 14z" fill="none" stroke="url(#g)" stroke-width="3" stroke-linejoin="round"/>
+<svg viewBox="0 0 100 100" id="logo" role="button" aria-label="Tavlen"><path d="M60 14a34 34 0 1 0 25 55A30 30 0 0 1 60 14z" fill="none" stroke="url(#g)" stroke-width="3" stroke-linejoin="round"/>
 <path d="M46 52q3 3 6 0M60 58q3 3 6 0M52 66q3 2 6 0" fill="none" stroke="url(#g)" stroke-width="2.4" stroke-linecap="round"/>
 <path d="M82 14l1.8 4.2L88 20l-4.2 1.8L82 26l-1.8-4.2L76 20l4.2-1.8z" fill="#ffe28a"/>
 <path d="M18 30l1.3 3L22 34.3 19.3 35.6 18 39l-1.3-3.4L14 34.3 16.7 33z" fill="#ffe28a"/>
@@ -166,6 +168,13 @@ header{position:relative}
 <label class="sw">Vækstkurver<select id="sx"><option value="boy">Dreng</option><option value="girl">Pige</option></select></label>
 <div id="dsrc" hidden><label class="sw">Data<span>Lokal (SQLite)</span></label><div class="seg" style="margin-top:10px"><button id="imp">Importér fra Baby Buddy</button><button id="exp">Eksportér</button></div><div id="impmsg" class="dl" style="margin-top:8px"></div></div></div>
 </div>
+<div id="v-board" hidden>
+<div class="gh"><a href="#">‹ Tilbage</a><div class="dl">Tavlen</div><span></span></div>
+<div id="bframe"><canvas id="bcv" aria-label="Tavle til at tegne på"></canvas></div>
+<div id="bpal"><button class="bdot on" data-c="#f4f1ea" aria-label="Hvid"></button><button class="bdot" data-c="#ff8fa3" aria-label="Lyserød"></button><button class="bdot" data-c="#ffd27a" aria-label="Gul"></button><button class="bdot" data-c="#8fb0ff" aria-label="Blå"></button></div>
+<div class="seg" id="bbtns"><button id="bundo">Fortryd</button><button id="bclr">Visk ud</button></div>
+<div id="binfo"></div><div id="berr"></div>
+</div>
 <div id="v-pump" hidden>
 <div class="gh"><a href="#">‹ Tilbage</a><div class="dl">Udpumpning</div><span></span></div>
 <div class="card"><svg id="psvg" viewBox="0 0 340 200"></svg><div id="psum2"></div></div>
@@ -217,7 +226,7 @@ async function api(p,body,method='POST'){const r=await fetch(p,body===undefined?
 headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
 const j=await r.json();if(!r.ok)throw new Error(j.error||r.status);return j}
 const isNap=()=>napSel??S.nap_guess;
-async function load(){try{S=await api('/api/status');$('err').textContent='';if(S.setup||!S.child_name||!role())onb();if(S.setup)return;hello();if(document.activeElement!==$('sname'))$('sname').value=S.child_name;$('srole').value=role()||'mor';const F=S.features||{};$('cb').checked=!!F.breast;$('cs').checked=!!F.solids;$('sx').value=S.sex||'boy';$('dsrc').hidden=S.backend!=='sqlite';$('cp').checked=!!F.pump;$('prem').value=String(S.pump_remind||3);$('premrow').hidden=$('premnote').hidden=$('kpump').hidden=!F.pump;$('imp').hidden=!S.can_import;
+async function load(){try{S=await api('/api/status');$('err').textContent='';if(S.setup||!S.child_name||!role())onb();if(S.setup)return;hello();$('logo').classList.toggle('new',S.board>seen()&&location.hash!=='#tavle');if(document.activeElement!==$('sname'))$('sname').value=S.child_name;$('srole').value=role()||'mor';const F=S.features||{};$('cb').checked=!!F.breast;$('cs').checked=!!F.solids;$('sx').value=S.sex||'boy';$('dsrc').hidden=S.backend!=='sqlite';$('cp').checked=!!F.pump;$('prem').value=String(S.pump_remind||3);$('premrow').hidden=$('premnote').hidden=$('kpump').hidden=!F.pump;$('imp').hidden=!S.can_import;
 if(S.sleeping){$('st').value='';$('lb').hidden=true}else{napSel=null;$('wt').value='';$('wb').hidden=true}}
 catch(e){$('err').textContent=e.message}render()}
 function render(){if(!S||S.setup)return;const sl=S.sleeping,p=S.prediction,b=sl?S.since:S.awake_since;let secs=0;
@@ -294,7 +303,7 @@ try{await api('/api/sleep/'+ed.id,{},'DELETE');$('sheet').hidden=true;ed=null;lo
 let G=null,gk='w',gid=null,garm=false;
 const GL={w:['Vægt','kg'],l:['Længde','cm'],h:['Hoved','cm']},nf=v=>v.toLocaleString('da-DK',{maximumFractionDigits:2}),dc=v=>v==null?'':String(v).replace('.',',');
 const gdate=d=>new Date(d+'T12:00').toLocaleDateString('da-DK',{day:'numeric',month:'short',year:'numeric'});
-function route(){const h=location.hash,g=h==='#vaekst',s=h==='#indstillinger',u=h==='#pumpning';$('v-main').hidden=g||s||u;$('v-growth').hidden=!g;$('v-settings').hidden=!s;$('v-pump').hidden=!u;if(g||s||u)scrollTo(0,0);if(s)pushUI();if(g)loadG();if(u)loadP()}
+function route(){const h=location.hash,g=h==='#vaekst',s=h==='#indstillinger',u=h==='#pumpning',t=h==='#tavle';$('v-main').hidden=g||s||u||t;$('v-growth').hidden=!g;$('v-settings').hidden=!s;$('v-pump').hidden=!u;$('v-board').hidden=!t;if(g||s||u||t)scrollTo(0,0);if(t)bopen();else if(typeof bclose==='function')bclose();if(s)pushUI();if(g)loadG();if(u)loadP()}
 async function loadG(){try{G=await api('/api/growth');$('gerr').textContent=''}catch(e){$('gerr').textContent=e.message}drawG()}
 function drawG(){if(!G)return;
 document.querySelectorAll('#gtabs button').forEach(x=>x.classList.toggle('on',x.dataset.k===gk));
@@ -422,5 +431,36 @@ $('srole').onchange=async()=>{setRole($('srole').value);hello();await syncDev()}
 // Giver push-tilmeldingen et navn som «Mors iPhone», så man kan se, hvis enhed det er
 async function syncDev(){try{if(!PUSHOK||!isSecureContext)return;const sub=await (await navigator.serviceWorker.ready).pushManager.getSubscription();
 if(sub)await api('/api/push/subscribe',{subscription:sub.toJSON(),origin:location.origin,name:devName()})}catch(e){}}
+// ---------- Tavlen (easter egg): fælles tegning, opdateres hos begge ----------
+let B={version:0,strokes:[]},bc='#f4f1ea',cur=null,bpoll=null,barm=null;
+const cv=$('bcv'),bx=cv.getContext('2d'),base=document.createElement('canvas'),BW=.012;
+const seen=()=>{try{return +localStorage.getItem('folke.boardSeen')||0}catch(e){return 0}};
+const setSeen=v=>{try{localStorage.setItem('folke.boardSeen',v)}catch(e){}};
+function stroke(c,s){const W=c.canvas.width,H=c.canvas.height,p=s.p,lw=s.w*W;c.strokeStyle=c.fillStyle=s.c;c.lineWidth=lw;c.lineCap=c.lineJoin='round';
+c.shadowColor=s.c;c.shadowBlur=lw*.5;c.beginPath();
+if(p.length===1){c.arc(p[0][0]*W,p[0][1]*H,lw/2,0,7);c.fill();return}
+c.moveTo(p[0][0]*W,p[0][1]*H);for(let i=1;i<p.length-1;i++)c.quadraticCurveTo(p[i][0]*W,p[i][1]*H,(p[i][0]+p[i+1][0])/2*W,(p[i][1]+p[i+1][1])/2*H);
+const l=p[p.length-1];c.lineTo(l[0]*W,l[1]*H);c.stroke()}
+function brebuild(){const g=base.getContext('2d');g.clearRect(0,0,base.width,base.height);B.strokes.forEach(s=>stroke(g,s));bframe();binfo()}
+function bframe(){bx.clearRect(0,0,cv.width,cv.height);bx.drawImage(base,0,0);if(cur)stroke(bx,cur)}
+function bsize(){const r=cv.getBoundingClientRect(),d=devicePixelRatio||1;if(!r.width)return;base.width=cv.width=Math.round(r.width*d);base.height=cv.height=Math.round(r.height*d);brebuild()}
+function binfo(){const u=B.updated&&new Date(B.updated),t=u&&(u.toDateString()===new Date().toDateString()?'kl. '+hm(u):u.toLocaleDateString('da-DK',{day:'numeric',month:'short'})+' kl. '+hm(u));
+$('binfo').textContent=B.strokes.length?`Sidst ændret ${B.by?'af '+B.by+' ':''}${t||''}`:'Tavlen er tom. Tegn et lille hjerte til din partner ♡'}
+function bset(b){B=b;setSeen(b.strokes.length?b.version:0);brebuild();$('logo').classList.remove('new')}
+async function bload(){if(cur)return;try{const r=await api(`/api/board?v=${B.version}`);if(!r.same)bset(r);$('berr').textContent=''}catch(e){$('berr').textContent=e.message}}
+function bopen(){requestAnimationFrame(bsize);B.version=-1;bload();clearInterval(bpoll);bpoll=setInterval(bload,2500)}
+function bclose(){clearInterval(bpoll);bpoll=null;cur=null}
+const bpt=e=>{const r=cv.getBoundingClientRect(),c=v=>Math.round(Math.min(1,Math.max(0,v))*1e4)/1e4;return[c((e.clientX-r.left)/r.width),c((e.clientY-r.top)/r.height)]};
+cv.onpointerdown=e=>{e.preventDefault();cv.setPointerCapture(e.pointerId);cur={c:bc,w:BW,p:[bpt(e)]};bframe()};
+cv.onpointermove=e=>{if(!cur)return;const q=bpt(e),l=cur.p[cur.p.length-1];if(Math.hypot(q[0]-l[0],q[1]-l[1])<.004)return;cur.p.push(q);bframe();if(cur.p.length>=1990)bend()};
+async function bend(){if(!cur)return;const s=cur;cur=null;B.strokes.push(s);brebuild();
+try{bset(await api('/api/board/stroke',{stroke:s,by:role()}))}catch(e){B.strokes=B.strokes.filter(x=>x!==s);brebuild();$('berr').textContent=e.message}}
+cv.onpointerup=cv.onpointercancel=bend;
+document.querySelectorAll('#bpal .bdot').forEach(x=>{x.style.setProperty('--c',x.dataset.c);x.onclick=()=>{bc=x.dataset.c;document.querySelectorAll('#bpal .bdot').forEach(y=>y.classList.toggle('on',y===x))}});
+$('bundo').onclick=async()=>{try{bset(await api('/api/board/undo',{by:role()}))}catch(e){$('berr').textContent=e.message}};
+$('bclr').onclick=async()=>{if(!barm){$('bclr').textContent='Tryk igen for at viske ud';barm=setTimeout(()=>{barm=null;$('bclr').textContent='Visk ud'},3000);return}
+clearTimeout(barm);barm=null;$('bclr').textContent='Visk ud';try{bset(await api('/api/board/clear',{by:role()}))}catch(e){$('berr').textContent=e.message}};
+$('logo').onclick=()=>{location.hash='#tavle'};
+addEventListener('resize',()=>{if(bpoll)bsize()});
 sky();route();fui();load();setInterval(load,15000);setInterval(render,1000);setInterval(sky,60000);
 </script></body></html>

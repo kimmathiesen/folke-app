@@ -45,5 +45,10 @@ forudsigelse af næste lur/sengetid, notifikation via Home Assistant.
 - Mor/far gemmes kun på enheden (`localStorage` `folke.role`) og giver overskriften «Hej Folkes mor» og push-navnet «Mors iPhone».
 - Første opstart: UI'et viser `#onb`, hvis navn eller rolle mangler. Uden barn i SQLite svarer `/api/status` `{setup: true}`, og `POST /api/child` opretter barnet.
 
+## Tavlen (easter egg, kun branch standalone)
+- Tryk på månen i toppen -> `#tavle`. Fælles tegning i `board.json` (ved STATE_FILE): streger som punkter i 0..1 på en tavle med fast format 3:4, så den ser ens ud overalt. Ingen push.
+- `/api/board` (`?v=` giver `{same: true}`, hvis intet er nyt), `/stroke`, `/undo`, `/clear`. Klienten spørger hvert 2,5 sek., mens tavlen er åben.
+- Stjernerne ved månen blinker, når `status.board` (version, 0 hvis tom) er nyere end `localStorage` `folke.boardSeen`.
+
 ## Vækst
 - Egen side i index.html (`#vaekst`). Målinger i `growth.json` (ikke Baby Buddy). `who.py` har WHO LMS-tabeller 0-24 mdr. (fra pygrowup) og beregner kurver/percentiler. Køn vælges under Indstillinger (`prefs.json`).

@@ -16,9 +16,14 @@ def bodies(sent):
     return [json.loads(d)["body"] for _, d, _ in sent]
 
 
+@pytest.fixture(autouse=True)
+def _noon(noon):
+    """Alle beskedtests kører kl. 12, hvor næste søvn er en lur (se `noon` i conftest)."""
+
+
 def due_in(world, minutes):
     """Ét søvn, så næste forventede søvn er om `minutes` min (aldersstandard 120 min ved 4,9 mdr.)."""
-    now = datetime.now(TZ)
+    now = folke.datetime.now(TZ)
     world.set_birth(now.date() - timedelta(days=150))
     world.add_sleep(now - timedelta(hours=3), now - timedelta(minutes=120 - minutes))
 
@@ -61,7 +66,7 @@ def test_ingen_frisk_besked_for_tidligt_eller_for_sent(client, world, sent, real
 
 def test_ingen_besked_naar_han_sover(client, world, sent, real_main):  # noqa: F811
     due_in(world, -20)
-    world.add_timer(datetime.now(TZ) - timedelta(minutes=5))
+    world.add_timer(folke.datetime.now(TZ) - timedelta(minutes=5))
     push.subscribe(SUB, "https://folke.test")
     real_main()
     assert sent == []

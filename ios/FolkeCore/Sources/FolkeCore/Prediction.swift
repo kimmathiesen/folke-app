@@ -106,8 +106,9 @@ public enum Predictor {
         let bedMin = evenings.count >= 3 ? Int(median(evenings)) : defaultBedtimeMin
         let bed = calendar.date(bySettingHour: bedMin / 60, minute: bedMin % 60, second: 0, of: nextStart) ?? nextStart
 
+        // Er sengetiden allerede gået (sent på aftenen), er det sengetid, så snart vinduet er gået
         let (kind, when): (Prediction.Kind, Date) = nextStart >= bed.addingTimeInterval(-60 * 60)
-            ? (.bedtime, bed) : (.nap, nextStart)
+            ? (.bedtime, max(bed, nextStart)) : (.nap, nextStart)
 
         return Prediction(kind: kind, time: when, windowMin: Int(window.rounded(.toNearestOrEven)),
                           source: source, lastID: last.id)

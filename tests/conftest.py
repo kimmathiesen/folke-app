@@ -34,6 +34,21 @@ from fakebb import FakeBB  # noqa: E402
 EPOCH = datetime(2000, 1, 1, tzinfo=timezone.utc)
 
 
+class _Noon(datetime):
+    """Uret står på kl. 12 i dag, så beskedtestene ikke afhænger af, hvornår de køres
+    (om aftenen bliver næste søvn ellers sengetid i stedet for en lur)."""
+
+    @classmethod
+    def now(cls, tz=None):
+        return datetime.now(tz).replace(hour=12, minute=0, second=0, microsecond=0)
+
+
+@pytest.fixture
+def noon(monkeypatch):
+    monkeypatch.setattr(folke, "datetime", _Noon)
+    return _Noon.now(folke.TZ)
+
+
 @pytest.fixture
 def real_main():
     return _real_main

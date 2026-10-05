@@ -83,6 +83,17 @@ func predict(_ s: [SleepSample], _ now: Date) -> Prediction? {
         #expect(p.time == at(lastDay, night.0, night.1)) // median af aftensøvne
     }
 
+    @Test func sengetidDerErGaaetFlyttesTilVinduetsSlut() throws {
+        // Kl. 22 efter en sen lur, der sluttede 20:45: sengetiden 19:30 er gået, så det er sengetid, når vinduet er gået
+        var sleeps = history(napsLastDay: 3)
+        let lastDay = day(2026, 6, 10)
+        sleeps.append(.init(id: id(99), start: at(lastDay, 20, 0), end: at(lastDay, 20, 45), nap: true))
+        let p = try #require(predict(sleeps, at(lastDay, 22, 0)))
+        #expect(p.kind == .bedtime)
+        #expect(p.time == at(lastDay, 20, 45).addingTimeInterval(Double(p.windowMin) * 60))
+        #expect(p.time > at(lastDay, night.0, night.1))
+    }
+
     @Test func raekkefoelgeErLigegyldig() {
         let sleeps = history(napsLastDay: 2)
         let now = at(day(2026, 6, 10), 14, 0)

@@ -67,7 +67,8 @@ Input: søvn de sidste 10 dage (kun afsluttede), fødselsdato, nu.
 6. `nextStart` = sidste søvns slut + vindue.
 7. **Sengetid:** median af starttidspunkt (minutter efter midnat) for nattesøvn med start kl. 17 eller senere.
    Kræver mindst 3, ellers 19:30. Sengetiden lægges på `nextStart`s dato.
-8. Er `nextStart` ≥ sengetid − 60 min, er resultatet **sengetid** på sengetidspunktet. Ellers er det **lur** på `nextStart`.
+8. Er `nextStart` ≥ sengetid − 60 min, er resultatet **sengetid** på sengetidspunktet, eller på `nextStart`, hvis sengetiden
+   allerede er gået (sent på aftenen). Ellers er det **lur** på `nextStart`.
 9. Resultat: kind (lur/sengetid), tid, vindue i minutter (afrundet), kilde, id på sidste søvn.
 
 Facit: `tests/test_predict.py` (10 syntetiske dage med 3 lure og faste vinduer).

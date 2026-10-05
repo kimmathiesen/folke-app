@@ -100,8 +100,8 @@ def test_udpumpningspaamindelse_kun_via_push(client, world, sent):
     assert "udpumpning" in json.loads(sent[0][1])["body"]
 
 
-def test_naeste_soevn_via_push_uden_home_assistant(world, sent, real_main):
-    now = datetime.now(TZ)
+def test_naeste_soevn_via_push_uden_home_assistant(world, sent, real_main, noon):
+    now = noon
     world.set_birth(now.date() - timedelta(days=150))  # 4,9 mdr.: standardvindue 120 min
     world.add_sleep(now - timedelta(hours=3), now - timedelta(minutes=115))  # næste søvn om ca. 5 min
     push.subscribe(SUB, "https://folke.test")

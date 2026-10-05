@@ -109,7 +109,8 @@ def predict(sleeps, birth_date, now):
     bed = next_start.replace(hour=bed_min // 60, minute=bed_min % 60, second=0, microsecond=0)
 
     if next_start >= bed - timedelta(minutes=60):
-        kind, when = "sengetid", bed
+        # Er sengetiden allerede gået (sent på aftenen), er det sengetid, så snart vinduet er gået
+        kind, when = "sengetid", max(bed, next_start)
     else:
         kind, when = "lur", next_start
 

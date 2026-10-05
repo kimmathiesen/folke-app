@@ -6,12 +6,12 @@
 <meta name="theme-color" content="#0b1224">
 <link rel="manifest" href="/manifest.json"><link rel="apple-touch-icon" href="/icon.png"><title>Folke-App</title>
 <style>
-:root{--fg:#e9edf8;--mut:#8e9ac0;--card:rgba(255,255,255,.045);--line:rgba(255,255,255,.09);--acc:#5b8def;color-scheme:dark}
+:root{--fg:#e9edf8;--mut:rgba(220,228,255,.62);--sky1:#0f1830;--sky2:#0a1022;--glow:rgba(90,75,214,.28);--card:rgba(255,255,255,.045);--line:rgba(255,255,255,.09);--acc:#5b8def;color-scheme:dark}
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
 [hidden]{display:none!important}
-html{background:#0a1022}
+html{background:var(--sky2)}
 body{margin:0;min-height:100vh;color:var(--fg);font:16px/1.35 -apple-system,system-ui,sans-serif;text-align:center;
-background:radial-gradient(120% 60% at 50% 0,#1b2a55 0,#0f1830 45%,#0a1022 100%) fixed;
+background:radial-gradient(120% 55% at 50% 0,var(--glow) 0,transparent 70%),linear-gradient(var(--sky1),var(--sky2));background-attachment:fixed;
 padding:calc(env(safe-area-inset-top) + 14px) 18px calc(env(safe-area-inset-bottom) + 28px)}
 main{max-width:440px;margin:0 auto}
 header svg{width:84px;height:84px}
@@ -19,7 +19,7 @@ h1{margin:2px 0 4px;font-size:30px;font-weight:600}
 .tag{color:var(--mut);font-size:15px}
 #dial{position:relative;width:min(100%,360px);margin:6px auto 0}
 #dial svg{display:block;width:100%;height:auto}
-.dt{fill:#e9edf8;font-size:15px;font-weight:600;text-anchor:middle}.dn{fill:#8e9ac0;font-size:13px;text-anchor:middle}
+.dt{fill:#e9edf8;font-size:15px;font-weight:600;text-anchor:middle}.dn{fill:var(--mut);font-size:13px;text-anchor:middle}
 .dic{fill:none;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round}
 #mid{position:absolute;left:0;right:0;top:50%;transform:translateY(-50%);display:flex;flex-direction:column;align-items:center}
 #nowt{color:var(--mut);font-size:14px}
@@ -81,7 +81,7 @@ header{position:relative}
 #setbtn{left:0;right:auto}
 #gobtn svg,#setbtn svg{width:16px;height:16px;stroke:var(--fg);fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
 .gh{display:flex;justify-content:space-between;align-items:center;margin:4px 0 14px}.gh a,.gh span{min-width:90px;text-align:left;color:var(--acc);text-decoration:none;font-size:16px}
-#gsvg{display:block;width:100%;height:auto}#gsvg text{fill:#8e9ac0;font-size:11px}#gsum{margin-top:8px;font-size:15px}
+#gsvg{display:block;width:100%;height:auto}#gsvg text{fill:var(--mut);font-size:11px}#gsum{margin-top:8px;font-size:15px}
 #gnote{margin:16px 4px 0;color:var(--mut);font-size:13px;text-align:left}#gadd{margin-top:14px}
 #glist{list-style:none;margin:16px 0 0}#glist li{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:12px 0;border-top:1px solid var(--line);cursor:pointer}#glist li:first-child{border:0}
 .sw select{background:rgba(255,255,255,.06);color:var(--fg);border:1px solid var(--line);border-radius:10px;padding:8px 10px;font-size:15px}
@@ -206,6 +206,16 @@ const CX=180,CY=200,pt=(r,t)=>{const a=(90+t*15)*Math.PI/180;return[CX+r*Math.co
 const arc=(r,a,b)=>{const[x1,y1]=pt(r,a),[x2,y2]=pt(r,b);return `M${x1.toFixed(1)} ${y1.toFixed(1)}A${r} ${r} 0 ${b-a>12?1:0} 1 ${x2.toFixed(1)} ${y2.toFixed(1)}`};
 const hr=d=>{d=new Date(d);return d.getHours()+d.getMinutes()/60+d.getSeconds()/3600};
 const ST=[[0,[90,75,214]],[5,[79,111,224]],[7.5,[107,181,240]],[9.5,[242,201,107]],[12,[255,214,125]],[15,[245,178,90]],[18,[240,138,90]],[20.5,[181,111,208]],[22.5,[124,111,240]],[24,[90,75,214]]];
+// Baggrund efter tid på dagen: himmel (top, bund), styrken af ringfarvens skær og den dæmpede tekst
+const SKY=[[0,[15,24,48],[10,16,34],.28,.62],[5,[22,34,72],[12,20,44],.3,.62],[7.5,[52,84,146],[28,46,94],.4,.72],
+[9.5,[70,112,180],[38,68,128],.42,.8],[12,[76,124,196],[42,79,143],.4,.82],[15,[72,116,186],[40,74,136],.42,.8],
+[18,[84,86,150],[42,44,96],.45,.74],[20.5,[44,40,98],[22,24,58],.35,.66],[22.5,[22,28,66],[12,17,40],.3,.62],[24,[15,24,48],[10,16,34],.28,.62]];
+const at=(L,t,k)=>{for(let i=1;i<L.length;i++)if(t<=L[i][0]){const a=L[i-1],b=L[i],f=(t-a[0])/(b[0]-a[0]),m=(x,y)=>x+(y-x)*f;
+return Array.isArray(a[k])?a[k].map((v,j)=>m(v,b[k][j])):m(a[k],b[k])}return L[0][k]};
+const rgb=(c,a)=>`rgba(${c.map(Math.round).join(',')},${a??1})`;
+function sky(){const q=new URLSearchParams(location.search).get('t'),t=q!==null?+q%24:hr(new Date()),r=document.documentElement.style;
+r.setProperty('--sky1',rgb(at(SKY,t,1)));r.setProperty('--sky2',rgb(at(SKY,t,2)));r.setProperty('--glow',rgb(at(ST,t,1),at(SKY,t,3)));
+r.setProperty('--mut',`rgba(220,228,255,${at(SKY,t,4).toFixed(2)})`);document.querySelector('meta[name=theme-color]').content=rgb(at(SKY,t,1))}
 const gc=t=>{for(let i=1;i<ST.length;i++)if(t<=ST[i][0]){const[a,A]=ST[i-1],[b,B]=ST[i],f=(t-a)/(b-a);return `rgb(${A.map((v,k)=>Math.round(v+(B[k]-v)*f)).join(',')})`}return 'rgb(90,75,214)'};
 (()=>{let s='';for(let i=0;i<96;i++)s+=`<path d="${arc(105,i/4,Math.min(24,(i+1)/4+.02))}" stroke="${gc(i/4+.125)}"/>`;
 [0,6,12,18].forEach(t=>{const[x,y]=pt(105,t);s+=`<circle cx="${x}" cy="${y}" r="3.5" fill="#fff" opacity=".85"/>`});$('seg').innerHTML=s})();
@@ -282,5 +292,5 @@ document.querySelectorAll('#fbtns button').forEach(x=>x.onclick=()=>{fk=fk===x.d
 document.querySelectorAll('#fmilk button').forEach(x=>x.onclick=()=>{fm=x.dataset.m;fui()});
 document.querySelectorAll('#fbreast button').forEach(x=>x.onclick=()=>feed({kind:x.dataset.s}));
 $('fgo').onclick=()=>{const ml=+$('ml').value;if(!(ml>0)){$('err').textContent='Skriv hvor mange ml';return}feed({kind:'bottle',milk:fm,amount:ml})};
-route();fui();load();setInterval(load,15000);setInterval(render,1000);
+sky();route();fui();load();setInterval(load,15000);setInterval(render,1000);setInterval(sky,60000);
 </script></body></html>

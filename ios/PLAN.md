@@ -168,6 +168,7 @@ Tilbyd «Inviter din partner» (iCloud-deling) og «Importér fra Folke-server»
 
 ## 7. App Store
 
+- Betalingsmodel: se afsnit 9.
 - Betalt Apple Developer-konto. Bundle id og appnavn besluttes. Navnet «Folke» er familiens barns navn, så overvej et neutralt navn.
 - Privatlivspolitik på en webadresse. Data forlader kun telefonen via brugerens egen iCloud, så «Data Not Collected» bør kunne vælges. Tjek det.
 - Tekst om, at forudsigelser og vækstkurver er vejledende og ikke medicinsk rådgivning.
@@ -189,16 +190,51 @@ Tilbyd «Inviter din partner» (iCloud-deling) og «Importér fra Folke-server»
 Appen importerer filen via filvælgeren (eller via Del → Folke). En kørende `timer` bliver til `Sleep` uden slut.
 Gentaget import må ikke give dubletter: brug serverens id som nøgle.
 
-## 9. Rækkefølge (milepæle)
+## 9. Betalingsmodel
 
-1. **FolkeCore:** model, forudsigelse, notifikationsregler og WHO, med porterede tests. Ingen UI.
-2. **App-skelet:** Core Data og CloudKit, første opstart, forside med ring og start/stop. Kør i simulatoren.
-3. Resten af forsiden: glemte tryk, ret/slet, mad, udpumpning, forslag.
-4. Lokale notifikationer og indstillinger.
-5. Vækst og udpumpningshistorik.
-6. iCloud-deling mellem to konti og tavlen.
+Mål: en lille, ærlig indtægt uden at gå på kompromis med privatlivet. Ingen server betyder næsten ingen driftsudgifter,
+så prisen kan holdes lav.
+
+**Model: gratis app med «Folke Plus» som engangskøb** (StoreKit 2, non-consumable).
+
+| Gratis | Folke Plus |
+|---|---|
+| Start/stop søvn, ringen, dagens søvn, glemte tryk, ret/slet | Forudsigelse af næste lur og sengetid (kortet og den stiplede cirkel) |
+| Mad og udpumpning, udpumpningshistorik | Notifikationer: `sleep_soon`, `overdue` og `pump` |
+| **Deling med partner** (iCloud) og tavlen | Widgets, Live Activity og Siri/Genveje |
+| Import fra Folke-server | Vækstkurver med percentiler (målinger kan altid indtastes og ses som liste) |
+
+- **Pris:** 149 kr. som engangskøb (prøv evt. 199 kr.). Bevidst langt under konkurrenter, fx Napper (ca. 500 kr. engangs) og
+  abonnementsapps som Huckleberry. «Intet abonnement» er et salgsargument.
+- **Prøveperiode:** alt i Plus er åbent de første 14 dage fra første opstart. Forudsigelserne bliver først gode efter en uges data,
+  så brugeren skal nå at opleve dem. Efter prøven vises Plus-funktionerne låst med en kort forklaring, aldrig som pop-op midt i brugen.
+- **Familiedeling slået til** på købet, så partneren også får Plus. Deling mellem forældrene må aldrig kræve betaling: invitationen
+  er appens vigtigste vej til nye brugere.
+- **Ingen reklamer, intet salg af data, ingen analyse-SDK'er.** Så kan «Data Not Collected» vælges i App Store.
+- Køb gendannes via «Gendan køb» under Indstillinger. Status læses med `Transaction.currentEntitlements` og gemmes ikke på en server.
+- Data forsvinder aldrig, hvis Plus udløber eller ikke købes: alt registreret kan stadig ses og eksporteres.
+
+**Ikke en kopi af Napper eller andre apps.** Vi har ikke kigget i deres kode, tekster eller design og skal heller ikke:
+- Forudsigelsen er vores egen (vågenvinduer pr. position fra `napper.py`, som er skrevet fra bunden til Baby Buddy).
+  Navnet `napper.py` er internt og skal ikke bruges udadtil.
+- Udseendet (døgnringen med himmel efter tid på dagen, månen, tavlen) kommer fra vores egen webapp.
+- Appnavn, ikon og App Store-tekster skal være vores egne. Tjek varemærker og eksisterende appnavne, før navnet låses.
+
+**Før lancering:** TestFlight til 20-30 forældre uden for familien (mødregrupper). Spørg, om de ville betale, og hvad de savner.
+Afgør derefter prisen. Indtægter er skattepligtige: tjek CVR og moms (Apple afregner moms i EU, men indkomsten skal opgives).
+
+## 10. Rækkefølge (milepæle)
+
+1. **FolkeCore:** model, forudsigelse, notifikationsregler og WHO, med porterede tests. Ingen UI. *(færdig)*
+2. **App-skelet:** Core Data og CloudKit, første opstart, forside med ring og start/stop. Kør i simulatoren. *(færdig)*
+3. Resten af forsiden: glemte tryk, ret/slet, mad, udpumpning, forslag. *(færdig)*
+4. Lokale notifikationer og indstillinger. *(færdig)*
+5. Vækst og udpumpningshistorik. *(færdig)*
+6. iCloud-deling mellem to konti og tavlen. Kræver betalt udviklerkonto, Team ID og endeligt bundle id.
 7. Live Activity, widgets og App Intents.
 8. Import fra serveren. TestFlight til familien.
-9. Engelsk, privatlivspolitik, App Store.
+9. **Folke Plus** (afsnit 9): StoreKit 2-engangskøb med familiedeling, 14 dages prøve, låste funktioner, «Gendan køb».
+   Test med StoreKit-konfigurationsfil i simulatoren. TestFlight til forældre uden for familien.
+10. Engelsk, privatlivspolitik, App Store.
 
 Hver milepæl afsluttes med grønne tests, et skærmbillede fra simulatoren og en commit.

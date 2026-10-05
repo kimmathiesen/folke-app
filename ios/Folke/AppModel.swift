@@ -26,6 +26,18 @@ struct Snapshot {
     var suggestion: Suggestions.Suggestion?
     var pumpRemindHours = 3.0
     var sex = Sex.boy
+    var birthDate: Date?
+    var growth: [GrowthPoint] = []
+    var pumpHistory = PumpHistory(days: [], avgMl: nil)
+    var pumpItems: [PumpItem] = []
+
+    struct PumpItem: Identifiable {
+        var id: UUID
+        var time: Date
+        var amountMl: Double
+        var side: Side?
+        var minutes: Double
+    }
 }
 
 @MainActor @Observable
@@ -42,7 +54,7 @@ final class AppModel {
     /// Siden, der vises (som hash-ruterne i webappen)
     var page: Page = .home
 
-    enum Page { case home, settings }
+    enum Page { case home, settings, growth, pump }
 
     var role: Role? {
         didSet { UserDefaults.standard.set(role?.rawValue, forKey: "folke.role") }
@@ -110,6 +122,13 @@ final class AppModel {
         }
         s.pump = store.pumpSummary(now: now)
         s.suggestion = store.suggestions(now: now).first
+        s.birthDate = child?.birthDate
+        s.growth = store.growthPoints()
+        s.pumpHistory = store.pumpHistory(now: now)
+        s.pumpItems = store.pumpings(since: now.addingTimeInterval(-7 * 86400)).reversed().compactMap { p in
+            guard let id = p.id, let t = p.time else { return nil }
+            return .init(id: id, time: t, amountMl: p.amountMl, side: p.side.flatMap(Side.init(rawValue:)), minutes: p.minutes)
+        }
         snapshot = s
         notifier.reschedule(.init(now: now, prediction: s.prediction, sleeping: s.running != nil, childName: s.childName,
                                   enabled: [], pumpFeature: s.featurePump, pumpRemindHours: s.pumpRemindHours,
@@ -195,6 +214,38 @@ final class AppModel {
     func answer(_ answer: Suggestions.Answer) {
         guard let id = snapshot.suggestion?.id else { return }
         perform { try store.answer(id, answer) }
+    }
+
+    // MARK: Vækst og udpumpning (ret/slet giver fejlteksten tilbage til arket)
+
+    private func attempt(_ action: () throws -> Void) -> String? {
+        defer { refresh() }
+        do {
+            try action()
+            return nil
+        } catch {
+            return (error as? LocalizedError)?.errorDescription ?? error.localizedDescription
+        }
+    }
+
+    func saveGrowth(id: UUID?, date: Date, values: [WHO.Measure: Double?]) -> String? {
+        attempt { try store.saveGrowth(id.flatMap(store.growth(id:)), date: date, values: values) }
+    }
+
+    func deleteGrowth(id: UUID) {
+        _ = attempt { if let g = store.growth(id: id) { try store.delete(g) } }
+    }
+
+    func editPumping(id: UUID, time: Date, amountMl: Double, side: Side?, minutes: Double?) -> String? {
+        attempt {
+            if let p = store.pumping(id: id) {
+                try store.editPumping(p, time: time, amountMl: amountMl, side: side, minutes: minutes)
+            }
+        }
+    }
+
+    func deletePumping(id: UUID) {
+        _ = attempt { if let p = store.pumping(id: id) { try store.delete(p) } }
     }
 
     // MARK: Indstillinger

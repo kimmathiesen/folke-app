@@ -157,6 +157,12 @@ struct PumpCard: View {
                     Text("Udpumpning").font(.system(size: 16, weight: .medium)).foregroundStyle(Color.fg)
                     Text(Format.pumpSummary(model.snapshot.pump, now: now)).font(.system(size: 14)).foregroundStyle(muted)
                 }
+                Spacer(minLength: 0)
+                Button { model.page = .pump } label: {
+                    Text("Historik ›").font(.system(size: 14)).foregroundStyle(Color.acc)
+                }
+                .buttonStyle(.plain)
+                .fixedSize()
             }
             Segmented(options: [(Side.left, "Venstre"), (.right, "Højre"), (.both, "Begge")], selection: $side, toggles: true)
                 .padding(.top, 12)

@@ -59,6 +59,21 @@ struct HomeView: View {
                     .buttonStyle(.plain)
                     .padding(.top, 8)
                 }
+                .overlay(alignment: .topTrailing) {
+                    // Som `#gobtn` i webappen
+                    Button { model.page = .growth } label: {
+                        HStack(spacing: 6) {
+                            Image(systemName: "chart.line.uptrend.xyaxis").font(.system(size: 14))
+                            Text("Vækst").font(.system(size: 14))
+                        }
+                        .foregroundStyle(Color.fg)
+                        .padding(.vertical, 8).padding(.horizontal, 14)
+                        .background(Color.card, in: Capsule())
+                        .overlay(Capsule().strokeBorder(Color.line))
+                    }
+                    .buttonStyle(.plain)
+                    .padding(.top, 8)
+                }
             Text(Format.greeting(name: model.snapshot.childName, role: model.role))
                 .font(.system(size: 30, weight: .semibold))
                 .foregroundStyle(Color.fg)

@@ -10,13 +10,13 @@ Format: `- [ ] dato · commit på standalone · hvad · hvor i PLAN.md · facit`
 
 ## Åbne
 
-- [ ] 2026-10-06 · `08a003d` · Ringens midte viser næste lur/sengetid i stedet for klokkeslættet
+- [x] 2026-10-06 · `08a003d` · Ringens midte viser næste lur/sengetid i stedet for klokkeslættet
       («Næste lur kl. 13.40», «Sengetid kl. 19.30»), og «Faldt i søvn kl. 09.25», mens han sover.
-      PLAN.md afsnit 5, Forside → Ringen. Facit: `index.html`, `render()`.
-- [ ] 2026-10-06 · `07bfd30` · Forklaringen under «Næste lur» på almindeligt dansk i stedet for «eget mønster
+      PLAN.md afsnit 5, Forside → Ringen. Facit: `index.html`, `render()`. (ios: 81b26f3)
+- [x] 2026-10-06 · `07bfd30` · Forklaringen under «Næste lur» på almindeligt dansk i stedet for «eget mønster
       (position N)». `predict()` giver også `basis`, `pos` og `bed_basis`. Varighed «1 t» i stedet for «1 t 0 min»
       (også i dagens søvnliste). PLAN.md afsnit 3.5 og 5, Forudsigelseskort. Facit: `index.html` (`why`, `dur`)
-      og `tests/test_predict.py`.
+      og `tests/test_predict.py`. (ios: 81b26f3)
 - [ ] 2026-10-06 · `eeaa016` · **Dagsplan med genberegning:** resten af dagen (lure og sengetid). Kort lur (under 30 min)
       tæller ikke og giver et vindue på 75 %. For lidt dagsøvn eller en lur, der ikke kan nås, giver tidligere sengetid
       (højst 60 min). Misset lur giver «nu» på skærmen (kun der). Hans tal beskyttes mod korte lure og afvigere.

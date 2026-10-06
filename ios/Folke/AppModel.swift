@@ -2,6 +2,7 @@ import CoreData
 import FolkeCore
 import Observation
 import SwiftUI
+import WidgetKit
 
 /// Det, forsiden viser. Beregnes forfra, når data ændres (lokalt eller fra iCloud).
 struct Snapshot {
@@ -43,9 +44,6 @@ struct Snapshot {
 
 @MainActor @Observable
 final class AppModel {
-    /// iCloud-container. Slås til i milepæl 6, når appen signeres med udviklerkontoen.
-    static let cloudKitContainer: String? = nil
-
     let store: FolkeStore
     let notifier = Notifier()
     private(set) var snapshot = Snapshot()
@@ -58,12 +56,12 @@ final class AppModel {
     enum Page { case home, settings, growth, pump }
 
     var role: Role? {
-        didSet { UserDefaults.standard.set(role?.rawValue, forKey: "folke.role") }
+        didSet { FolkeShared.role = role }
     }
 
     init(store: FolkeStore) {
         self.store = store
-        role = UserDefaults.standard.string(forKey: "folke.role").flatMap(Role.init(rawValue:))
+        role = FolkeShared.role
         refresh()
         Task {
             await notifier.refreshStatus()
@@ -72,30 +70,38 @@ final class AppModel {
         NotificationCenter.default.addObserver(forName: .NSPersistentStoreRemoteChange, object: nil, queue: .main) { [weak self] _ in
             MainActor.assumeIsolated { self?.refresh() }
         }
+        // En App Intent (Siri, widget, Live Activity) har ændret data i appens proces
+        NotificationCenter.default.addObserver(forName: FolkeShared.changed, object: nil, queue: .main) { [weak self] _ in
+            MainActor.assumeIsolated {
+                self?.store.context.refreshAllObjects()
+                self?.refresh()
+            }
+        }
     }
 
+    /// Appens model på den fælles database i App Group (deles med widgets og App Intents).
     static func live() -> AppModel {
-        do {
-            #if DEBUG
-            // Skærmbilleder i simulatoren: start med `-demoData YES` (og evt. `-demoMonths 7`) for et barn på 4 mdr. og 10 dages søvn i hukommelsen
-            if let path = UserDefaults.standard.string(forKey: "demoExport") {
-                let store = try FolkeStore(inMemory: true)
-                try store.seedExport(URL(fileURLWithPath: path))
-                return AppModel(store: store)
+        #if DEBUG
+        // Skærmbilleder i simulatoren. NB: databasen tømmes først, så widgets ser de samme data.
+        // `-demoData YES` (evt. `-demoMonths 7`): barn på 4 mdr. med 10 dages søvn, mad, udpumpning og vækst.
+        // `-demoExport <sti>`: søvn fra en eksport fra Folke-serveren.
+        let d = UserDefaults.standard
+        if d.string(forKey: "demoExport") != nil || d.bool(forKey: "demoData") {
+            let store = FolkeShared.store
+            do {
+                try store.deleteAll()
+                if let path = d.string(forKey: "demoExport") {
+                    try store.seedExport(URL(fileURLWithPath: path))
+                } else {
+                    let months = d.integer(forKey: "demoMonths")
+                    try store.seedDemo(months: months > 0 ? months : 4)
+                }
+            } catch {
+                print("Demo:", error)
             }
-            if UserDefaults.standard.bool(forKey: "demoData") {
-                let store = try FolkeStore(inMemory: true)
-                let months = UserDefaults.standard.integer(forKey: "demoMonths")
-                try store.seedDemo(months: months > 0 ? months : 4)
-                return AppModel(store: store)
-            }
-            #endif
-            return AppModel(store: try FolkeStore(cloudKitContainer: cloudKitContainer))
-        } catch {
-            // Kan databasen ikke åbnes, kører appen i hukommelsen frem for at gå ned
-            print("Core Data:", error)
-            return AppModel(store: try! FolkeStore(inMemory: true))
         }
+        #endif
+        return AppModel(store: FolkeShared.store)
     }
 
     var needsOnboarding: Bool { !snapshot.hasChild || role == nil }
@@ -137,9 +143,24 @@ final class AppModel {
             return .init(id: id, time: t, amountMl: p.amountMl, side: p.side.flatMap(Side.init(rawValue:)), minutes: p.minutes)
         }
         snapshot = s
+        syncExtensions(s)
         notifier.reschedule(.init(now: now, prediction: s.prediction, sleeping: s.running != nil, childName: s.childName,
                                   enabled: [], pumpFeature: s.featurePump, pumpRemindHours: s.pumpRemindHours,
                                   lastPump: store.lastPumping(now: now)))
+    }
+
+    private var widgetKey = ""
+
+    /// Live Activity og widgets følger appen. Widgets genindlæses kun, når noget, de viser, har ændret sig.
+    private func syncExtensions(_ s: Snapshot) {
+        let running = s.running.map { ($0.start, $0.nap) }, name = s.childName, wake = s.plan?.wake
+        Task { await SleepLiveActivity.sync(running: running, name: name, expectedWake: wake) }
+        let key = [s.running?.start.description, s.awakeSince?.description,
+                   s.plan?.items.map { $0.start.description }.joined(), s.childName].map { $0 ?? "-" }.joined(separator: "|")
+        if key != widgetKey {
+            widgetKey = key
+            WidgetCenter.shared.reloadAllTimelines()
+        }
     }
 
     /// Lur eller nat for den kørende søvn: brugerens valg, ellers gættet.

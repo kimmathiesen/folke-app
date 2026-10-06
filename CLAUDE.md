@@ -72,10 +72,12 @@ forudsigelse af næste lur/sengetid, notifikation via Home Assistant.
 - `ios/FolkeCore`: Swift package uden UI (forudsigelse, notifikationsregler, WHO, forslag, farver, Core Data-model i kode, `FolkeStore`). Python-testene er porteret til Swift Testing.
   Test: `cd ios/FolkeCore && xcodebuild test -scheme FolkeCore -destination 'platform=iOS Simulator,name=iPhone 17'`
 - `ios/Folke.xcodeproj` + `ios/Folke/`: SwiftUI-appen (mappen synkroniseres automatisk, nye filer kræver ingen ændring i projektet).
-  Build: `cd ios && xcodebuild build -project Folke.xcodeproj -scheme Folke -destination 'platform=iOS Simulator,name=iPhone 17' CODE_SIGNING_ALLOWED=NO`
+  Build: `cd ios && xcodebuild build -project Folke.xcodeproj -scheme Folke -destination 'platform=iOS Simulator,name=iPhone 17' CODE_SIGN_IDENTITY=-` (lokal signering, så App Group-tilladelsen kommer med)
+- `ios/Shared/` er med i både appen og widget-udvidelsen (`ios/FolkeWidgets/`): `FolkeShared` (App Group `group.dk.folkeapp.folke`, fælles `store`, rolle), Live Activity (`SleepActivity.swift`), App Intents (`Intents.swift`: start/stop søvn, log udpumpning/flaske; start/stop er `LiveActivityIntent` og kører i appens proces) og `Notifier` (indstillinger i gruppens UserDefaults, så intents kan planlægge). Siri-sætninger: `Folke/Shortcuts.swift`.
+- Widgets: `FolkeWidgets/SleepWidget.swift` (lille/mellem + låseskærm, knap start/stop) og `SleepLiveActivityWidget.swift` (låseskærm og Dynamic Island). Appen genindlæser widgets, når det, de viser, ændrer sig.
 - Core Data, ikke SwiftData: SwiftData understøtter ikke delte CloudKit-databaser (tjekket i iOS 27-SDK'et).
 - iCloud er slået fra (`AppModel.cloudKitContainer = nil`), indtil appen signeres med udviklerkontoen (milepæl 6). Bundle id `dk.folkeapp.folke` er et arbejdsnavn.
-- Debug: start med `-demoData YES` (evt. `-demoMonths 7` for forslaget om fast føde) for et barn med 10 dages søvn, måltider, 14 dages udpumpning og vækstmålinger i hukommelsen (skærmbilleder).
+- Debug: start med `-demoData YES` (evt. `-demoMonths 7` for forslaget om fast føde) for et barn med 10 dages søvn, måltider, 14 dages udpumpning og vækstmålinger, eller `-demoExport <sti>` for en eksport fra serveren. NB: tømmer databasen i App Group først (så widgets ser de samme data).
 - Sider: `AppModel.page` (home, settings, growth, pump) svarer til hash-ruterne i webappen. Vækst og udpumpningshistorik ligger i `FolkeCore/History.swift`.
 - Klokkeslæt i UI'et vises med punktum («kl. 14.05», `Format.time`) som i webappen. Notifikationer og fejl bruger kolon (`Format.clock`) som serveren.
 - Notifikationer: `Folke/Notifier.swift` planlægger lokale notifikationer ud fra `NotificationPlanner` ved hver `refresh()` (fast id pr. type). Beskedtyper pr. enhed og log over sendte i `UserDefaults` (`folke.kinds`, `folke.notificationLog`). Se planen: `xcrun simctl spawn "iPhone 17" log show --last 5m --predicate 'subsystem == "dk.folkeapp.folke"' --info`

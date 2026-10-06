@@ -8,16 +8,53 @@
 
 /* Begin PBXBuildFile section */
 		F0000000000000000000B001 /* FolkeCore in Frameworks */ = {isa = PBXBuildFile; productRef = F0000000000000000000C001 /* FolkeCore */; };
+		F00000000000000000010004 /* FolkeCore in Frameworks */ = {isa = PBXBuildFile; productRef = F00000000000000000010C03 /* FolkeCore */; };
+		F00000000000000000010005 /* FolkeWidgetsExtension.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = F00000000000000000010001 /* FolkeWidgetsExtension.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 /* End PBXBuildFile section */
+
+/* Begin PBXContainerItemProxy section */
+		F00000000000000000010006 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = F00000000000000000007001 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = F00000000000000000010010;
+			remoteInfo = FolkeWidgetsExtension;
+		};
+/* End PBXContainerItemProxy section */
+
+/* Begin PBXCopyFilesBuildPhase section */
+		F00000000000000000010D04 /* Embed Foundation Extensions */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "";
+			dstSubfolderSpec = 13;
+			files = (
+				F00000000000000000010005 /* FolkeWidgetsExtension.appex in Embed Foundation Extensions */,
+			);
+			name = "Embed Foundation Extensions";
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
 		F0000000000000000000A001 /* Folke.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Folke.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		F00000000000000000010001 /* FolkeWidgetsExtension.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = FolkeWidgetsExtension.appex; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
 		F0000000000000000000A002 /* Folke */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
 			path = Folke;
+			sourceTree = "<group>";
+		};
+		F00000000000000000010002 /* FolkeWidgets */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = FolkeWidgets;
+			sourceTree = "<group>";
+		};
+		F00000000000000000010003 /* Shared */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = Shared;
 			sourceTree = "<group>";
 		};
 /* End PBXFileSystemSynchronizedRootGroup section */
@@ -31,6 +68,14 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		F00000000000000000010D12 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				F00000000000000000010004 /* FolkeCore in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
@@ -38,6 +83,8 @@
 			isa = PBXGroup;
 			children = (
 				F0000000000000000000A002 /* Folke */,
+				F00000000000000000010003 /* Shared */,
+				F00000000000000000010002 /* FolkeWidgets */,
 				F0000000000000000000E002 /* Products */,
 			);
 			sourceTree = "<group>";
@@ -46,6 +93,7 @@
 			isa = PBXGroup;
 			children = (
 				F0000000000000000000A001 /* Folke.app */,
+				F00000000000000000010001 /* FolkeWidgetsExtension.appex */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -60,13 +108,16 @@
 				F0000000000000000000D002 /* Sources */,
 				F0000000000000000000D001 /* Frameworks */,
 				F0000000000000000000D003 /* Resources */,
+				F00000000000000000010D04 /* Embed Foundation Extensions */,
 			);
 			buildRules = (
 			);
 			dependencies = (
+				F00000000000000000010007 /* PBXTargetDependency */,
 			);
 			fileSystemSynchronizedGroups = (
 				F0000000000000000000A002 /* Folke */,
+				F00000000000000000010003 /* Shared */,
 			);
 			name = Folke;
 			packageProductDependencies = (
@@ -75,6 +126,30 @@
 			productName = Folke;
 			productReference = F0000000000000000000A001 /* Folke.app */;
 			productType = "com.apple.product-type.application";
+		};
+		F00000000000000000010010 /* FolkeWidgetsExtension */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = F00000000000000000010E03 /* Build configuration list for PBXNativeTarget "FolkeWidgetsExtension" */;
+			buildPhases = (
+				F00000000000000000010D11 /* Sources */,
+				F00000000000000000010D12 /* Frameworks */,
+				F00000000000000000010D13 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			fileSystemSynchronizedGroups = (
+				F00000000000000000010002 /* FolkeWidgets */,
+				F00000000000000000010003 /* Shared */,
+			);
+			name = FolkeWidgetsExtension;
+			packageProductDependencies = (
+				F00000000000000000010C03 /* FolkeCore */,
+			);
+			productName = FolkeWidgetsExtension;
+			productReference = F00000000000000000010001 /* FolkeWidgetsExtension.appex */;
+			productType = "com.apple.product-type.app-extension";
 		};
 /* End PBXNativeTarget section */
 
@@ -87,6 +162,9 @@
 				LastUpgradeCheck = 2700;
 				TargetAttributes = {
 					F0000000000000000000F001 = {
+						CreatedOnToolsVersion = 27.0;
+					};
+					F00000000000000000010010 = {
 						CreatedOnToolsVersion = 27.0;
 					};
 				};
@@ -110,12 +188,20 @@
 			projectRoot = "";
 			targets = (
 				F0000000000000000000F001 /* Folke */,
+				F00000000000000000010010 /* FolkeWidgetsExtension */,
 			);
 		};
 /* End PBXProject section */
 
 /* Begin PBXResourcesBuildPhase section */
 		F0000000000000000000D003 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		F00000000000000000010D13 /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
@@ -132,7 +218,22 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		F00000000000000000010D11 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXSourcesBuildPhase section */
+
+/* Begin PBXTargetDependency section */
+		F00000000000000000010007 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = F00000000000000000010010 /* FolkeWidgetsExtension */;
+			targetProxy = F00000000000000000010006 /* PBXContainerItemProxy */;
+		};
+/* End PBXTargetDependency section */
 
 /* Begin XCBuildConfiguration section */
 		F00000000000000000006011 /* Debug */ = {
@@ -183,11 +284,13 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_ENTITLEMENTS = Folke.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_CFBundleDisplayName = Folke;
+				INFOPLIST_KEY_NSSupportsLiveActivities = YES;
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
@@ -213,11 +316,13 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_ENTITLEMENTS = Folke.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_CFBundleDisplayName = Folke;
+				INFOPLIST_KEY_NSSupportsLiveActivities = YES;
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
@@ -232,6 +337,54 @@
 				MARKETING_VERSION = 0.1;
 				PRODUCT_BUNDLE_IDENTIFIER = dk.folkeapp.folke;
 				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_VERSION = 6.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Release;
+		};
+		F00000000000000000010E31 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_ENTITLEMENTS = FolkeWidgets.entitlements;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = "FolkeWidgets-Info.plist";
+				INFOPLIST_KEY_CFBundleDisplayName = Folke;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				MARKETING_VERSION = 0.1;
+				PRODUCT_BUNDLE_IDENTIFIER = dk.folkeapp.folke.widgets;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SKIP_INSTALL = YES;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_VERSION = 6.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Debug;
+		};
+		F00000000000000000010E32 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_ENTITLEMENTS = FolkeWidgets.entitlements;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = "FolkeWidgets-Info.plist";
+				INFOPLIST_KEY_CFBundleDisplayName = Folke;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				MARKETING_VERSION = 0.1;
+				PRODUCT_BUNDLE_IDENTIFIER = dk.folkeapp.folke.widgets;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SKIP_INSTALL = YES;
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_VERSION = 6.0;
 				TARGETED_DEVICE_FAMILY = "1,2";
@@ -259,6 +412,15 @@
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
 		};
+		F00000000000000000010E03 /* Build configuration list for PBXNativeTarget "FolkeWidgetsExtension" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				F00000000000000000010E31 /* Debug */,
+				F00000000000000000010E32 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
 /* End XCConfigurationList section */
 
 /* Begin XCLocalSwiftPackageReference section */
@@ -270,6 +432,10 @@
 
 /* Begin XCSwiftPackageProductDependency section */
 		F0000000000000000000C001 /* FolkeCore */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = FolkeCore;
+		};
+		F00000000000000000010C03 /* FolkeCore */ = {
 			isa = XCSwiftPackageProductDependency;
 			productName = FolkeCore;
 		};

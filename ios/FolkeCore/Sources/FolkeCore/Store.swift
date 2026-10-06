@@ -80,6 +80,15 @@ public final class FolkeStore: @unchecked Sendable {
         return obj
     }
 
+    /// Sletter alt (kun til demo-data i debug-builds og tests).
+    public func deleteAll() throws {
+        for e in FolkeModel.shared.entities {
+            let r = NSFetchRequest<NSManagedObject>(entityName: e.name!)
+            for o in try context.fetch(r) { context.delete(o) }
+        }
+        try save()
+    }
+
     // MARK: Barn og indstillinger
 
     /// Barnet (version 1 har ét). Er der flere, fx efter deling, bruges det ældste.

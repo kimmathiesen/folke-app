@@ -7,6 +7,13 @@ public struct PlanItem: Equatable, Sendable {
     public var end: Date?
     /// Aftenlur, planlagt fordi der ikke var plads til en hel lur
     public var catnap = false
+
+    public init(kind: Prediction.Kind, start: Date, end: Date? = nil, catnap: Bool = false) {
+        self.kind = kind
+        self.start = start
+        self.end = end
+        self.catnap = catnap
+    }
 }
 
 /// Resten af dagen (port af `plan_day` i folke.py, ios/PLAN.md afsnit 3).

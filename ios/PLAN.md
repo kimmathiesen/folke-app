@@ -335,8 +335,8 @@ Afgør derefter prisen. Indtægter er skattepligtige: tjek CVR og moms (Apple af
 3. Resten af forsiden: glemte tryk, ret/slet, mad, udpumpning, forslag. *(færdig)*
 4. Lokale notifikationer og indstillinger. *(færdig)*
 5. Vækst og udpumpningshistorik. *(færdig)*
-6. iCloud-deling mellem to konti og tavlen. Kræver betalt udviklerkonto, Team ID og endeligt bundle id.
-7. Live Activity, widgets og App Intents.
+6. iCloud-deling mellem to konti og tavlen. Kræver betalt udviklerkonto, Team ID og endeligt bundle id. App Group `group.dk.folkeapp.folke` skal også oprettes på kontoen.
+7. Live Activity, widgets og App Intents. *(færdig, testet i simulatoren; Siri-sætninger og låseskærm-widgets er ikke afprøvet)*
 8. Import fra serveren. TestFlight til familien.
 9. **Folke Plus** (afsnit 9): StoreKit 2-engangskøb med familiedeling, 14 dages prøve, låste funktioner, «Gendan køb».
    Test med StoreKit-konfigurationsfil i simulatoren. TestFlight til forældre uden for familien.

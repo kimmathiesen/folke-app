@@ -10,7 +10,7 @@ import sqlite3
 import urllib.parse
 from datetime import date, datetime, timezone
 
-import napper
+import folke
 
 TIMER = "Søvn"
 
@@ -27,18 +27,18 @@ class BabyBuddy:
     name = "babybuddy"
 
     def _bb(self, path, method="GET", body=None):
-        return napper.call(f"{napper.BB_URL}/api/{path}", napper.BB_TOKEN, method, body)
+        return folke.call(f"{folke.BB_URL}/api/{path}", folke.BB_TOKEN, method, body)
 
     @staticmethod
     def _q(t):
         return urllib.parse.quote(t.isoformat())
 
     def child(self):
-        cs = napper.bb_all("children/")
-        return next((c for c in cs if not napper.CHILD_ID or str(c["id"]) == napper.CHILD_ID), None)
+        cs = folke.bb_all("children/")
+        return next((c for c in cs if not folke.CHILD_ID or str(c["id"]) == folke.CHILD_ID), None)
 
     def sleeps(self, cid, since):
-        raw = napper.bb_all(f"sleep/?child={cid}&start_min={self._q(since)}&limit=200")
+        raw = folke.bb_all(f"sleep/?child={cid}&start_min={self._q(since)}&limit=200")
         return [{"id": s["id"], "start": s["start"], "end": s["end"], "nap": s["nap"]}
                 for s in raw if s.get("end")]
 
@@ -55,7 +55,7 @@ class BabyBuddy:
         self._bb(f"sleep/{sid}/", "DELETE")
 
     def timer(self, cid):
-        return next((t for t in napper.bb_all(f"timers/?child={cid}") if t["name"] == TIMER), None)
+        return next((t for t in folke.bb_all(f"timers/?child={cid}") if t["name"] == TIMER), None)
 
     def start_timer(self, cid, start):
         self._bb("timers/", "POST", {"child": cid, "name": TIMER, "start": start.isoformat()})
@@ -64,13 +64,13 @@ class BabyBuddy:
         self._bb(f"timers/{tid}/", "DELETE")
 
     def feedings(self, cid, since):
-        return napper.bb_all(f"feedings/?child={cid}&start_min={self._q(since)}&limit=200")
+        return folke.bb_all(f"feedings/?child={cid}&start_min={self._q(since)}&limit=200")
 
     def add_feeding(self, cid, **f):
         self._bb("feedings/", "POST", {"child": cid, **self._ser(f)})
 
     def pumpings(self, cid, since):
-        return napper.bb_all(f"pumping/?child={cid}&start_min={self._q(since)}&limit=200")
+        return folke.bb_all(f"pumping/?child={cid}&start_min={self._q(since)}&limit=200")
 
     def add_pumping(self, cid, side=None, minutes=None, **p):
         # Baby Buddy har ingen felter til side og varighed
@@ -156,7 +156,7 @@ class Sqlite:
 
     def child(self):
         cs = self._rows("SELECT id, first_name, birth_date FROM child ORDER BY id")
-        return next((c for c in cs if not napper.CHILD_ID or str(c["id"]) == napper.CHILD_ID), cs[0] if cs else None)
+        return next((c for c in cs if not folke.CHILD_ID or str(c["id"]) == folke.CHILD_ID), cs[0] if cs else None)
 
     def sleeps(self, cid, since):
         rows = self._rows('SELECT id, start, "end", nap FROM sleep WHERE child = ? AND start >= ? ORDER BY start',
@@ -221,18 +221,18 @@ class Sqlite:
         bid = child["id"]
         sources = {
             "sleep": [{"bb_id": s["id"], "start": iso(s["start"]), "end": iso(s["end"]), "nap": int(bool(s["nap"]))}
-                      for s in napper.bb_all(f"sleep/?child={bid}&limit=1000") if s.get("end")],
+                      for s in folke.bb_all(f"sleep/?child={bid}&limit=1000") if s.get("end")],
             "timer": [{"bb_id": t["id"], "name": t["name"], "start": iso(t["start"])}
-                      for t in napper.bb_all(f"timers/?child={bid}") if t.get("name") == TIMER and t.get("start")],
+                      for t in folke.bb_all(f"timers/?child={bid}") if t.get("name") == TIMER and t.get("start")],
             "feeding": [{"bb_id": f["id"], "start": iso(f["start"]), "end": f.get("end") and iso(f["end"]),
                          "type": f.get("type"), "method": f.get("method"), "amount": f.get("amount"),
                          "notes": f.get("notes")}
-                        for f in napper.bb_all(f"feedings/?child={bid}&limit=1000")],
+                        for f in folke.bb_all(f"feedings/?child={bid}&limit=1000")],
             # Ældre Baby Buddy har "time" i stedet for start/end på pumpning
             "pumping": [{"bb_id": p["id"], "start": iso(p.get("start") or p["time"]),
                          "end": iso(p.get("end") or p.get("start") or p["time"]),
                          "amount": p.get("amount"), "notes": p.get("notes")}
-                        for p in napper.bb_all(f"pumping/?child={bid}&limit=1000")],
+                        for p in folke.bb_all(f"pumping/?child={bid}&limit=1000")],
         }
         db = self._db()
         counts = {}
@@ -285,7 +285,7 @@ _current = []
 def get():
     if not _current:
         if os.environ.get("BACKEND", "babybuddy") == "sqlite":
-            path = os.environ.get("DB_FILE") or os.path.join(os.path.dirname(napper.STATE_FILE) or ".", "folke.db")
+            path = os.environ.get("DB_FILE") or os.path.join(os.path.dirname(folke.STATE_FILE) or ".", "folke.db")
             _current.append(Sqlite(path))
         else:
             _current.append(BabyBuddy())

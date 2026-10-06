@@ -12,9 +12,9 @@ from datetime import datetime
 
 from cryptography.hazmat.primitives import serialization
 
-import napper
+import folke
 
-DIR = os.path.dirname(napper.STATE_FILE) or "."
+DIR = os.path.dirname(folke.STATE_FILE) or "."
 KEY = os.path.join(DIR, "vapid.pem")
 SUBS = os.path.join(DIR, "push.json")
 FALLBACK_SUB = "mailto:folke-app@users.noreply.github.com"
@@ -67,7 +67,7 @@ def subscribe(sub, origin="", name=""):
         subs.append({"endpoint": endpoint, "keys": {"p256dh": keys["p256dh"], "auth": keys["auth"]},
                      "origin": origin if str(origin).startswith("https://") else "",
                      "name": str(name)[:60], "kinds": {**DEFAULT_KINDS, **old.get("kinds", {})},
-                     "added": old.get("added") or datetime.now(napper.TZ).isoformat(timespec="seconds")})
+                     "added": old.get("added") or datetime.now(folke.TZ).isoformat(timespec="seconds")})
         _save(subs)
     return len(subs)
 

@@ -3,9 +3,9 @@ from datetime import datetime, timedelta
 
 import pytest
 
-import napper
+import folke
 
-TZ = napper.TZ
+TZ = folke.TZ
 
 
 def now():
@@ -21,7 +21,7 @@ def test_registrer_med_tid_side_og_minutter(client, world):
     r = client.post("/api/pump", json={"amount": "120,5", "at": hm(t), "side": "left", "minutes": 15})
     assert r.get_json() == {"ok": True, "amount": 120.5}
     [p] = world.pumpings()
-    assert p["amount"] == 120.5 and napper.parse(p["start"]) == t
+    assert p["amount"] == 120.5 and folke.parse(p["start"]) == t
     if world.store.name == "sqlite":  # Baby Buddy kan ikke gemme side og varighed
         assert p["side"] == "left" and p["minutes"] == 15
 
@@ -47,7 +47,7 @@ def test_ret_og_slet(client, world):
     assert r.status_code == 200
     [p] = world.pumpings()
     assert p["amount"] == 140
-    assert napper.parse(p["start"]) == datetime.fromisoformat(f"{y}T08:30").replace(tzinfo=TZ)
+    assert folke.parse(p["start"]) == datetime.fromisoformat(f"{y}T08:30").replace(tzinfo=TZ)
     if world.store.name == "sqlite":
         assert p["side"] == "both" and p["minutes"] == 20
     assert client.post(f"/api/pump/{pid}", json={"start": "x", "amount": 1}).status_code == 400
@@ -96,10 +96,10 @@ def test_paamindelse_indstilling(client):
 @pytest.fixture
 def ha(monkeypatch, tmp_path):
     sent = []
-    monkeypatch.setattr(napper, "HA_URL", "http://ha.test")
-    monkeypatch.setattr(napper, "HA_NOTIFY", "notify.mobile_app_test")
-    monkeypatch.setattr(napper, "STATE_FILE", str(tmp_path / "state.json"))
-    monkeypatch.setattr(napper, "notify", lambda title, msg, kind=None: sent.append((title, msg)))
+    monkeypatch.setattr(folke, "HA_URL", "http://ha.test")
+    monkeypatch.setattr(folke, "HA_NOTIFY", "notify.mobile_app_test")
+    monkeypatch.setattr(folke, "STATE_FILE", str(tmp_path / "state.json"))
+    monkeypatch.setattr(folke, "notify", lambda title, msg, kind=None: sent.append((title, msg)))
     return sent
 
 
@@ -110,7 +110,7 @@ def test_paamindelse(client, world, ha, monkeypatch):
     t = noon - timedelta(hours=4)
     world.store.add_pumping(world.cid, start=t, end=t, amount=100)
     assert app_module.pump_reminder(noon) is False  # Home Assistant får ikke udpumpning som standard
-    monkeypatch.setattr(napper, "HA_KINDS", ["sleep_soon", "overdue", "pump"])
+    monkeypatch.setattr(folke, "HA_KINDS", ["sleep_soon", "overdue", "pump"])
     client.post("/api/pump/remind", json={"hours": 5})
     assert app_module.pump_reminder(noon) is False  # kun 4 timer siden
     client.post("/api/pump/remind", json={"hours": 3})

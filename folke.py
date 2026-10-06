@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""napper.py - simpel selfhostet søvnforudsigelse oven på Baby Buddy.
+"""folke.py - simpel selfhostet søvnforudsigelse oven på Baby Buddy.
 
 Henter søvnlog fra Baby Buddy, beregner næste lur/sengetid og
 - opdaterer sensor.baby_next_sleep i Home Assistant
@@ -110,7 +110,8 @@ def predict(sleeps, birth_date, now):
     bed = next_start.replace(hour=bed_min // 60, minute=bed_min % 60, second=0, microsecond=0)
 
     if next_start >= bed - timedelta(minutes=60):
-        kind, when = "sengetid", bed
+        # Er sengetiden allerede gået (sent på aftenen), er det sengetid, så snart vinduet er gået
+        kind, when = "sengetid", max(bed, next_start)
     else:
         kind, when = "lur", next_start
 
@@ -205,7 +206,7 @@ def parse(s):
 
 
 def main():
-    import store  # her og ikke øverst: store importerer napper
+    import store  # her og ikke øverst: store importerer folke
 
     db = store.get()
     now = datetime.now(TZ)

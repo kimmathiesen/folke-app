@@ -3,8 +3,8 @@ from datetime import date, datetime, timedelta
 
 import pytest
 
-import napper
-from napper import TZ, default_window, predict
+import folke
+from folke import TZ, default_window, predict
 
 BIRTH = date(2026, 2, 1)
 NIGHT = (19, 30)
@@ -62,6 +62,17 @@ def test_sengetid_efter_sidste_lur():
     assert p["bed_basis"] == "own"
 
 
+def test_sengetid_der_er_gaaet_flyttes_til_vinduets_slut():
+    # Kl. 22 efter en sen lur, der sluttede 20:45: sengetiden 19:30 er gået, så det er sengetid, når vinduet er gået
+    sleeps = history(naps_last_day=3)
+    last_day = date(2026, 6, 10)
+    sleeps.append({"id": 99, "start": at(last_day, (20, 0)), "end": at(last_day, (20, 45)), "nap": True})
+    p = predict(sleeps, BIRTH, at(last_day, (22, 0)))
+    assert p["kind"] == "sengetid"
+    assert p["time"] == at(last_day, (20, 45)) + timedelta(minutes=p["window_min"])
+    assert p["time"] > at(last_day, NIGHT)
+
+
 def test_raekkefoelge_er_ligegyldig():
     sleeps = history(naps_last_day=2)
     now = at(date(2026, 6, 10), (14, 0))
@@ -107,4 +118,4 @@ def test_urimelige_huller_ignoreres():
 @pytest.mark.parametrize("days,mins", [(0, 60), (70, 75), (100, 90), (150, 120), (250, 150),
                                        (330, 180), (500, 210), (700, 270)])
 def test_default_window(days, mins):
-    assert napper.default_window(days) == mins
+    assert folke.default_window(days) == mins

@@ -4,7 +4,7 @@ Mål: en native iPhone- og iPad-app i App Store, som andre forældre kan hente o
 eller login. Den skal kunne alt det, webappen på branchen `standalone` kan, og mere til (Live Activity,
 widgets, Siri). Kun Apple: data deles mellem forældrene via iCloud.
 
-Webappen og serveren (`app.py`, `napper.py`, `store.py`, `index.html`) er **facit** for regler, tekster og
+Webappen og serveren (`app.py`, `folke.py`, `store.py`, `index.html`) er **facit** for regler, tekster og
 udseende. Er noget uklart i denne plan, så læs koden på branchen `standalone`. Serveren kører videre for
 familien, indtil appen kan overtage.
 
@@ -38,7 +38,7 @@ alle relationer valgfri og med inverse. Brug UUID-felter som stabile id'er.
 
 Pr. enhed (`UserDefaults`, deles ikke): rolle (mor/far), beskedtyper til/fra, sidst sete tavleversion.
 
-## 3. Forudsigelse (port af `napper.predict`)
+## 3. Forudsigelse (port af `folke.predict`)
 
 Input: søvn de sidste 10 dage (kun afsluttede), fødselsdato, nu.
 
@@ -67,7 +67,8 @@ Input: søvn de sidste 10 dage (kun afsluttede), fødselsdato, nu.
 6. `nextStart` = sidste søvns slut + vindue.
 7. **Sengetid:** median af starttidspunkt (minutter efter midnat) for nattesøvn med start kl. 17 eller senere.
    Kræver mindst 3, ellers 19:30. Sengetiden lægges på `nextStart`s dato.
-8. Er `nextStart` ≥ sengetid − 60 min, er resultatet **sengetid** på sengetidspunktet. Ellers er det **lur** på `nextStart`.
+8. Er `nextStart` ≥ sengetid − 60 min, er resultatet **sengetid** på sengetidspunktet, eller på `nextStart`, hvis sengetiden
+   allerede er gået (sent på aftenen). Ellers er det **lur** på `nextStart`.
 9. Resultat: kind (lur/sengetid), tid, vindue i minutter (afrundet), kilde, id på sidste søvn.
 
 Facit: `tests/test_predict.py` (10 syntetiske dage med 3 lure og faste vinduer).
@@ -168,6 +169,7 @@ Tilbyd «Inviter din partner» (iCloud-deling) og «Importér fra Folke-server»
 
 ## 7. App Store
 
+- Betalingsmodel: se afsnit 9.
 - Betalt Apple Developer-konto. Bundle id og appnavn besluttes. Navnet «Folke» er familiens barns navn, så overvej et neutralt navn.
 - Privatlivspolitik på en webadresse. Data forlader kun telefonen via brugerens egen iCloud, så «Data Not Collected» bør kunne vælges. Tjek det.
 - Tekst om, at forudsigelser og vækstkurver er vejledende og ikke medicinsk rådgivning.
@@ -189,16 +191,55 @@ Tilbyd «Inviter din partner» (iCloud-deling) og «Importér fra Folke-server»
 Appen importerer filen via filvælgeren (eller via Del → Folke). En kørende `timer` bliver til `Sleep` uden slut.
 Gentaget import må ikke give dubletter: brug serverens id som nøgle.
 
-## 9. Rækkefølge (milepæle)
+## 9. Betalingsmodel
 
-1. **FolkeCore:** model, forudsigelse, notifikationsregler og WHO, med porterede tests. Ingen UI.
-2. **App-skelet:** Core Data og CloudKit, første opstart, forside med ring og start/stop. Kør i simulatoren.
-3. Resten af forsiden: glemte tryk, ret/slet, mad, udpumpning, forslag.
-4. Lokale notifikationer og indstillinger.
-5. Vækst og udpumpningshistorik.
-6. iCloud-deling mellem to konti og tavlen.
+Mål: en lille, ærlig indtægt uden at gå på kompromis med privatlivet. Ingen server betyder næsten ingen driftsudgifter,
+så prisen kan holdes lav.
+
+**Model: gratis app med «Folke Plus» som engangskøb** (StoreKit 2, non-consumable).
+
+| Gratis | Folke Plus |
+|---|---|
+| Start/stop søvn, ringen, dagens søvn, glemte tryk, ret/slet | Forudsigelse af næste lur og sengetid (kortet og den stiplede cirkel) |
+| Mad og udpumpning, udpumpningshistorik | Notifikationer: `sleep_soon`, `overdue` og `pump` |
+| **Deling med partner** (iCloud) og tavlen | Widgets, Live Activity og Siri/Genveje |
+| Import fra Folke-server | Vækstkurver med percentiler (målinger kan altid indtastes og ses som liste) |
+
+- **Pris:** 149 kr. som engangskøb (prøv evt. 199 kr.). Bevidst langt under konkurrenter, fx Napper (ca. 500 kr. engangs) og
+  abonnementsapps som Huckleberry. «Intet abonnement» er et salgsargument.
+- **Prøveperiode:** alt i Plus er åbent de første 14 dage fra første opstart. Forudsigelserne bliver først gode efter en uges data,
+  så brugeren skal nå at opleve dem. Efter prøven vises Plus-funktionerne låst med en kort forklaring, aldrig som pop-op midt i brugen.
+- **Familiedeling slået til** på købet, så partneren også får Plus. Deling mellem forældrene må aldrig kræve betaling: invitationen
+  er appens vigtigste vej til nye brugere.
+- **Ingen reklamer, intet salg af data, ingen analyse-SDK'er.** Så kan «Data Not Collected» vælges i App Store.
+- Køb gendannes via «Gendan køb» under Indstillinger. Status læses med `Transaction.currentEntitlements` og gemmes ikke på en server.
+- Data forsvinder aldrig, hvis Plus udløber eller ikke købes: alt registreret kan stadig ses og eksporteres.
+
+**Ikke en kopi af Napper eller andre apps.** Vi har ikke kigget i deres kode, tekster eller design og skal heller ikke:
+- Forudsigelsen er vores egen (vågenvinduer pr. position fra `folke.py`, som er skrevet fra bunden til Baby Buddy).
+- Alt i projektet er navngivet efter Folke. Motoren hed tidligere `napper.py` og er omdøbt for at undgå enhver forveksling.
+- Udseendet (døgnringen med himmel efter tid på dagen, månen, tavlen) kommer fra vores egen webapp.
+- Appnavn, ikon og App Store-tekster skal være vores egne. Tjek varemærker og eksisterende appnavne, før navnet låses.
+- **Måske et redesign før lancering.** Nuværende udseende er porteret 1:1 fra familiens webapp og er godt til os selv.
+  Før App Store bør vi vurdere, om det skal have et mere gennemarbejdet og genkendeligt udtryk: eget ikon og logo,
+  farver og typografi, illustrationer, tilgængelighed (Dynamic Type, VoiceOver, kontrast) og et lyst tema. Tag stilling
+  efter TestFlight med forældre uden for familien (milepæl 9), så redesignet bygger på deres feedback og ikke på gæt.
+
+**Før lancering:** TestFlight til 20-30 forældre uden for familien (mødregrupper). Spørg, om de ville betale, og hvad de savner.
+Afgør derefter prisen. Indtægter er skattepligtige: tjek CVR og moms (Apple afregner moms i EU, men indkomsten skal opgives).
+
+## 10. Rækkefølge (milepæle)
+
+1. **FolkeCore:** model, forudsigelse, notifikationsregler og WHO, med porterede tests. Ingen UI. *(færdig)*
+2. **App-skelet:** Core Data og CloudKit, første opstart, forside med ring og start/stop. Kør i simulatoren. *(færdig)*
+3. Resten af forsiden: glemte tryk, ret/slet, mad, udpumpning, forslag. *(færdig)*
+4. Lokale notifikationer og indstillinger. *(færdig)*
+5. Vækst og udpumpningshistorik. *(færdig)*
+6. iCloud-deling mellem to konti og tavlen. Kræver betalt udviklerkonto, Team ID og endeligt bundle id.
 7. Live Activity, widgets og App Intents.
 8. Import fra serveren. TestFlight til familien.
-9. Engelsk, privatlivspolitik, App Store.
+9. **Folke Plus** (afsnit 9): StoreKit 2-engangskøb med familiedeling, 14 dages prøve, låste funktioner, «Gendan køb».
+   Test med StoreKit-konfigurationsfil i simulatoren. TestFlight til forældre uden for familien.
+10. Evt. redesign (afsnit 9), engelsk, privatlivspolitik, App Store.
 
 Hver milepæl afsluttes med grønne tests, et skærmbillede fra simulatoren og en commit.

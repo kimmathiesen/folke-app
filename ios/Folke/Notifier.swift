@@ -1,0 +1,102 @@
+import FolkeCore
+import Observation
+import OSLog
+import UserNotifications
+
+/// Lokale notifikationer (ios/PLAN.md afsnit 4). Reglerne ligger i `NotificationPlanner` i FolkeCore.
+/// Planlægges forfra, hver gang forsiden opdateres (lokale ændringer, iCloud, appen åbnes, hvert minut).
+/// Hvilke beskedtyper denne enhed vil have, og hvad der er sendt, gemmes kun på enheden.
+@MainActor @Observable
+final class Notifier: NSObject, UNUserNotificationCenterDelegate {
+    enum Status { case unknown, notAsked, allowed, denied }
+
+    private(set) var status: Status = .unknown
+    private let center = UNUserNotificationCenter.current()
+    private let defaults = UserDefaults.standard
+    private var lastPlan: [PlannedNotification]?
+    private let logger = Logger(subsystem: "dk.folkeapp.folke", category: "notifikationer")
+
+    /// Beskedtyper til og fra på denne enhed (standard: søvn til, udpumpning fra).
+    private(set) var enabled: Set<NotificationKind>
+
+    override init() {
+        enabled = (defaults.stringArray(forKey: "folke.kinds")?.compactMap(NotificationKind.init(rawValue:)))
+            .map(Set.init) ?? NotificationKind.defaultsOn
+        super.init()
+        center.delegate = self
+        Task { await refreshStatus() }
+    }
+
+    func refreshStatus() async {
+        let s = await center.notificationSettings()
+        status = switch s.authorizationStatus {
+        case .notDetermined: .notAsked
+        case .denied: .denied
+        default: .allowed
+        }
+    }
+
+    /// Bed om lov (fra et tryk, som i webappen). Giver false, hvis brugeren siger nej.
+    func requestPermission() async -> Bool {
+        let ok = (try? await center.requestAuthorization(options: [.alert, .sound, .badge])) ?? false
+        await refreshStatus()
+        lastPlan = nil
+        return ok
+    }
+
+    func setEnabled(_ kind: NotificationKind, _ on: Bool) {
+        if on { enabled.insert(kind) } else { enabled.remove(kind) }
+        defaults.set(enabled.map(\.rawValue).sorted(), forKey: "folke.kinds")
+        lastPlan = nil
+    }
+
+    func sendTest() {
+        let c = UNMutableNotificationContent()
+        c.title = "Folke"
+        c.body = "Notifikationer virker på denne enhed."
+        c.sound = .default
+        center.add(UNNotificationRequest(identifier: "test", content: c,
+                                         trigger: UNTimeIntervalNotificationTrigger(timeInterval: 1, repeats: false)))
+    }
+
+    var log: NotificationLog {
+        get {
+            defaults.data(forKey: "folke.notificationLog")
+                .flatMap { try? JSONDecoder().decode(NotificationLog.self, from: $0) } ?? NotificationLog()
+        }
+        set { defaults.set(try? JSONEncoder().encode(newValue), forKey: "folke.notificationLog") }
+    }
+
+    /// Planlæg forfra. Fast id pr. type, så en ny plan erstatter den gamle. Typer uden plan fjernes.
+    func reschedule(_ input: NotificationPlanner.Input) {
+        guard status == .allowed else { return }
+        var input = input
+        input.enabled = enabled
+        let (plan, newLog) = NotificationPlanner().plan(input, log: log)
+        log = newLog
+        if plan == lastPlan { return }
+        lastPlan = plan
+
+        let ids = NotificationKind.allCases.map(\.rawValue)
+        let removed = ids.filter { id in !plan.contains { $0.id == id } }
+        center.removePendingNotificationRequests(withIdentifiers: removed)
+        logger.info("Fjernet: \(removed.joined(separator: ", "), privacy: .public)")
+        for n in plan {
+            let c = UNMutableNotificationContent()
+            c.title = n.title
+            c.body = n.body
+            c.sound = .default
+            c.threadIdentifier = n.kind == .pump ? "pump" : "sleep"
+            let delay = max(1, n.fireDate.timeIntervalSinceNow)
+            logger.info("Planlagt \(n.id, privacy: .public) kl. \(Format.clock(n.fireDate), privacy: .public): \(n.body, privacy: .public)")
+            center.add(UNNotificationRequest(identifier: n.id, content: c,
+                                             trigger: UNTimeIntervalNotificationTrigger(timeInterval: delay, repeats: false)))
+        }
+    }
+
+    // Vis også beskeden, når appen er åben
+    nonisolated func userNotificationCenter(_ center: UNUserNotificationCenter, willPresent notification: UNNotification)
+        async -> UNNotificationPresentationOptions {
+        [.banner, .sound, .list]
+    }
+}

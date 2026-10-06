@@ -1,13 +1,13 @@
-# Napper (selfhostet)
+# Folke (selfhostet)
 Baby-søvntracker oven på Baby Buddy (REST API). Mål: start/stop søvn fra telefonen (PWA),
 forudsigelse af næste lur/sengetid, notifikation via Home Assistant.
 
 ## Arkitektur
-- `napper.py`: motor. `predict()` (vågenvinduer pr. position på dagen, median, aldersbaseret fallback),
+- `folke.py`: motor. `predict()` (vågenvinduer pr. position på dagen, median, aldersbaseret fallback),
   HA-sensor `sensor.baby_next_sleep`, besked LEAD_MIN (30) min før og OVERDUE_MIN (15) min efter, hvis ingen søvn er startet. Kan køre alene (cron) eller importeres.
 - `app.py`: Flask. `/api/status`, `/api/start`, `/api/stop`, `/api/pump` (JSON {amount} -> Baby Buddy /api/pumping/, kaldes fra HA). Start = Baby Buddy-timer "Søvn";
-  stop = POST /api/sleep/ + DELETE timeren. Baggrundstråd kalder `napper.main()` hvert 60. sek.
-- `store.py`: datalag. `store.get()` giver `BabyBuddy` eller `Sqlite` (env `BACKEND`). app.py og `napper.main()` går altid gennem det, aldrig direkte til Baby Buddy. Tider gemmes i SQLite som UTC-tekst (`iso()`), så de kan sammenlignes som tekst. Skemaændringer: tilføj et trin til `MIGRATIONS` (PRAGMA user_version).
+  stop = POST /api/sleep/ + DELETE timeren. Baggrundstråd kalder `folke.main()` hvert 60. sek.
+- `store.py`: datalag. `store.get()` giver `BabyBuddy` eller `Sqlite` (env `BACKEND`). app.py og `folke.main()` går altid gennem det, aldrig direkte til Baby Buddy. Tider gemmes i SQLite som UTC-tekst (`iso()`), så de kan sammenlignes som tekst. Skemaændringer: tilføj et trin til `MIGRATIONS` (PRAGMA user_version).
 - Stand-alone: envejs-import (`Sqlite.import_bb`, upsert på `bb_id`, spejler Baby Buddy-rækker, lokale rækker har `bb_id` NULL). `tick()` i app.py importerer automatisk ved tom database og tager daglig backup. Branch `standalone` -> image `:standalone`, skabelon `unraid/my-folke-standalone.xml` (port 6661, HA slået fra).
 - `index.html`: enkeltfil-UI (ingen build). Kør gunicorn med 1 worker (tråden).
 - Konfiguration via env (se `.env.example`). Alle tider håndteres i TZ (Europe/Copenhagen).
@@ -24,7 +24,7 @@ forudsigelse af næste lur/sengetid, notifikation via Home Assistant.
 
 ## Udrulning
 - GitHub Actions bygger `ghcr.io/kimmathiesen/folke-app:latest` ved push til main.
-- Unraid-skabelon: `unraid/my-napper.xml` (hemmeligheder ligger kun i Unraid, aldrig i repoet).
+- Unraid-skabelon: `unraid/my-folke.xml` (hemmeligheder ligger kun i Unraid, aldrig i repoet).
 - Lokal variant uden GitHub: `unraid/update-local.sh` (Gitea + cron).
 
 ## Forslag og tilpasning
@@ -37,11 +37,11 @@ forudsigelse af næste lur/sengetid, notifikation via Home Assistant.
 
 ## Push (kun branch standalone)
 - `push.py`: web push med pywebpush. VAPID-nøgle i `vapid.pem` (laves første gang), abonnementer i `push.json`, begge ved STATE_FILE. 404/410 fra push-tjenesten fjerner abonnementet.
-- Beskedtyper (`napper.KINDS`): `sleep_soon`, `overdue`, `pump`. Hver enhed har til/fra i `push.json` (`kinds`, `push.DEFAULT_KINDS`: søvn til, udpumpning fra), sat via `POST /api/push/kinds`. HA får typerne i env `HA_KINDS` (standard kun søvn). Udpumpningens «efter X timer» er fælles (`prefs.pump_remind`, standard 3).
-- `napper.notify(title, msg, kind)` sender via HA (hvis sat op) og push (`napper.push`, sat af app.py). `napper.can_notify()` styrer, om der overhovedet notificeres. `sw.js` (route `/sw.js`) viser notifikationen.
+- Beskedtyper (`folke.KINDS`): `sleep_soon`, `overdue`, `pump`. Hver enhed har til/fra i `push.json` (`kinds`, `push.DEFAULT_KINDS`: søvn til, udpumpning fra), sat via `POST /api/push/kinds`. HA får typerne i env `HA_KINDS` (standard kun søvn). Udpumpningens «efter X timer» er fælles (`prefs.pump_remind`, standard 3).
+- `folke.notify(title, msg, kind)` sender via HA (hvis sat op) og push (`folke.push`, sat af app.py). `folke.can_notify()` styrer, om der overhovedet notificeres. `sw.js` (route `/sw.js`) viser notifikationen.
 
 ## Navn og forælder (kun branch standalone)
-- Barnets navn er fælles: `prefs.child_name` (sat ved første opstart eller under Indstillinger), ellers `first_name` fra databasen. `napper.display_name` bruges i beskeden «… virker meget frisk».
+- Barnets navn er fælles: `prefs.child_name` (sat ved første opstart eller under Indstillinger), ellers `first_name` fra databasen. `folke.display_name` bruges i beskeden «… virker meget frisk».
 - Mor/far gemmes kun på enheden (`localStorage` `folke.role`) og giver overskriften «Hej Folkes mor» og push-navnet «Mors iPhone».
 - Første opstart: UI'et viser `#onb`, hvis navn eller rolle mangler. Uden barn i SQLite svarer `/api/status` `{setup: true}`, og `POST /api/child` opretter barnet.
 
@@ -52,3 +52,16 @@ forudsigelse af næste lur/sengetid, notifikation via Home Assistant.
 
 ## Vækst
 - Egen side i index.html (`#vaekst`). Målinger i `growth.json` (ikke Baby Buddy). `who.py` har WHO LMS-tabeller 0-24 mdr. (fra pygrowup) og beregner kurver/percentiler. Køn vælges under Indstillinger (`prefs.json`).
+
+## iPhone-app (branch `ios`, mappen `ios/`)
+- Plan: `ios/PLAN.md`. Webappen/serveren er facit for regler, tekster og udseende.
+- `ios/FolkeCore`: Swift package uden UI (forudsigelse, notifikationsregler, WHO, forslag, farver, Core Data-model i kode, `FolkeStore`). Python-testene er porteret til Swift Testing.
+  Test: `cd ios/FolkeCore && xcodebuild test -scheme FolkeCore -destination 'platform=iOS Simulator,name=iPhone 17'`
+- `ios/Folke.xcodeproj` + `ios/Folke/`: SwiftUI-appen (mappen synkroniseres automatisk, nye filer kræver ingen ændring i projektet).
+  Build: `cd ios && xcodebuild build -project Folke.xcodeproj -scheme Folke -destination 'platform=iOS Simulator,name=iPhone 17' CODE_SIGNING_ALLOWED=NO`
+- Core Data, ikke SwiftData: SwiftData understøtter ikke delte CloudKit-databaser (tjekket i iOS 27-SDK'et).
+- iCloud er slået fra (`AppModel.cloudKitContainer = nil`), indtil appen signeres med udviklerkontoen (milepæl 6). Bundle id `dk.folkeapp.folke` er et arbejdsnavn.
+- Debug: start med `-demoData YES` (evt. `-demoMonths 7` for forslaget om fast føde) for et barn med 10 dages søvn, måltider, 14 dages udpumpning og vækstmålinger i hukommelsen (skærmbilleder).
+- Sider: `AppModel.page` (home, settings, growth, pump) svarer til hash-ruterne i webappen. Vækst og udpumpningshistorik ligger i `FolkeCore/History.swift`.
+- Klokkeslæt i UI'et vises med punktum («kl. 14.05», `Format.time`) som i webappen. Notifikationer og fejl bruger kolon (`Format.clock`) som serveren.
+- Notifikationer: `Folke/Notifier.swift` planlægger lokale notifikationer ud fra `NotificationPlanner` ved hver `refresh()` (fast id pr. type). Beskedtyper pr. enhed og log over sendte i `UserDefaults` (`folke.kinds`, `folke.notificationLog`). Se planen: `xcrun simctl spawn "iPhone 17" log show --last 5m --predicate 'subsystem == "dk.folkeapp.folke"' --info`

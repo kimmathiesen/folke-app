@@ -3,9 +3,9 @@ from datetime import date, datetime, timedelta
 
 import pytest
 
-import napper
+import folke
 
-TZ = napper.TZ
+TZ = folke.TZ
 
 
 def now():
@@ -52,7 +52,7 @@ def test_start_opretter_timer_og_er_idempotent(client, world):
 def test_start_med_tidspunkt(client, world):
     since = now() - timedelta(minutes=20)
     assert client.post("/api/start", json={"since": hm(since)}).status_code == 200
-    assert hm(napper.parse(world.timers()[0]["start"])) == hm(since)
+    assert hm(folke.parse(world.timers()[0]["start"])) == hm(since)
 
 
 def test_start_ugyldigt_tidspunkt(client, world):
@@ -78,14 +78,14 @@ def test_stop_gemmer_soevn_og_sletter_timer(client, world):
     assert client.post("/api/stop", json={"nap": True}).status_code == 200
     assert world.timers() == []
     [s] = world.sleeps()
-    assert napper.parse(s["start"]) == st and s["nap"] is True
+    assert folke.parse(s["start"]) == st and s["nap"] is True
 
 
 def test_stop_med_vaagnetidspunkt(client, world):
     world.add_timer(now() - timedelta(hours=2))
     wake = now() - timedelta(minutes=30)
     assert client.post("/api/stop", json={"wake": hm(wake), "nap": False}).status_code == 200
-    assert hm(napper.parse(world.sleeps()[0]["end"])) == hm(wake)
+    assert hm(folke.parse(world.sleeps()[0]["end"])) == hm(wake)
 
 
 def test_stop_vaagnet_foer_start_afvises(client, world):
@@ -102,7 +102,7 @@ def test_ret_og_slet_soevn(client, world):
     r = client.post(f"/api/sleep/{sid}", json={"start": f"{y}T13:00", "end": f"{y}T14:15", "nap": False})
     assert r.status_code == 200
     [s] = world.sleeps()
-    assert napper.parse(s["end"]) == datetime.fromisoformat(f"{y}T14:15").replace(tzinfo=TZ)
+    assert folke.parse(s["end"]) == datetime.fromisoformat(f"{y}T14:15").replace(tzinfo=TZ)
     assert s["nap"] is False
     assert client.delete(f"/api/sleep/{sid}").status_code == 200
     assert world.sleeps() == []
@@ -150,7 +150,7 @@ def test_feed_ugyldig(client, world, body):
 def test_feed_med_tidspunkt(client, world):
     t = now() - timedelta(minutes=45)
     client.post("/api/feed", json={"kind": "right", "at": hm(t)})
-    assert hm(napper.parse(world.feedings()[0]["start"])) == hm(t)
+    assert hm(folke.parse(world.feedings()[0]["start"])) == hm(t)
 
 
 # ---------- vækst ----------
@@ -218,6 +218,6 @@ def test_baby_buddy_fejl_giver_502(fake_bb, monkeypatch):
     client = app_module.app.test_client()
     def boom(*a, **k):
         raise OSError("forbindelse nægtet")
-    monkeypatch.setattr(napper, "call", boom)
+    monkeypatch.setattr(folke, "call", boom)
     r = client.get("/api/status")
     assert r.status_code == 502 and "forbindelse" in r.get_json()["error"]

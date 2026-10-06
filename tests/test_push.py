@@ -6,10 +6,10 @@ from datetime import datetime, timedelta
 import pytest
 import pywebpush
 
-import napper
+import folke
 import push
 
-TZ = napper.TZ
+TZ = folke.TZ
 SUB = {"endpoint": "https://web.push.apple.com/abc", "keys": {"p256dh": "BPk", "auth": "xyz"}}
 
 
@@ -26,9 +26,9 @@ class Resp:
 def sent(monkeypatch, tmp_path):
     monkeypatch.setattr(push, "KEY", str(tmp_path / "vapid.pem"))
     monkeypatch.setattr(push, "SUBS", str(tmp_path / "push.json"))
-    monkeypatch.setattr(napper, "STATE_FILE", str(tmp_path / "state.json"))
-    monkeypatch.setattr(napper, "HA_URL", "")
-    monkeypatch.setattr(napper, "HA_NOTIFY", "")
+    monkeypatch.setattr(folke, "STATE_FILE", str(tmp_path / "state.json"))
+    monkeypatch.setattr(folke, "HA_URL", "")
+    monkeypatch.setattr(folke, "HA_NOTIFY", "")
     calls, fail = Calls(), {}
 
     def webpush(info, data, vapid_private_key=None, vapid_claims=None, **kw):
@@ -100,8 +100,8 @@ def test_udpumpningspaamindelse_kun_via_push(client, world, sent):
     assert "udpumpning" in json.loads(sent[0][1])["body"]
 
 
-def test_naeste_soevn_via_push_uden_home_assistant(world, sent, real_main):
-    now = datetime.now(TZ)
+def test_naeste_soevn_via_push_uden_home_assistant(world, sent, real_main, noon):
+    now = noon
     world.set_birth(now.date() - timedelta(days=150))  # 4,9 mdr.: standardvindue 120 min
     world.add_sleep(now - timedelta(hours=3), now - timedelta(minutes=115))  # næste søvn om ca. 5 min
     push.subscribe(SUB, "https://folke.test")

@@ -33,6 +33,8 @@ struct RootView: View {
                     GrowthView()
                 } else if model.page == .pump {
                     PumpHistoryView()
+                } else if model.page == .board {
+                    BoardView()
                 } else {
                     HomeView()
                 }

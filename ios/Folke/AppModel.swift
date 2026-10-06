@@ -33,6 +33,8 @@ struct Snapshot {
     var pumpHistory = PumpHistory(days: [], avgMl: nil)
     var pumpItems: [PumpItem] = []
     var clothing: ClothingEstimate?
+    var strokes: [BoardStroke] = []
+    var boardVersion = 0.0
 
     struct PumpItem: Identifiable {
         var id: UUID
@@ -54,7 +56,7 @@ final class AppModel {
     /// Siden, der vises (som hash-ruterne i webappen)
     var page: Page = .home
 
-    enum Page { case home, settings, growth, pump }
+    enum Page { case home, settings, growth, pump, board }
 
     var role: Role? {
         didSet { FolkeShared.role = role }
@@ -139,6 +141,9 @@ final class AppModel {
         s.birthDate = child?.birthDate
         s.growth = store.growthPoints()
         s.clothing = store.clothingEstimate(now: now)
+        s.strokes = store.strokes()
+        s.boardVersion = store.boardVersion()
+        if page == .board { boardSeen = s.boardVersion }
         s.pumpHistory = store.pumpHistory(now: now)
         s.pumpItems = store.pumpings(since: now.addingTimeInterval(-7 * 86400)).reversed().compactMap { p in
             guard let id = p.id, let t = p.time else { return nil }
@@ -277,6 +282,27 @@ final class AppModel {
     func deletePumping(id: UUID) {
         _ = attempt { if let p = store.pumping(id: id) { try store.delete(p) } }
     }
+
+    // MARK: Tavlen
+
+    /// Seneste tavleversion, denne enhed har set (stjernerne ved månen blinker, når der er nyt)
+    var boardSeen: Double = FolkeShared.defaults.double(forKey: "folke.boardSeen") {
+        didSet { FolkeShared.defaults.set(boardSeen, forKey: "folke.boardSeen") }
+    }
+
+    var boardHasNews: Bool { snapshot.boardVersion > boardSeen }
+
+    func openBoard() {
+        page = .board
+        boardSeen = snapshot.boardVersion
+    }
+
+    func addStroke(color: String, points: [SIMD2<Float>]) -> String? {
+        attempt { try store.addStroke(color: color, points: points, by: role) }
+    }
+
+    func undoStroke() { _ = attempt { try store.undoStroke() } }
+    func clearBoard() { _ = attempt { try store.clearBoard() } }
 
     // MARK: Indstillinger
 

@@ -1,8 +1,37 @@
 import SwiftUI
 
-/// Månen med stjerner øverst på forsiden (`#logo` i index.html, viewBox 100×100). Senere: genvej til tavlen.
+/// Månen med stjerner øverst på forsiden (`#logo` i index.html, viewBox 100×100). Tryk åbner tavlen.
 struct MoonLogo: View {
+    /// Stjernerne blinker, når der er nyt på tavlen
+    var blink = false
+    @State private var phase = false
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
     var body: some View {
+        ZStack {
+            moon
+            if blink {
+                stars.opacity(phase ? 0.25 : 1).scaleEffect(phase ? 0.85 : 1)
+                    .animation(reduceMotion ? nil : .easeInOut(duration: 0.7).repeatForever(autoreverses: true), value: phase)
+                    .onAppear { phase = true }
+            } else {
+                stars
+            }
+        }
+        .frame(width: 84, height: 84)
+        .accessibilityHidden(true)
+    }
+
+    var stars: some View {
+        Canvas { ctx, size in
+            ctx.scaleBy(x: size.width / 100, y: size.height / 100)
+            for star in Self.stars {
+                ctx.fill(star, with: .color(Color(hex: "#ffe28a")))
+            }
+        }
+    }
+
+    var moon: some View {
         Canvas { ctx, size in
             ctx.scaleBy(x: size.width / 100, y: size.height / 100)
             let shading = GraphicsContext.Shading.linearGradient(
@@ -10,12 +39,7 @@ struct MoonLogo: View {
                 startPoint: CGPoint(x: 0, y: 0), endPoint: CGPoint(x: 100, y: 100))
             ctx.stroke(Self.moon, with: shading, style: StrokeStyle(lineWidth: 3, lineJoin: .round))
             ctx.stroke(Self.smiles, with: shading, style: StrokeStyle(lineWidth: 2.4, lineCap: .round))
-            for star in Self.stars {
-                ctx.fill(star, with: .color(Color(hex: "#ffe28a")))
-            }
         }
-        .frame(width: 84, height: 84)
-        .accessibilityHidden(true)
     }
 
     /// Halvmånen: cirklen r=34 om (58,3; 48,0) minus cirklen r=30,2 om (72,5; 41,5),

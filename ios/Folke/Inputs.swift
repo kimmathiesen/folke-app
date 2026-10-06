@@ -71,6 +71,8 @@ struct ActionRow: View {
 extension Text {
     func segLabel(on: Bool, size: CGFloat = 16) -> some View {
         font(.system(size: size))
+            .lineLimit(1)
+            .minimumScaleFactor(0.7)
             .padding(.vertical, 12)
             .padding(.horizontal, 6)
             .frame(maxWidth: .infinity)

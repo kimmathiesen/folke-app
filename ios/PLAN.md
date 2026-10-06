@@ -339,7 +339,7 @@ Afgør derefter prisen. Indtægter er skattepligtige: tjek CVR og moms (Apple af
 3. Resten af forsiden: glemte tryk, ret/slet, mad, udpumpning, forslag. *(færdig)*
 4. Lokale notifikationer og indstillinger. *(færdig)*
 5. Vækst og udpumpningshistorik. *(færdig)*
-6. iCloud-deling mellem to konti og tavlen. Kræver betalt udviklerkonto, Team ID og endeligt bundle id. App Group `group.dk.folkeapp.folke` skal også oprettes på kontoen.
+6. iCloud-deling mellem to konti og tavlen (tavlen lokalt er færdig; deling mangler). Kræver betalt udviklerkonto, Team ID og endeligt bundle id. App Group `group.dk.folkeapp.folke` skal også oprettes på kontoen.
 7. Live Activity, widgets og App Intents. *(færdig, testet i simulatoren; Siri-sætninger og låseskærm-widgets er ikke afprøvet)*
 8. **Skjult** import fra Folke-serveren (kun i egne builds: debug og TestFlight, aldrig i App Store-versionen, da andre
    brugere ikke har en server). TestFlight til familien.
@@ -348,7 +348,8 @@ Afgør derefter prisen. Indtægter er skattepligtige: tjek CVR og moms (Apple af
 10. Evt. redesign (afsnit 9), engelsk, privatlivspolitik, privacy manifest, eksport som CSV (dine data er dine, fx til
     sundhedsplejersken), App Store.
 
-Ud over milepælene (kan laves uden udviklerkonto): app-ikon, baggrundsopdatering af notifikationer (`BGAppRefreshTask`),
-tavlen lokalt (deling kommer med milepæl 6) og tøjstørrelse for far (afsnit 5, Vækst).
+Ud over milepælene (lavet uden udviklerkonto): app-ikon, baggrundsopdatering af notifikationer (`BGAppRefreshTask`,
+skal afprøves på telefon), tavlen lokalt (deling kommer med milepæl 6) og tøjstørrelse for far (afsnit 5, Vækst).
+Tavlen i appen viser «Sidst ændret» ud fra seneste streg (fortryd og «Visk ud» registreres ikke som ændring).
 
 Hver milepæl afsluttes med grønne tests, et skærmbillede fra simulatoren og en commit.

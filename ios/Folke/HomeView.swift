@@ -42,7 +42,9 @@ struct HomeView: View {
 
     var header: some View {
         VStack(spacing: 0) {
-            MoonLogo()
+            Button { model.openBoard() } label: { MoonLogo(blink: model.boardHasNews) }
+                .buttonStyle(.plain)
+                .accessibilityLabel("Tavlen")
                 .frame(maxWidth: .infinity)
                 .overlay(alignment: .topLeading) {
                     // Som `#setbtn` i webappen

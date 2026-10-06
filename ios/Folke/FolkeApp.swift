@@ -10,6 +10,9 @@ struct FolkeApp: App {
             RootView()
                 .environment(model)
         }
+        .backgroundTask(.appRefresh(BackgroundRefresh.id)) {
+            await BackgroundRefresh.run()
+        }
     }
 }
 
@@ -41,6 +44,7 @@ struct RootView: View {
         .preferredColorScheme(.dark)
         .onChange(of: scenePhase) { _, phase in
             if phase == .active { model.refresh() }
+            if phase == .background { BackgroundRefresh.schedule() }
         }
     }
 }

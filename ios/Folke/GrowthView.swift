@@ -29,8 +29,8 @@ struct GrowthView: View {
                 }
                 .card()
                 .padding(.top, 16)
-                if model.role == .far, let c = s.clothing {
-                    ClothingCard(estimate: c, name: s.childName)
+                if let c = s.clothing {
+                    ClothingCard(estimate: c, name: s.childName, showNext: model.showNextSize)
                 }
                 GoButton(title: "Tilføj måling") { editing = Editing(point: nil) }.padding(.top, 14)
                 if !s.growth.isEmpty {
@@ -243,10 +243,11 @@ struct GrowthSheet: View {
     }
 }
 
-/// Tøjstørrelse ud fra sidste længdemåling (kun for far, PLAN.md afsnit 5).
+/// Tøjstørrelse ud fra sidste længdemåling (PLAN.md afsnit 5). Næste størrelse kan slås fra under Indstillinger.
 struct ClothingCard: View {
     var estimate: ClothingEstimate
     var name: String
+    var showNext: Bool
     @Environment(\.muted) private var muted
 
     var body: some View {
@@ -258,7 +259,7 @@ struct ClothingCard: View {
             VStack(alignment: .leading, spacing: 2) {
                 Text("Tøjstørrelse").font(.system(size: 14)).foregroundStyle(muted)
                 Text("Str. \(estimate.size)").font(.system(size: 26, weight: .semibold)).foregroundStyle(Color.fg)
-                if let next = estimate.nextSize, let from = estimate.nextSizeFrom {
+                if showNext, let next = estimate.nextSize, let from = estimate.nextSizeFrom {
                     Text("Str. \(next) \(Format.untilText(from, now: .now)) (ca. \(from.formatted(.dateTime.day().month(.abbreviated))))")
                         .font(.system(size: 15)).foregroundStyle(Color.fg)
                 }

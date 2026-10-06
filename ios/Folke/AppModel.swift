@@ -283,6 +283,11 @@ final class AppModel {
         _ = attempt { if let p = store.pumping(id: id) { try store.delete(p) } }
     }
 
+    /// Vis skøn over næste tøjstørrelse på vækstsiden (pr. enhed, standard til)
+    var showNextSize: Bool = FolkeShared.defaults.object(forKey: "folke.showNextSize") as? Bool ?? true {
+        didSet { FolkeShared.defaults.set(showNextSize, forKey: "folke.showNextSize") }
+    }
+
     // MARK: Tavlen
 
     /// Seneste tavleversion, denne enhed har set (stjernerne ved månen blinker, når der er nyt)

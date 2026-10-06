@@ -232,10 +232,11 @@ Tilbyd «Inviter din partner» (iCloud-deling) og «Importér fra Folke-server»
 - Kurverne vises op til 12 mdr., til barnet er 9 mdr., derefter op til 24.
 - Køn vælges i indstillinger.
 - Data og formler: `who.py`. Facit: `tests/test_who.py`.
-- **Tøjstørrelse (kun når «Jeg er far» er valgt på enheden):** sidste længdemåling fremskrives langs sin egen percentil
+- **Tøjstørrelse (for begge forældre):** sidste længdemåling fremskrives langs sin egen percentil
   (samme z-værdi på WHO-kurven) til i dag. Størrelsen er den mindste danske babystørrelse (44, 50, 56, 62, 68, 74, 80, 86,
   92, 98), der er mindst lige så lang som barnet. Desuden hvornår næste størrelse passer: «Str. 74 om ca. 5 uger».
   Kun 0-24 mdr. og kun med en længdemåling. Skrives tydeligt som et skøn (størrelser varierer mellem mærker).
+  Linjen med næste størrelse kan slås fra under Indstillinger («Vis næste tøjstørrelse», pr. enhed, standard til).
 
 **Tavlen** (tryk på månen):
 - Delt kridttavle med fast format 3:4, så tegningen ser ens ud på alle enheder.
@@ -349,7 +350,7 @@ Afgør derefter prisen. Indtægter er skattepligtige: tjek CVR og moms (Apple af
     sundhedsplejersken), App Store.
 
 Ud over milepælene (lavet uden udviklerkonto): app-ikon, baggrundsopdatering af notifikationer (`BGAppRefreshTask`,
-skal afprøves på telefon), tavlen lokalt (deling kommer med milepæl 6) og tøjstørrelse for far (afsnit 5, Vækst).
+skal afprøves på telefon), tavlen lokalt (deling kommer med milepæl 6) og tøjstørrelse (afsnit 5, Vækst).
 Tavlen i appen viser «Sidst ændret» ud fra seneste streg (fortryd og «Visk ud» registreres ikke som ændring).
 
 Hver milepæl afsluttes med grønne tests, et skærmbillede fra simulatoren og en commit.

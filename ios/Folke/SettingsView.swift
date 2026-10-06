@@ -56,6 +56,8 @@ struct SettingsView: View {
                     row("Vækstkurver") {
                         menu(s.sex, [(Sex.boy, "Dreng"), (.girl, "Pige")]) { model.setSex($0) }
                     }
+                    toggle("Vis næste tøjstørrelse", model.showNextSize) { model.showNextSize = $0 }
+                    note("Skøn ud fra sidste længdemåling på vækstsiden. Gælder kun denne enhed.")
                 }
                 .card()
                 if !message.isEmpty {

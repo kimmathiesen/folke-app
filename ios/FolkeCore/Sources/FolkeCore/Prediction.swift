@@ -35,11 +35,30 @@ public struct Prediction: Equatable, Sendable {
         }
     }
 
+    /// Hvor sengetiden kommer fra: hans egne aftener (mindst 3) eller standarden 19:30
+    public enum BedBasis: String, Sendable {
+        case own, `default`
+    }
+
     public var kind: Kind
     public var time: Date
     public var windowMin: Int
     public var source: Source
     public var lastID: UUID
+    /// 0 = efter natten, 1 = efter 1. lur ...
+    public var pos: Int = 0
+    public var bedBasis: BedBasis = .default
+
+    public init(kind: Kind, time: Date, windowMin: Int, source: Source, lastID: UUID, pos: Int = 0,
+                bedBasis: BedBasis = .default) {
+        self.kind = kind
+        self.time = time
+        self.windowMin = windowMin
+        self.source = source
+        self.lastID = lastID
+        self.pos = pos
+        self.bedBasis = bedBasis
+    }
 }
 
 /// Port af `folke.predict` på branchen `standalone`.
@@ -111,7 +130,7 @@ public enum Predictor {
             ? (.bedtime, max(bed, nextStart)) : (.nap, nextStart)
 
         return Prediction(kind: kind, time: when, windowMin: Int(window.rounded(.toNearestOrEven)),
-                          source: source, lastID: last.id)
+                          source: source, lastID: last.id, pos: pos, bedBasis: evenings.count >= 3 ? .own : .default)
     }
 
     /// Som Pythons `statistics.median`: ved et lige antal gennemsnittet af de to midterste.

@@ -65,6 +65,8 @@ func predict(_ s: [SleepSample], _ now: Date) -> Prediction? {
         #expect(p.source == .position(2))
         #expect(p.source.text == "eget mønster (position 2)")
         #expect(p.lastID == sleeps.last!.id)
+        #expect(p.pos == 2 && p.bedBasis == .own)
+        #expect(Format.why(p) == "Vågen ca. 3 t efter 2. lur · ud fra de seneste dage")
     }
 
     @Test func morgenBrugerVindueEfterNatten() throws {
@@ -73,6 +75,7 @@ func predict(_ s: [SleepSample], _ now: Date) -> Prediction? {
         #expect(p.kind == .nap)
         #expect(p.windowMin == 120)
         #expect(p.time == at(day(2026, 6, 10), 8, 30))
+        #expect(Format.why(p) == "Vågen ca. 2 t efter natten · ud fra de seneste dage")
     }
 
     @Test func sengetidEfterSidsteLur() throws {
@@ -81,6 +84,7 @@ func predict(_ s: [SleepSample], _ now: Date) -> Prediction? {
         let p = try #require(predict(sleeps, at(lastDay, 17, 30)))
         #expect(p.kind == .bedtime)
         #expect(p.time == at(lastDay, night.0, night.1)) // median af aftensøvne
+        #expect(Format.why(p) == "Sengetid ud fra de seneste aftener")
     }
 
     @Test func sengetidDerErGaaetFlyttesTilVinduetsSlut() throws {
@@ -111,6 +115,8 @@ func predict(_ s: [SleepSample], _ now: Date) -> Prediction? {
         #expect(p.windowMin == Predictor.defaultWindow(ageDays: age))
         #expect(p.windowMin == 120)
         #expect(p.time == at(d, 8, 0))
+        #expect(p.bedBasis == .default)
+        #expect(Format.why(p) == "Vågen ca. 2 t · typisk for alderen (for lidt data endnu)")
     }
 
     @Test func gennemsnitAfAlleVinduerSomFallback() throws {
@@ -124,6 +130,7 @@ func predict(_ s: [SleepSample], _ now: Date) -> Prediction? {
         let p = try #require(predict(sleeps, sleeps.last!.end))
         #expect(p.source == .allWindows)
         #expect(p.windowMin == 64) // median af 60, 62, 64, 66, 68
+        #expect(Format.why(p) == "Vågen ca. 1 t 4 min · ud fra de seneste dage")
     }
 
     @Test func urimeligeHullerIgnoreres() throws {

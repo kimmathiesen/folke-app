@@ -188,7 +188,7 @@ struct PredictionCard: View {
                 Text("Næste \(prediction.kind.rawValue)").font(.system(size: 14)).foregroundStyle(muted)
                 Text("ca. kl. \(Format.time(prediction.time))")
                     .font(.system(size: 26, weight: .semibold)).foregroundStyle(Color.fg)
-                Text("Vindue \(prediction.windowMin) min · \(prediction.source.text)")
+                Text(Format.why(prediction))
                     .font(.system(size: 14)).foregroundStyle(muted)
             }
             Spacer(minLength: 0)

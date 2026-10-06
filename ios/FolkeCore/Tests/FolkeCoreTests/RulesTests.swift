@@ -18,6 +18,8 @@ import Testing
     @Test func formater() {
         #expect(Format.duration(minutes: 45) == "45 min")
         #expect(Format.duration(minutes: 80) == "1 t 20 min")
+        #expect(Format.duration(minutes: 60) == "1 t")
+        #expect(Format.duration(minutes: 120) == "2 t")
         #expect(Format.counter(seconds: 3725) == "01:02:05")
         #expect(Format.clock(at(d, 9, 5), calendar: cph) == "09:05")
         #expect(Format.cleanName("  Folke   Bo ") == "Folke Bo")

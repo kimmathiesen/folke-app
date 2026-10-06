@@ -122,11 +122,18 @@ struct DialView: View {
         }
     }
 
-    /// I midten: klokkeslæt, tæller og tilstand.
+    /// Øverst i midten: hvornår han faldt i søvn, eller næste lur/sengetid (som `#nowt` i index.html).
+    var headline: String {
+        if let r = snapshot.running { return "Faldt i søvn kl. \(Format.time(r.start, calendar: calendar))" }
+        guard let p = snapshot.prediction else { return "" }
+        return "\(p.kind == .nap ? "Næste lur" : "Sengetid") kl. \(Format.time(p.time, calendar: calendar))"
+    }
+
+    /// I midten: næste lur/sengetid, tæller og tilstand.
     func middle(_ k: Double) -> some View {
         let since = snapshot.running?.start ?? snapshot.awakeSince
         return VStack(spacing: 2) {
-            Text("kl. \(Format.clock(now, calendar: calendar))").font(.system(size: 14)).foregroundStyle(muted)
+            Text(headline).font(.system(size: 14)).foregroundStyle(muted)
             Text(since.map { Format.counter(seconds: Int(now.timeIntervalSince($0))) } ?? "--")
                 .font(.system(size: min(34, 30 * k), weight: .light))
                 .monospacedDigit()

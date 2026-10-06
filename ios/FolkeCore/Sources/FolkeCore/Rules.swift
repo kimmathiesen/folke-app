@@ -47,9 +47,23 @@ public enum Format {
         return last.map { "Ingen i dag · " + $0 } ?? "Ingen udpumpninger endnu"
     }
 
-    /// "45 min" eller "1 t 20 min" (som `dur` i index.html).
+    /// "45 min", "1 t" eller "1 t 20 min" (som `dur` i index.html).
     public static func duration(minutes m: Int) -> String {
-        m < 60 ? "\(m) min" : "\(m / 60) t \(m % 60) min"
+        m < 60 ? "\(m) min" : "\(m / 60) t" + (m % 60 > 0 ? " \(m % 60) min" : "")
+    }
+
+    /// Forklaringen under «Næste lur» på almindeligt dansk (som `why` i index.html).
+    public static func why(_ p: Prediction) -> String {
+        if p.kind == .bedtime {
+            return p.bedBasis == .own ? "Sengetid ud fra de seneste aftener" : "Typisk sengetid (for lidt data endnu)"
+        }
+        let after: String
+        switch p.source {
+        case .position: after = p.pos > 0 ? " efter \(p.pos). lur" : " efter natten"
+        default: after = ""
+        }
+        let basis = p.source == .ageDefault ? "typisk for alderen (for lidt data endnu)" : "ud fra de seneste dage"
+        return "Vågen ca. \(duration(minutes: p.windowMin))\(after) · \(basis)"
     }
 
     /// "01:20:05" til tælleren i ringen.

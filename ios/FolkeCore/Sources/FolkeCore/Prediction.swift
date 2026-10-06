@@ -48,9 +48,15 @@ public struct Prediction: Equatable, Sendable {
     /// 0 = efter natten, 1 = efter 1. lur ...
     public var pos: Int = 0
     public var bedBasis: BedBasis = .default
+    /// Længden af en kort lur lige før (min), så vinduet er kortere end normalt
+    public var short: Int?
+    /// Minutter sengetiden er rykket frem
+    public var bedShift: Int = 0
 
     public init(kind: Kind, time: Date, windowMin: Int, source: Source, lastID: UUID, pos: Int = 0,
-                bedBasis: BedBasis = .default) {
+                bedBasis: BedBasis = .default, short: Int? = nil, bedShift: Int = 0) {
+        self.short = short
+        self.bedShift = bedShift
         self.kind = kind
         self.time = time
         self.windowMin = windowMin
@@ -77,60 +83,14 @@ public enum Predictor {
         return 270
     }
 
+    /// Næste søvn = første punkt i dagsplanen, uden genberegning ved misset lur (`predict` i folke.py).
+    /// Notifikationerne bruger den, så «virker meget frisk» kommer på det oprindelige tidspunkt.
     public static func predict(_ sleeps: [SleepSample], birthDate: Date, now: Date,
                                calendar: Calendar = .current) -> Prediction? {
-        let sleeps = sleeps.sorted { $0.start < $1.start }
-        guard let last = sleeps.last else { return nil }
-
-        // Vågenvinduer pr. position på dagen (0 = morgen, 1 = efter 1. lur ...)
-        var windows: [Int: [Double]] = [:]
-        var allGaps: [Double] = []
-        var pos = 0
-        for (prev, next) in zip(sleeps, sleeps.dropFirst()) {
-            pos = prev.nap ? pos + 1 : 0
-            let gap = next.start.timeIntervalSince(prev.end) / 60
-            if gap > 20 && gap < 480 {
-                windows[pos, default: []].append(gap)
-                allGaps.append(gap)
-            }
-        }
-
-        // Position for den næste søvn
-        pos = 0
-        for s in sleeps {
-            pos = s.nap ? pos + 1 : 0
-        }
-
-        let ageDays = calendar.dateComponents([.day], from: calendar.startOfDay(for: birthDate),
-                                              to: calendar.startOfDay(for: now)).day ?? 0
-        let samples = (windows[pos] ?? []).suffix(7)
-        let window: Double
-        let source: Prediction.Source
-        if samples.count >= 3 {
-            (window, source) = (median(Array(samples)), .position(pos))
-        } else if allGaps.count >= 5 {
-            (window, source) = (median(Array(allGaps.suffix(15))), .allWindows)
-        } else {
-            (window, source) = (Double(defaultWindow(ageDays: ageDays)), .ageDefault)
-        }
-
-        let nextStart = last.end.addingTimeInterval(window * 60)
-
-        // Typisk sengetid = median af aftensøvne (kl. 17-24)
-        let evenings: [Double] = sleeps.compactMap { s in
-            let c = calendar.dateComponents([.hour, .minute], from: s.start)
-            guard !s.nap, let h = c.hour, let m = c.minute, h >= 17 else { return nil }
-            return Double(h * 60 + m)
-        }
-        let bedMin = evenings.count >= 3 ? Int(median(evenings)) : defaultBedtimeMin
-        let bed = calendar.date(bySettingHour: bedMin / 60, minute: bedMin % 60, second: 0, of: nextStart) ?? nextStart
-
-        // Er sengetiden allerede gået (sent på aftenen), er det sengetid, så snart vinduet er gået
-        let (kind, when): (Prediction.Kind, Date) = nextStart >= bed.addingTimeInterval(-60 * 60)
-            ? (.bedtime, max(bed, nextStart)) : (.nap, nextStart)
-
-        return Prediction(kind: kind, time: when, windowMin: Int(window.rounded(.toNearestOrEven)),
-                          source: source, lastID: last.id, pos: pos, bedBasis: evenings.count >= 3 ? .own : .default)
+        guard let p = DayPlanner.plan(sleeps, birthDate: birthDate, now: now, replan: false, calendar: calendar),
+              let first = p.items.first else { return nil }
+        return Prediction(kind: first.kind, time: first.start, windowMin: p.firstWindow, source: p.source,
+                          lastID: p.lastID, pos: p.pos, bedBasis: p.bedBasis, short: p.short, bedShift: p.bedShift)
     }
 
     /// Som Pythons `statistics.median`: ved et lige antal gennemsnittet af de to midterste.

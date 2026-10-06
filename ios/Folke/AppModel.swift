@@ -17,6 +17,7 @@ struct Snapshot {
     var running: Item?
     var awakeSince: Date?
     var prediction: Prediction?
+    var plan: DayPlan?
     var today: [Item] = []
     var featureBreast = true
     var featureSolids = false
@@ -77,6 +78,11 @@ final class AppModel {
         do {
             #if DEBUG
             // Skærmbilleder i simulatoren: start med `-demoData YES` (og evt. `-demoMonths 7`) for et barn på 4 mdr. og 10 dages søvn i hukommelsen
+            if let path = UserDefaults.standard.string(forKey: "demoExport") {
+                let store = try FolkeStore(inMemory: true)
+                try store.seedExport(URL(fileURLWithPath: path))
+                return AppModel(store: store)
+            }
             if UserDefaults.standard.bool(forKey: "demoData") {
                 let store = try FolkeStore(inMemory: true)
                 let months = UserDefaults.standard.integer(forKey: "demoMonths")
@@ -106,6 +112,7 @@ final class AppModel {
         }
         s.awakeSince = store.awakeSince(now: now)
         s.prediction = store.prediction(now: now)
+        s.plan = store.dayPlan(now: now)
         s.today = store.todaySleeps(now: now).compactMap { x in
             guard let id = x.id, let start = x.start, let end = x.end else { return nil }
             return .init(id: id, start: start, end: end, nap: x.nap)
@@ -157,7 +164,7 @@ final class AppModel {
     func toggleSleep() {
         perform {
             if snapshot.running != nil {
-                try store.stopSleep(nap: isNap)
+                try store.stopSleep(nap: napSelection) // uden eget valg gættes ud fra start og længde
             } else {
                 try store.startSleep(by: role)
             }
@@ -170,7 +177,7 @@ final class AppModel {
         let t = SleepRules.resolve(hour: c.hour ?? 0, minute: c.minute ?? 0, now: .now)
         perform {
             if snapshot.running != nil {
-                try store.stopSleep(at: t, nap: isNap)
+                try store.stopSleep(at: t, nap: napSelection)
             } else {
                 try store.startSleep(at: t, by: role)
             }

@@ -48,3 +48,38 @@ extension FolkeStore {
     }
 }
 #endif
+
+#if DEBUG
+extension FolkeStore {
+    /// Indlæs søvn fra en eksport fra Folke-serveren (`/api/export`) til skærmbilleder med rigtige data.
+    /// Kun søvn og en kørende timer. Den rigtige import kommer i milepæl 8.
+    func seedExport(_ url: URL) throws {
+        let j = try JSONSerialization.jsonObject(with: Data(contentsOf: url)) as? [String: Any] ?? [:]
+        let iso = ISO8601DateFormatter()
+        func date(_ v: Any?) -> Date? {
+            (v as? String).flatMap { iso.date(from: $0.replacingOccurrences(of: "+00:00", with: "Z")) }
+        }
+        let c = (j["child"] as? [[String: Any]])?.first ?? [:]
+        let prefs = j["prefs"] as? [String: Any] ?? [:]
+        let birth = (c["birth_date"] as? String).flatMap { iso.date(from: $0 + "T12:00:00Z") } ?? .now
+        let name = (prefs["child_name"] as? String).flatMap { $0.isEmpty ? nil : $0 } ?? c["first_name"] as? String ?? "Folke"
+        let child = try createChild(name: name, birthDate: birth, sex: Sex(rawValue: prefs["sex"] as? String ?? "") ?? .boy)
+        for r in j["sleep"] as? [[String: Any]] ?? [] {
+            let s = Sleep(context: context)
+            s.id = UUID()
+            s.start = date(r["start"])
+            s.end = date(r["end"])
+            s.nap = (r["nap"] as? Int ?? 1) == 1
+            s.child = child
+        }
+        for r in j["timer"] as? [[String: Any]] ?? [] {
+            let s = Sleep(context: context)
+            s.id = UUID()
+            s.start = date(r["start"])
+            s.nap = Predictor.napGuess(s.start ?? .now)
+            s.child = child
+        }
+        try save()
+    }
+}
+#endif

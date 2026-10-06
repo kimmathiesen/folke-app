@@ -89,8 +89,17 @@ struct DialView: View {
                            style: StrokeStyle(lineWidth: 9, lineCap: .round))
             }
         }
-        if let p = snapshot.prediction {
-            let c = Self.point(88, hour(p.time))
+        // Planlagte lure resten af dagen som stiplede buer
+        for x in snapshot.plan?.items ?? [] where x.kind == .nap && calendar.isDate(x.start, inSameDayAs: now) {
+            let a = hour(x.start)
+            let b = x.end.map { calendar.isDate($0, inSameDayAs: now) ? hour($0) : 24 } ?? 24
+            if b > a {
+                ctx.stroke(Self.arc(88, a, b), with: .color(Color(Theme.nap, opacity: 0.45)),
+                           style: StrokeStyle(lineWidth: 9, lineCap: .round, dash: [2, 6]))
+            }
+        }
+        if let nx = snapshot.next(at: now) {
+            let c = Self.point(88, hour(nx.now ? now : nx.time))
             let r = CGRect(x: c.x - 7, y: c.y - 7, width: 14, height: 14)
             ctx.fill(Path(ellipseIn: r), with: .color(Color(hex: "#0f1830")))
             ctx.stroke(Path(ellipseIn: r), with: .color(.fg), style: StrokeStyle(lineWidth: 1.6, dash: [3, 2.5]))
@@ -125,8 +134,9 @@ struct DialView: View {
     /// Øverst i midten: hvornår han faldt i søvn, eller næste lur/sengetid (som `#nowt` i index.html).
     var headline: String {
         if let r = snapshot.running { return "Faldt i søvn kl. \(Format.time(r.start, calendar: calendar))" }
-        guard let p = snapshot.prediction else { return "" }
-        return "\(p.kind == .nap ? "Næste lur" : "Sengetid") kl. \(Format.time(p.time, calendar: calendar))"
+        guard let n = snapshot.next(at: now) else { return "" }
+        if n.now { return "Næste lur: nu" }
+        return "\(n.kind == .nap ? "Næste lur" : "Sengetid") kl. \(Format.time(n.time, calendar: calendar))"
     }
 
     /// I midten: næste lur/sengetid, tæller og tilstand.

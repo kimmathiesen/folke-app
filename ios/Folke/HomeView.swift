@@ -157,9 +157,7 @@ struct HomeView: View {
         let s = model.snapshot
         return VStack(spacing: 16) {
             ForgotCard(sleeping: s.running != nil)
-            if let p = s.prediction {
-                PredictionCard(prediction: p)
-            }
+            PlanCard(snapshot: s, now: now)
             FeedCard(now: now)
             if s.featurePump {
                 PumpCard(now: now)
@@ -176,23 +174,91 @@ struct HomeView: View {
     }
 }
 
-/// «Næste lur ca. kl. 13:40», vindue og kilde.
-struct PredictionCard: View {
-    var prediction: Prediction
+extension Snapshot {
+    /// Næste punkt i dagsplanen (`nxt` i index.html). `now`: luren skal være nu, fordi den planlagte blev sprunget over.
+    struct Next {
+        var kind: Prediction.Kind
+        var time: Date
+        var now: Bool
+    }
+
+    func next(at now: Date) -> Next? {
+        guard let p = plan, p.wake == nil, let f = p.items.first else { return nil }
+        return Next(kind: f.kind, time: f.start,
+                    now: p.missedAt != nil && f.kind == .nap && f.start <= now.addingTimeInterval(60))
+    }
+}
+
+/// Kortet «Næste lur» med resten af dagen (`#pred` og `planUI` i index.html).
+struct PlanCard: View {
+    var snapshot: Snapshot
+    var now: Date
     @Environment(\.muted) private var muted
 
-    var body: some View {
-        HStack(spacing: 14) {
-            CardIcon(name: "face.smiling", size: 46)
-            VStack(alignment: .leading, spacing: 2) {
-                Text("Næste \(prediction.kind.rawValue)").font(.system(size: 14)).foregroundStyle(muted)
-                Text("ca. kl. \(Format.time(prediction.time))")
-                    .font(.system(size: 26, weight: .semibold)).foregroundStyle(Color.fg)
-                Text(Format.why(prediction))
-                    .font(.system(size: 14)).foregroundStyle(muted)
-            }
-            Spacer(minLength: 0)
+    /// (overskrift, stort tidspunkt, forklaring)
+    var texts: (String, String, String)? {
+        let P = snapshot.plan, n = snapshot.next(at: now)
+        if let wake = P?.wake {
+            return ("Forventet vågen", "ca. kl. \(Format.time(wake))", "Ud fra hvor længe hans lure plejer at vare")
         }
-        .card()
+        if let n, n.now, let missed = P?.missedAt {
+            return ("Næste lur", "Nu",
+                    "Luren kl. \(Format.time(missed)) blev ikke til noget. Prøv at putte nu, så er resten af dagen flyttet.")
+        }
+        if let n, n.kind == .bedtime, let missed = P?.missedAt {
+            let moved = P?.bedShift ?? 0
+            return ("Sengetid", "ca. kl. \(Format.time(n.time))", "Luren kl. \(Format.time(missed)) blev ikke til noget"
+                    + (moved > 0 ? ", så sengetid er rykket \(moved) min frem." : "."))
+        }
+        if let p = snapshot.prediction {
+            return (p.kind == .nap ? "Næste lur" : "Sengetid", "ca. kl. \(Format.time(n?.time ?? p.time))", Format.why(p))
+        }
+        return nil
+    }
+
+    /// Aftenlur: planlagt som aftenlur, eller en lur efter kl. 17, når han plejer at tage en
+    func isCatnap(_ x: PlanItem, _ p: DayPlan) -> Bool {
+        x.catnap || (p.catnap && Calendar.current.component(.hour, from: x.start) >= 17)
+    }
+
+    var body: some View {
+        if let (k, big, sub) = texts {
+            VStack(alignment: .leading, spacing: 0) {
+                HStack(spacing: 14) {
+                    CardIcon(name: "face.smiling", size: 46)
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(k).font(.system(size: 14)).foregroundStyle(muted)
+                        Text(big).font(.system(size: 26, weight: .semibold)).foregroundStyle(Color.fg)
+                        Text(sub).font(.system(size: 14)).foregroundStyle(muted)
+                    }
+                    Spacer(minLength: 0)
+                }
+                if let P = snapshot.plan {
+                    let rest = P.items.enumerated().filter { P.wake != nil || $0.offset > 0 }.map(\.element)
+                    if !rest.isEmpty {
+                        VStack(alignment: .leading, spacing: 6) {
+                            Text("Resten af dagen").font(.system(size: 13)).foregroundStyle(muted)
+                            ForEach(Array(rest.enumerated()), id: \.offset) { _, x in
+                                HStack {
+                                    Text(x.kind == .bedtime ? "Sengetid" : isCatnap(x, P) ? "Aftenlur" : "Lur")
+                                        .foregroundStyle(Color.fg)
+                                    Spacer()
+                                    Text(x.kind == .bedtime
+                                         ? "ca. \(Format.time(x.start))" + (P.bedShift > 0 ? " (\(P.bedShift) min tidligere)" : "")
+                                         : "ca. \(Format.time(x.start))–\(Format.time(x.end ?? x.start))")
+                                        .foregroundStyle(muted)
+                                }
+                                .font(.system(size: 15))
+                            }
+                        }
+                        .padding(.top, 10)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .overlay(alignment: .top) { Rectangle().fill(Color.line).frame(height: 1) }
+                        .padding(.top, 12)
+                    }
+                }
+            }
+            .card()
+        }
     }
 }

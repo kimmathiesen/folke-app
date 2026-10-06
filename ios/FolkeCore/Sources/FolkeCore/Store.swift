@@ -153,7 +153,8 @@ public final class FolkeStore: @unchecked Sendable {
             try SleepRules.checkWake(e, start: start)
         }
         s.end = max(e, start)
-        if let nap { s.nap = nap }
+        // Har brugeren ikke selv valgt lur/nat, gættes der ud fra både start og længde (aftenlur efter kl. 18 = lur)
+        s.nap = nap ?? DayPlanner.napAtStop(start: start, end: s.end ?? e, calendar: calendar)
         try save()
     }
 
@@ -161,6 +162,15 @@ public final class FolkeStore: @unchecked Sendable {
         guard runningSleep() == nil, let birth = child()?.birthDate else { return nil }
         let samples = sleeps(since: now.addingTimeInterval(-Double(Predictor.historyDays) * 86400)).compactMap(\.sample)
         return Predictor.predict(samples, birthDate: birth, now: now, calendar: calendar)
+    }
+
+    /// Resten af dagen (afsnit 3). Under en lur regnes planen fra forventet opvågning; om natten er der ingen plan.
+    public func dayPlan(now: Date = .now) -> DayPlan? {
+        guard let birth = child()?.birthDate else { return nil }
+        let running = runningSleep()?.start
+        if let running, !Predictor.napGuess(running, calendar: calendar) { return nil }
+        let samples = sleeps(since: now.addingTimeInterval(-Double(Predictor.historyDays) * 86400)).compactMap(\.sample)
+        return DayPlanner.plan(samples, birthDate: birth, now: now, running: running, calendar: calendar)
     }
 
     /// Dagens søvn til ringen og listen: dem, der starter eller slutter i dag.

@@ -483,7 +483,7 @@ else if(p){k=p.kind==='lur'?'Næste lur':'Sengetid';big='ca. kl. '+hm(n?n.time:p
 $('pred').hidden=!k;if(!k)return;$('pk').textContent=k;$('pt').textContent=big;$('sub').textContent=sub;
 const rest=P?P.items.filter((x,i)=>P.wake||i>0):[];$('plan').hidden=!rest.length;
 $('plan').innerHTML=rest.length?'<li class="ph">Resten af dagen</li>'+rest.map(x=>x.kind==='lur'
-?`<li>Lur<span>ca. ${hm(x.start)}–${hm(x.end)}</span></li>`
+?`<li>${x.catnap||(P.catnap&&new Date(x.start).getHours()>=17)?'Aftenlur':'Lur'}<span>ca. ${hm(x.start)}–${hm(x.end)}</span></li>`
 :`<li>Sengetid<span>ca. ${hm(x.start)}${P.bed_shift?` (${P.bed_shift} min tidligere)`:''}</span></li>`).join(''):''}
 sky();route();fui();load();setInterval(load,15000);setInterval(render,1000);setInterval(sky,60000);
 </script></body></html>

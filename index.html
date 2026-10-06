@@ -44,6 +44,7 @@ font-size:20px;font-weight:500;color:#fff;background:linear-gradient(90deg,#4f86
 input[type=time]{width:112px;padding:10px;border-radius:12px;border:1px solid var(--line);background:rgba(255,255,255,.04);color:var(--fg);font-size:17px;text-align:center}
 .go{margin-top:12px;width:100%;padding:12px;border:0;border-radius:12px;background:var(--acc);color:#fff;font-size:16px}
 .big{font-size:26px;font-weight:600;margin:2px 0}
+#plan{list-style:none;margin:12px 0 0;padding:10px 0 0;border-top:1px solid var(--line)}#plan li{display:flex;justify-content:space-between;gap:10px;padding:3px 0;font-size:15px}#plan li span{color:var(--mut)}#plan .ph{color:var(--mut);font-size:13px;margin-bottom:2px}
 #err,#eerr,#gerr,#gerr2{color:#ff8b7e;font-size:14px;margin-top:12px}
 .seg{display:flex;gap:8px;margin-top:12px}
 .seg button{flex:1;padding:12px 6px;border-radius:14px;border:1px solid var(--line);background:rgba(255,255,255,.05);color:var(--fg);font-size:16px}
@@ -132,7 +133,7 @@ header{position:relative}
 <div id="wake" class="card" hidden><div class="row"><svg class="ic" viewBox="0 0 24 24"><path d="M3 20V6M21 20V6M3 12h18M3 17h18M7 12V9a2 2 0 0 1 2-2h6a2 2 0 0 1 2 2v3"/></svg>
 <div class="t"><b>Glemte du at trykke?</b><span>Vågnede kl.</span></div><input type="time" id="wt"></div><button class="go" id="wb" hidden>Gem</button></div>
 <div id="pred" class="card" hidden><div class="row"><svg class="ic" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M8 11q1.5 1.5 3 0M13 11q1.5 1.5 3 0M10 15.5q2 1.5 4 0"/></svg>
-<div class="t"><span id="pk"></span><div class="big" id="pt"></div><span id="sub"></span></div></div></div>
+<div class="t"><span id="pk"></span><div class="big" id="pt"></div><span id="sub"></span></div></div><ul id="plan" hidden></ul></div>
 <div id="sheet" hidden><div class="sh"><div class="dl">Ret søvn</div>
 <label>Faldt i søvn<input type="datetime-local" id="es"></label>
 <label>Vågnede<input type="datetime-local" id="ee"></label>
@@ -223,9 +224,14 @@ const FM={'bottle':'Flaske','left breast':'Amning, venstre','right breast':'Amni
 const ago=d=>{const m=Math.max(0,(Date.now()-new Date(d))/60000|0);return m<60?`${m} min`:`${m/60|0} t ${m%60} min`};
 const cap=s=>s.charAt(0).toUpperCase()+s.slice(1);
 // Forklaring under «Næste lur» i almindeligt dansk (pos 0 = efter natten, 1 = efter 1. lur ...)
-const why=p=>p.kind==='sengetid'?(p.bed_basis==='own'?'Sengetid ud fra de seneste aftener':'Typisk sengetid (for lidt data endnu)')
+const why=p=>p.kind==='sengetid'?(p.bed_shift?`Rykket ${p.bed_shift} min frem efter en dag med mindre søvn end normalt`
+:p.bed_basis==='own'?'Sengetid ud fra de seneste aftener':'Typisk sengetid (for lidt data endnu)')
+:p.short?`Vågen ca. ${dur(p.window_min)} efter en kort lur på ${p.short} min (kortere end normalt)`
 :`Vågen ca. ${dur(p.window_min)}${p.basis==='own'?(p.pos?` efter ${p.pos}. lur`:' efter natten'):''} · `
 +(p.basis==='age'?'typisk for alderen (for lidt data endnu)':'ud fra de seneste dage');
+// Næste punkt i dagsplanen: {kind, time, now (lur nu, fordi den planlagte blev sprunget over)}
+const nxt=()=>{const P=S.plan,f=P&&!P.wake&&P.items[0];if(!f)return null;
+return{kind:f.kind,time:f.start,now:!!P.missed_at&&f.kind==='lur'&&new Date(f.start)<=new Date(Date.now()+60e3)}};
 async function api(p,body,method='POST'){const r=await fetch(p,body===undefined?{}:{method,
 headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
 const j=await r.json();if(!r.ok)throw new Error(j.error||r.status);return j}
@@ -237,12 +243,11 @@ function render(){if(!S||S.setup)return;const sl=S.sleeping,p=S.prediction,b=sl?
 $('state').textContent=sl?'Sover':'Vågen';
 if(b){secs=Math.max(0,(Date.now()-new Date(b))/1000|0);const z=n=>String(n).padStart(2,'0');
 $('clock').textContent=`${z(secs/3600|0)}:${z(secs/60%60|0)}:${z(secs%60)}`}else $('clock').textContent='--';
-dial();$('nowt').textContent=sl?(S.since?'Faldt i søvn kl. '+hm(S.since):''):p?`${p.kind==='lur'?'Næste lur':'Sengetid'} kl. ${hm(p.time)}`:'';
+dial();const n=nxt();$('nowt').textContent=sl?(S.since?'Faldt i søvn kl. '+hm(S.since):''):n?(n.now?'Næste lur: nu':`${n.kind==='lur'?'Næste lur':'Sengetid'} kl. ${hm(n.time)}`):'';
 $('btn').disabled=false;$('btn').className=sl?'stop':'';$('btn').innerHTML=(sl?STOP:PLAY)+(sl?'Stop søvn':'Start søvn');
 $('type').hidden=$('wake').hidden=!sl;$('late').hidden=sl;
 document.querySelectorAll('#type button').forEach(x=>x.classList.toggle('on',(x.dataset.n==='1')===isNap()));
-$('pred').hidden=!p;if(p){$('pk').textContent='Næste '+p.kind;$('pt').textContent='ca. kl. '+hm(p.time);
-$('sub').textContent=why(p)}
+planUI(p,n);
 const lf=S.last_feed;$('lastfeed').textContent=lf?`${FM[lf.method]||lf.method}${lf.amount?' '+Math.round(+lf.amount)+' ml':''} kl. ${hm(lf.time)} · for ${ago(lf.time)} siden`:'Ingen måltider endnu';
 const F=S.features||{},sg=(S.suggestions||[])[0];$('fbr').hidden=!F.breast;$('fsolid').hidden=!F.solids;$('sug').hidden=!sg;if(sg)$('sugt').textContent=sg.text;
 pumpUI();
@@ -281,7 +286,8 @@ const gc=t=>{for(let i=1;i<ST.length;i++)if(t<=ST[i][0]){const[a,A]=ST[i-1],[b,B
 function dial(){const n=new Date(),day=n.toDateString(),sa=(a,b,c,x)=>b>a?`<path d="${arc(88,a,b)}" fill="none" stroke="${c}" stroke-width="9" stroke-linecap="round"${x||''}/>`:'';
 let s=S.today.map(x=>sa(new Date(x.start).toDateString()===day?hr(x.start):0,hr(x.end),x.nap?'#a9c2ff':'#8b7cf6')).join('');
 if(S.sleeping)s+=sa(new Date(S.since).toDateString()===day?hr(S.since):0,hr(n),'#8b7cf6',' class="run"');
-if(S.prediction){const[x,y]=pt(88,hr(S.prediction.time));s+=`<circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="7" fill="#0f1830" stroke="#e9edf8" stroke-width="1.6" stroke-dasharray="3 2.5"/>`}
+if(S.plan)S.plan.items.forEach(x=>{if(x.kind==='lur'&&new Date(x.start).toDateString()===day)s+=sa(hr(x.start),Math.min(24,hr(x.end)||24),'rgba(169,194,255,.45)',' stroke-dasharray="2 6"')});
+const nx=nxt();if(nx){const[x,y]=pt(88,hr(nx.now?n:nx.time));s+=`<circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="7" fill="#0f1830" stroke="#e9edf8" stroke-width="1.6" stroke-dasharray="3 2.5"/>`}
 const[x,y]=pt(105,hr(n));s+=`<circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="13" fill="#fff" opacity=".22"/><circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="7.5" fill="#fff"/>`;
 $('dyn').innerHTML=s}
 const ans=a=>api('/api/suggestion',{id:S.suggestions[0].id,answer:a}).then(load).catch(e=>$('err').textContent=e.message);
@@ -466,5 +472,16 @@ $('bclr').onclick=async()=>{if(!barm){$('bclr').textContent='Tryk igen for at vi
 clearTimeout(barm);barm=null;$('bclr').textContent='Visk ud';try{bset(await api('/api/board/clear',{by:role()}))}catch(e){$('berr').textContent=e.message}};
 $('logo').onclick=()=>{location.hash='#tavle'};
 addEventListener('resize',()=>{if(bpoll)bsize()});
+// ---------- Dagsplan: kortet «Næste lur» og listen «Resten af dagen» ----------
+function planUI(p,n){const P=S.plan;let k='',big='',sub='';
+if(P&&P.wake){k='Forventet vågen';big='ca. kl. '+hm(P.wake);sub='Ud fra hvor længe hans lure plejer at vare'}
+else if(n&&n.now){k='Næste lur';big='Nu';sub=`Luren kl. ${hm(P.missed_at)} blev ikke til noget. Prøv at putte nu, så er resten af dagen flyttet.`}
+else if(n&&P.missed_at&&n.kind==='sengetid'){k='Sengetid';big='ca. kl. '+hm(n.time);sub=`Luren kl. ${hm(P.missed_at)} blev ikke til noget, så sengetid er rykket ${P.bed_shift} min frem.`}
+else if(p){k=p.kind==='lur'?'Næste lur':'Sengetid';big='ca. kl. '+hm(n?n.time:p.time);sub=why(p)}
+$('pred').hidden=!k;if(!k)return;$('pk').textContent=k;$('pt').textContent=big;$('sub').textContent=sub;
+const rest=P?P.items.filter((x,i)=>P.wake||i>0):[];$('plan').hidden=!rest.length;
+$('plan').innerHTML=rest.length?'<li class="ph">Resten af dagen</li>'+rest.map(x=>x.kind==='lur'
+?`<li>Lur<span>ca. ${hm(x.start)}–${hm(x.end)}</span></li>`
+:`<li>Sengetid<span>ca. ${hm(x.start)}${P.bed_shift?` (${P.bed_shift} min tidligere)`:''}</span></li>`).join(''):''}
 sky();route();fui();load();setInterval(load,15000);setInterval(render,1000);setInterval(sky,60000);
 </script></body></html>

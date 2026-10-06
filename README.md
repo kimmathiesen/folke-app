@@ -8,7 +8,7 @@ Selfhostet baby-tracker oven på [Baby Buddy](https://github.com/babybuddy/babyb
 
 - **Søvn:** start/stop med tæller, lur/nat, og mulighed for at taste "faldt i søvn kl." / "vågnede kl." bagud
 - **Dagsring:** 24-timers ring med dagens søvn som buer, klokkeslæt og forventet næste søvn
-- **Forudsigelse:** næste lur/sengetid ud fra barnets egne vågenvinduer (median af de sidste 10 dage, pr. position på dagen). Aldersbaseret standard bruges, indtil der er data nok
+- **Forudsigelse og dagsplan:** næste lur/sengetid og en plan for resten af dagen ud fra barnets egne vågenvinduer og lurlængder (median af de sidste 10 dage, pr. position på dagen). Planen genberegnes i realtid: misset lur giver «lur nu» og en flyttet dag, en kort lur (under 30 min) giver et kortere vindue, og en dag med for lidt søvn giver tidligere sengetid (højst 60 min). Afvigelser påvirker ikke barnets normale tal. Aldersbaseret standard bruges, indtil der er data nok
 - **Rediger søvn:** tryk på en søvn i listen for at rette tider, skifte lur/nat eller slette
 - **Mad:** amning (venstre/højre/begge), flaske (ml, modermælk/erstatning) og fastføde
 - **Vækst:** egen side (knap øverst til højre) med vægt, længde og hovedomfang på WHO's kurver (2006), 3.-97. percentil. Gemmes i `growth.json`, kurvedata ligger i `who.py`

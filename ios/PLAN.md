@@ -38,44 +38,107 @@ alle relationer valgfri og med inverse. Brug UUID-felter som stabile id'er.
 
 Pr. enhed (`UserDefaults`, deles ikke): rolle (mor/far), beskedtyper til/fra, sidst sete tavleversion.
 
-## 3. Forudsigelse (port af `folke.predict`)
+## 3. Forudsigelse og dagsplan (port af `folke.plan_day` og `folke.predict`)
 
-Input: søvn de sidste 10 dage (kun afsluttede), fødselsdato, nu.
+Input: søvn de sidste 10 dage (kun afsluttede), fødselsdato, nu, og evt. starttidspunktet for en lur, der er i gang.
+`predict()` er **første punkt i dagsplanen** (uden genberegning ved misset lur, afsnit 3.4). Notifikationer og
+HA-sensor bruger `predict()`, skærmen bruger `plan_day()`.
 
-1. Sortér efter start. Ingen søvn betyder ingen forudsigelse.
-2. **Vågenvinduer pr. position:** gå gennem par (forrige, næste). `pos = 0` hvis forrige er nat, ellers `pos + 1`.
-   `gap` = næste.start − forrige.end i minutter. Kun `20 < gap < 480` tæller. Gem pr. position og i en samlet liste.
-3. **Næste position:** gå gennem alle søvn: `pos = 0` ved nat, ellers `pos + 1`.
-4. **Vindue:**
-   - mindst 3 prøver for positionen: median af de sidste 7, kilde «eget mønster (position N)»
-   - ellers mindst 5 vinduer i alt: median af de sidste 15, kilde «gennemsnit af alle vinduer»
-   - ellers aldersstandard, kilde «aldersbaseret standard»
+Konstanter: kort lur < 30 min, vindue efter kort lur × 0,75, afvigere uden for 60–160 % af medianen,
+sengetid højst 60 min frem, lurlængde 60 min uden data.
 
-   Medianen er som Pythons `statistics.median`: ved et lige antal bruges gennemsnittet af de to midterste.
-5. **Aldersstandard** (måneder = dage / 30,4):
+### 3.1 Hans tal (`_Model`)
 
-   | Alder | Vindue |
-   |---|---|
-   | under 2 mdr. | 60 min |
-   | under 3 mdr. | 75 min |
-   | under 4 mdr. | 90 min |
-   | under 6 mdr. | 120 min |
-   | under 9 mdr. | 150 min |
-   | under 12 mdr. | 180 min |
-   | under 18 mdr. | 210 min |
-   | ellers | 270 min |
-6. `nextStart` = sidste søvns slut + vindue.
-7. **Sengetid:** median af starttidspunkt (minutter efter midnat) for nattesøvn med start kl. 17 eller senere.
-   Kræver mindst 3, ellers 19:30. Sengetiden lægges på `nextStart`s dato.
-8. Er `nextStart` ≥ sengetid − 60 min, er resultatet **sengetid** på sengetidspunktet, eller på `nextStart`, hvis sengetiden
-   allerede er gået (sent på aftenen). Ellers er det **lur** på `nextStart`.
-9. Resultat: kind (lur/sengetid), tid, vindue i minutter (afrundet), kilde, id på sidste søvn.
+Gå gennem søvn sorteret efter start. Ingen søvn betyder ingen plan.
 
-Facit: `tests/test_predict.py` (10 syntetiske dage med 3 lure og faste vinduer).
+- **Kort lur:** en lur under 30 min, fx i barnevognen. Den tæller ikke som en af dagens lure og flytter ikke positionen.
+  Vinduerne lige før og lige efter en kort lur bruges ikke i hans tal.
+- **Position:** 0 efter natten, og +1 efter hver lur, der ikke er kort.
+- **Vinduer:** `gap` = næste.start − forrige.end i minutter for hvert par, hvor ingen af dem er en kort lur.
+  Kun `20 < gap < 480` gemmes, pr. position og i en samlet liste.
+- **Lurlængder:** pr. lurnummer (1., 2., 3. lur på dagen, kun lure, der ikke er korte) og i en samlet liste.
+- **Lure pr. dag:** antal lure, der ikke er korte, for hver hel dag mellem to nætter.
+- **Aftener:** starttid i minutter for nattesøvn med start kl. 17 eller senere.
+
+`robust(prøver, n)`: hvis der er mindst 4 prøver, fjernes dem uden for 0,6–1,6 × medianen. Derefter bruges de sidste `n`.
+Medianen er som Pythons `statistics.median`: ved et lige antal bruges gennemsnittet af de to midterste.
+
+| Tal | Regel |
+|---|---|
+| `window(pos)` | `robust(pos-prøver, 7)` har mindst 3: median, basis `own`, kilde «eget mønster (position N)». Ellers `robust(alle, 15)` har mindst 5: median, `all`, «gennemsnit af alle vinduer». Ellers aldersstandard, `age`, «aldersbaseret standard» |
+| `nap_length(k)` | `robust(lurnummer k, 7)` har mindst 3: median. Ellers `robust(alle længder, 15)` har mindst 3: median. Ellers 60 |
+| `naps()` | Median af de sidste 7 hele dage (afrundet), hvis der er mindst 3 dage. Ellers efter alder: under 4 mdr. 4, under 7 mdr. 3, under 15 mdr. 2, ellers 1 |
+| `bed_min()` | Median af aftenerne, hvis der er mindst 3. Ellers 19:30 |
+
+**Aldersstandard for vinduet** (måneder = dage / 30,4):
+
+| Alder | Vindue |
+|---|---|
+| under 2 mdr. | 60 min |
+| under 3 mdr. | 75 min |
+| under 4 mdr. | 90 min |
+| under 6 mdr. | 120 min |
+| under 9 mdr. | 150 min |
+| under 12 mdr. | 180 min |
+| under 18 mdr. | 210 min |
+| ellers | 270 min |
+
+### 3.2 Dagen indtil nu
+
+- **I dag:** lure siden sidste nattesøvn.
+- `k` = antal lure i dag, der ikke er korte. `pos = k`.
+- `slept` = summen af alle lure i dag, også de korte.
+- `win = window(pos)`. Var den sidste søvn en kort lur, ganges `win` med 0,75. Resultatet `short` er dens længde i minutter.
+- `wake` = sidste søvns slut, og `t = wake + win`.
+- **Lur i gang** (starttid `r`):
+  - `wake = max(r + nap_length(k+1), nu)`. Den returneres som `wake`.
+  - `k += 1`, `pos += 1`, og `slept` får `wake − r` lagt til.
+  - Derefter `win = window(pos)` og `t = wake + win`.
+  - Nattesøvn i gang giver ingen plan.
+- `bed(t)` = `bed_min()` på `t`s dato.
+
+### 3.3 Planen
+
+Gentag højst 6 gange:
+1. Er `t ≥ bed(t) − 60 min`, stop: så er det sengetid.
+2. `L = nap_length(k+1)` og `end = t + L`.
+3. Er `end + window(pos+1) > bed(t) + 30 min`, stop. Luren **droppes** (`dropped`), fordi der ikke er plads til den og hans normale vindue bagefter.
+4. Tilføj lur `t … end`. `k += 1`, `pos += 1`, `slept += L`, `wake = end`, `win = window(pos)` og `t = end + win`.
+
+**Sengetid:**
+- `normal` = summen af `nap_length(i)` for `i = 1 … naps()`.
+- `shift` = `min(60, max(0, (normal − slept) / 2))`, afrundet.
+- `floor` = `t`, hvis `shift = 0`. Ellers `wake + win × 0,75`.
+- Er en lur droppet, gælder i stedet `shift = 60` og `floor = t`.
+- Ved misset lur (3.4) bruges `floor = max(floor, nu)`.
+- **Sengetid** = `max(bed(t) − shift, floor)`.
+- Det rapporterede `bed_shift` er minutter før `bed(t)`, mindst 0.
+
+Uden afvigelser giver dette det samme som før: sengetid = `max(bed, t)`. Er sengetiden allerede gået sent på aftenen, er det sengetid, når vinduet er gået.
+
+### 3.4 Misset lur (kun til skærmen)
+
+Gælder, når `replan = true`, der ikke er nogen lur i gang, nu > `t` + 15 min, og `t < bed(t) − 60` (det var en lur, ikke sengetid).
+- `missed_at = t` og `t = nu`. Planen regnes derefter som i 3.3, så første lur er «nu».
+- `predict()` bruger `replan = false`, så beskeden «… virker meget frisk» stadig kommer 15 min efter det oprindelige tidspunkt.
+
+### 3.5 Resultat
+
+`plan_day` returnerer:
+- `items`: lure `{kind: "lur", start, end}` og til sidst `{kind: "sengetid", start}`
+- `wake`, `missed_at`, `short`, `bed_shift`, `naps`, `last_id`
+- for første punkt: `first_window`, `source`, `basis`, `pos` og `bed_basis` (`own`, hvis der er mindst 3 aftener, ellers `default`)
+
+`predict` returnerer første punkt som `{kind, time, window_min, source, basis, pos, bed_basis, short, bed_shift, last_id}`.
+
+Facit: `tests/test_predict.py` (uændret adfærd på normale dage) og `tests/test_dayplan.py` (hele dagen, faktisk opvågning, kort lur, misset lur, misset sidste lur, for lidt dagsøvn, lur i gang, korte lure påvirker ikke hans tal, afvigere). Samme syntetiske historik: 10 dage med nat 19:30–06:30 og lure 08:30–09:30, 12:00–13:30 og 16:30–17:00.
 
 **Gæt på lur eller nat**, når en søvn startes: nat, hvis klokken er 18:00 eller senere, eller før 05:00. Ellers lur.
 
 ## 4. Notifikationer (lokale)
+
+Tidspunktet er `predict()` (afsnit 3): første punkt i dagsplanen uden genberegning ved misset lur.
+En kort lur eller en rykket sengetid flytter altså også beskeden.
 
 Planlæg forfra, hver gang data ændres lokalt eller fra iCloud (`NSPersistentStoreRemoteChange`) og når appen
 åbnes. Fjern ventende notifikationer, når en søvn startes.
@@ -102,14 +165,28 @@ Tilbyd «Inviter din partner» (iCloud-deling) og «Importér fra Folke-server»
 - **Ringen:** 24 timer, midnat i bunden og middag i toppen.
   - Yderste ring i døgnets farver.
   - Indre ring med dagens søvn: lur `#a9c2ff`, nat `#8b7cf6`. En kørende søvn pulserer.
-  - Forventet næste søvn vises som stiplet cirkel. Hvid prik markerer nu.
-  - I midten: klokkeslæt og tæller (vågen siden / sover siden).
+  - Forventet næste søvn (første punkt i dagsplanen) vises som stiplet cirkel. Planlagte lure resten af dagen
+    vises som stiplede buer i `rgba(169,194,255,.45)`, streg 2 / mellemrum 6. Hvid prik markerer nu.
+  - I midten: «Næste lur kl. 13.40» / «Sengetid kl. 19.30» / «Næste lur: nu» (misset lur), mens han sover
+    «Faldt i søvn kl. 09.25», og tæller (vågen siden / sover siden).
 - **Start/Stop søvn** og Lur/Nat-valg, mens søvnen kører.
 - **«Glemte du at trykke?»:** «Faldt i søvn kl.» og «Vågnede kl.».
   - Ligger tidspunktet i fremtiden, betyder det i går.
   - En start før forrige søvns slut afvises.
   - En opvågning før start afvises.
-- **Forudsigelseskort:** «Næste lur ca. kl. 13:40», vindue og kilde.
+- **Forudsigelseskort** (bygger på dagsplanen, afsnit 3):
+  - Normalt: «Næste lur» / «Sengetid», «ca. kl. 13.40» og en forklaring på almindeligt dansk (aldrig «position N»):
+    - lur, `basis own`: «Vågen ca. 2 t 30 min efter 1. lur · ud fra de seneste dage» (pos 0: «efter natten»)
+    - lur, `basis all`: «Vågen ca. 2 t 15 min · ud fra de seneste dage»
+    - lur, `basis age`: «Vågen ca. 1 t 30 min · typisk for alderen (for lidt data endnu)»
+    - efter kort lur: «Vågen ca. 1 t 52 min efter en kort lur på 12 min (kortere end normalt)»
+    - sengetid: «Sengetid ud fra de seneste aftener» / «Typisk sengetid (for lidt data endnu)», eller ved
+      `bed_shift`: «Rykket 25 min frem efter en dag med mindre søvn end normalt»
+  - Misset lur: «Næste lur» / «Nu» / «Luren kl. 10.00 blev ikke til noget. Prøv at putte nu, så er resten af dagen flyttet.»
+    Er næste punkt sengetid: «Luren kl. 16.30 blev ikke til noget, så sengetid er rykket 60 min frem.»
+  - Lur i gang: «Forventet vågen» / «ca. kl. 11.47» / «Ud fra hvor længe hans lure plejer at vare».
+  - Under en streg: «Resten af dagen» med «Lur ca. 14.47–15.17» og «Sengetid ca. 18.30 (60 min tidligere)».
+  - Varighed: «45 min», «1 t», «2 t 30 min» (aldrig «0 min»).
 - **Mad:**
   - Amning venstre/højre/begge.
   - Flaske: ml (0 < ml ≤ 500), modermælk eller erstatning.

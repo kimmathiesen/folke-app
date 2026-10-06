@@ -3,7 +3,7 @@ Baby-søvntracker oven på Baby Buddy (REST API). Mål: start/stop søvn fra tel
 forudsigelse af næste lur/sengetid, notifikation via Home Assistant.
 
 ## Arkitektur
-- `folke.py`: motor. `predict()` (vågenvinduer pr. position på dagen, median, aldersbaseret fallback),
+- `folke.py`: motor. `plan_day()` laver dagsplanen (lure og sengetid resten af dagen), og `predict()` er dens første punkt (vågenvinduer pr. position på dagen, median, aldersbaseret fallback),
   HA-sensor `sensor.baby_next_sleep`, besked LEAD_MIN (30) min før og OVERDUE_MIN (15) min efter, hvis ingen søvn er startet. Kan køre alene (cron) eller importeres.
 - `app.py`: Flask. `/api/status`, `/api/start`, `/api/stop`, `/api/pump` (JSON {amount} -> Baby Buddy /api/pumping/, kaldes fra HA). Start = Baby Buddy-timer "Søvn";
   stop = POST /api/sleep/ + DELETE timeren. Baggrundstråd kalder `folke.main()` hvert 60. sek.
@@ -52,6 +52,20 @@ forudsigelse af næste lur/sengetid, notifikation via Home Assistant.
 
 ## Vækst
 - Egen side i index.html (`#vaekst`). Målinger i `growth.json` (ikke Baby Buddy). `who.py` har WHO LMS-tabeller 0-24 mdr. (fra pygrowup) og beregner kurver/percentiler. Køn vælges under Indstillinger (`prefs.json`).
+
+## Dagsplan og genberegning
+- `plan_day()` i folke.py: lure med hans typiske længde pr. lurnummer, indtil sengetid. Genberegnes ved hver status.
+- **Kort lur:** under 30 min (`SHORT_NAP`), fx i barnevognen. Den tæller ikke som en af dagens lure, og næste vindue er 75 % (`SHORT_FACTOR`).
+- **For lidt dagsøvn:** sengetiden rykkes halvdelen af underskuddet frem. Kan en lur ikke nås med hans normale vindue bagefter (+30 min), droppes den, og sengetiden rykkes. Begge dele højst 60 min (`MAX_BED_SHIFT`).
+- **Misset lur:** vågen 15 min efter planlagt lur. Kun skærmen viser «nu» og flytter resten. `predict()` (`replan=False`) holder fast i det oprindelige tidspunkt, så «virker meget frisk» kommer til tiden.
+- **Hans tal beskyttes:** vinduer lige før og efter korte lure bruges ikke, og afvigere uden for 60–160 % af medianen sorteres fra (`_robust`).
+- Facit: `tests/test_dayplan.py`. Specifikationen til iOS står i `ios/PLAN.md` afsnit 3.
+
+## Arbejdsgang: standalone og ios (to sessioner)
+- **`standalone`** er den app, familien bruger, og facit for server, webapp og regler. Rettelser til webappen og serveren laves her (Windows-sessionen). `main` ligger stille.
+- **`ios`** er iPhone-appen (Mac-sessionen). **Start altid med `git fetch && git merge origin/standalone`**, og arbejd derefter `ios/PORT.md` igennem.
+- **`ios/PORT.md`** er huskelisten over rettelser på `standalone`, som appen også skal have. Den, der retter på `standalone`, tilføjer et punkt (dato, commit, hvad, hvor i PLAN.md, facit-test) i samme omgang og opdaterer `ios/PLAN.md`. Mac-sessionen sætter `[x]` og skriver sin commit ved siden af, når punktet er lavet i Swift. Rene webting (CSS, iPad-layout) kommer ikke på listen.
+- Serverkode (`*.py`, `index.html`) rettes helst kun på `standalone`. Skal det ske på `ios`, så hold det lille og nævn det, så det flettes tilbage til `standalone`.
 
 ## iPhone-app (branch `ios`, mappen `ios/`)
 - Plan: `ios/PLAN.md`. Webappen/serveren er facit for regler, tekster og udseende.

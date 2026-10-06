@@ -43,10 +43,17 @@ def status():
     raw = db().sleeps(c["id"], now - timedelta(days=folke.HISTORY_DAYS))
     sleeps = [{"id": s["id"], "start": folke.parse(s["start"]), "end": folke.parse(s["end"]),
                "nap": s["nap"]} for s in raw]
-    pred = None if t else folke.predict(sleeps, date.fromisoformat(c["birth_date"]), now)
+    birth = date.fromisoformat(c["birth_date"])
+    pred = None if t else folke.predict(sleeps, birth, now)
     if pred:
         pred["time"] = pred["time"].isoformat()
     start = folke.parse(t["start"]) if t else None
+    # Dagsplan: også mens en lur er i gang (regnet fra forventet opvågning), ikke om natten
+    plan = None if t and not nap_guess(start) else folke.plan_day(sleeps, birth, now, running=start)
+    if plan:
+        iso_ = lambda v: v.isoformat() if isinstance(v, datetime) else v  # noqa: E731
+        plan = {k: iso_(v) for k, v in plan.items() if k != "items"} | {
+            "items": [{k: iso_(v) for k, v in x.items()} for x in plan["items"]]}
     try:
         fs = db().feedings(c["id"], now - timedelta(days=2))
         lf = max(fs, key=lambda f: folke.parse(f["start"]), default=None)
@@ -60,6 +67,7 @@ def status():
         nap_guess=nap_guess(start or now),
         awake_since=max((s["end"] for s in sleeps), default=None) and max(s["end"] for s in sleeps).isoformat(),
         prediction=pred,
+        plan=plan,
         last_feed=last_feed,
         pump=pump_summary(c["id"], now),
         pump_remind=prefs()["pump_remind"],

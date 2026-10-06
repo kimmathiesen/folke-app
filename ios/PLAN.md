@@ -45,11 +45,19 @@ Input: søvn de sidste 10 dage (kun afsluttede), fødselsdato, nu, og evt. start
 HA-sensor bruger `predict()`, skærmen bruger `plan_day()`.
 
 Konstanter: kort lur < 30 min, vindue efter kort lur × 0,75, afvigere uden for 60–160 % af medianen,
-sengetid højst 60 min frem, lurlængde 60 min uden data.
+sengetid højst 60 min frem, lurlængde 60 min uden data, aftenlur = dagens sidste lur med start kl. 17 eller senere
+(45 min uden data), «nat» under 2 t, der slutter samme dag = aftenlur, underskud = mindst 30 min mindre dagsøvn,
+rykning læres efter mindst 3 dage med underskud, en «dag» over 36 t (manglende nat) springes over.
+
+**Hvorfor sengetiden ikke rykkes efter en fast regel** (analyse af Folkes data 29/9–6/10 2026): mindre dagsøvn gav
+ikke tidligere sengetid. Dagen med mindst dagsøvn (3,3 t) gav sengetid 21:34, den tidligste (19:53) kom efter en dag
+med masser af dagsøvn uden aftenlur. Han tager næsten hver dag en aftenlur 17:45–21:00, og natten starter 1–2 t efter.
+Derfor: aftenluren planlægges, og sengetiden rykkes kun, hvis barnets egne data viser det.
 
 ### 3.1 Hans tal (`_Model`)
 
-Gå gennem søvn sorteret efter start. Ingen søvn betyder ingen plan.
+Gå gennem søvn sorteret efter start. Ingen søvn betyder ingen plan. Først læses en «nat» under 2 t, der sluttede samme
+dag, som en lur (`_normalize`): ældre registreringer af aftenlure efter kl. 18 blev gemt som nat.
 
 - **Kort lur:** en lur under 30 min, fx i barnevognen. Den tæller ikke som en af dagens lure og flytter ikke positionen.
   Vinduerne lige før og lige efter en kort lur bruges ikke i hans tal.
@@ -59,6 +67,8 @@ Gå gennem søvn sorteret efter start. Ingen søvn betyder ingen plan.
 - **Lurlængder:** pr. lurnummer (1., 2., 3. lur på dagen, kun lure, der ikke er korte) og i en samlet liste.
 - **Lure pr. dag:** antal lure, der ikke er korte, for hver hel dag mellem to nætter.
 - **Aftener:** starttid i minutter for nattesøvn med start kl. 17 eller senere.
+- **Hele dage** (mellem to nætter, under 36 t): dagsøvn (alle lure, også korte), natten starter, sidste søvns slut,
+  og dagens aftenlur (sidste lur, der ikke er kort, med start kl. 17 eller senere), hvis der er en.
 
 `robust(prøver, n)`: hvis der er mindst 4 prøver, fjernes dem uden for 0,6–1,6 × medianen. Derefter bruges de sidste `n`.
 Medianen er som Pythons `statistics.median`: ved et lige antal bruges gennemsnittet af de to midterste.
@@ -69,6 +79,11 @@ Medianen er som Pythons `statistics.median`: ved et lige antal bruges gennemsnit
 | `nap_length(k)` | `robust(lurnummer k, 7)` har mindst 3: median. Ellers `robust(alle længder, 15)` har mindst 3: median. Ellers 60 |
 | `naps()` | Median af de sidste 7 hele dage (afrundet), hvis der er mindst 3 dage. Ellers efter alder: under 4 mdr. 4, under 7 mdr. 3, under 15 mdr. 2, ellers 1 |
 | `bed_min()` | Median af aftenerne, hvis der er mindst 3. Ellers 19:30 |
+| `catnap_habit()` | Aftenlur på mindst 3 af de seneste 7 hele dage og på mindst halvdelen af dem |
+| `catnap_length()` | `robust(aftenlurenes længder, 7)`: median. Ellers 45 |
+| `evening_gap()` | `robust(natten starter − sidste søvns slut på dage med aftenlur, 7)`: median, hvis mindst 3. Ellers ingen |
+| `normal_day_sleep()` | Median af dagsøvnen de seneste 7 hele dage, hvis mindst 3. Ellers summen af `nap_length(i)` for `i = 1 … naps()` |
+| `learned_shift()` | Dage med dagsøvn ≤ median − 30 min og nat efter kl. 17: mindst 3 af dem, og medianen af (`bed_min` − nattens start) er mindst 15 min. Så den, højst 60. Ellers 0 |
 
 **Aldersstandard for vinduet** (måneder = dage / 30,4):
 
@@ -89,6 +104,8 @@ Medianen er som Pythons `statistics.median`: ved et lige antal bruges gennemsnit
 - `k` = antal lure i dag, der ikke er korte. `pos = k`.
 - `slept` = summen af alle lure i dag, også de korte.
 - `win = window(pos)`. Var den sidste søvn en kort lur, ganges `win` med 0,75. Resultatet `short` er dens længde i minutter.
+- Var den sidste søvn en aftenlur (start kl. 17 eller senere), han har `catnap_habit()`, og `evening_gap()` findes,
+  er `win = evening_gap()`.
 - `wake` = sidste søvns slut, og `t = wake + win`.
 - **Lur i gang** (starttid `r`):
   - `wake = max(r + nap_length(k+1), nu)`. Den returneres som `wake`.
@@ -102,19 +119,22 @@ Medianen er som Pythons `statistics.median`: ved et lige antal bruges gennemsnit
 Gentag højst 6 gange:
 1. Er `t ≥ bed(t) − 60 min`, stop: så er det sengetid.
 2. `L = nap_length(k+1)` og `end = t + L`.
-3. Er `end + window(pos+1) > bed(t) + 30 min`, stop. Luren **droppes** (`dropped`), fordi der ikke er plads til den og hans normale vindue bagefter.
+3. Er `end + window(pos+1) > bed(t) + 30 min`, er der ikke plads til en hel lur og hans normale vindue bagefter. Stop:
+   - har han `catnap_habit()`: tilføj en **aftenlur** `t … t + catnap_length()` (`catnap: true`), `slept += længden`,
+     `wake` = dens slut, og husk `catnap_end`
+   - ellers **droppes** luren (`dropped`)
 4. Tilføj lur `t … end`. `k += 1`, `pos += 1`, `slept += L`, `wake = end`, `win = window(pos)` og `t = end + win`.
 
 **Sengetid:**
-- `normal` = summen af `nap_length(i)` for `i = 1 … naps()`.
-- `shift` = `min(60, max(0, (normal − slept) / 2))`, afrundet.
+- `shift` = `learned_shift()`, hvis den er over 0 og `slept ≤ normal_day_sleep() − 30`. Ellers 0.
 - `floor` = `t`, hvis `shift = 0`. Ellers `wake + win × 0,75`.
-- Er en lur droppet, gælder i stedet `shift = 60` og `floor = t`.
+- Er en aftenlur planlagt: `shift = 0` og `floor = catnap_end + (evening_gap() eller window(pos+1))`.
+- Ellers, er en lur droppet (barn uden aftenlur): `shift = 60` og `floor = t` (nødløsning, ingen data siger andet).
 - Ved misset lur (3.4) bruges `floor = max(floor, nu)`.
 - **Sengetid** = `max(bed(t) − shift, floor)`.
 - Det rapporterede `bed_shift` er minutter før `bed(t)`, mindst 0.
 
-Uden afvigelser giver dette det samme som før: sengetid = `max(bed, t)`. Er sengetiden allerede gået sent på aftenen, er det sengetid, når vinduet er gået.
+Uden afvigelser og uden lært rykning: sengetid = `max(bed, t)`. Er sengetiden allerede gået sent på aftenen, er det sengetid, når vinduet er gået.
 
 ### 3.4 Misset lur (kun til skærmen)
 
@@ -126,14 +146,17 @@ Gælder, når `replan = true`, der ikke er nogen lur i gang, nu > `t` + 15 min, 
 
 `plan_day` returnerer:
 - `items`: lure `{kind: "lur", start, end}` og til sidst `{kind: "sengetid", start}`
-- `wake`, `missed_at`, `short`, `bed_shift`, `naps`, `last_id`
+- `wake`, `missed_at`, `short`, `bed_shift`, `naps`, `catnap` (han plejer at tage en aftenlur), `last_id`
+- en aftenlur i `items` har `catnap: true`
 - for første punkt: `first_window`, `source`, `basis`, `pos` og `bed_basis` (`own`, hvis der er mindst 3 aftener, ellers `default`)
 
 `predict` returnerer første punkt som `{kind, time, window_min, source, basis, pos, bed_basis, short, bed_shift, last_id}`.
 
-Facit: `tests/test_predict.py` (uændret adfærd på normale dage) og `tests/test_dayplan.py` (hele dagen, faktisk opvågning, kort lur, misset lur, misset sidste lur, for lidt dagsøvn, lur i gang, korte lure påvirker ikke hans tal, afvigere). Samme syntetiske historik: 10 dage med nat 19:30–06:30 og lure 08:30–09:30, 12:00–13:30 og 16:30–17:00.
+Facit: `tests/test_predict.py` (uændret adfærd på normale dage) og `tests/test_dayplan.py` (hele dagen, faktisk opvågning, kort lur, misset lur, misset sidste lur, for lidt dagsøvn uden og med lært rykning, lur i gang, korte lure påvirker ikke hans tal, afvigere, aftenlur, kort første lur giver ikke tidlig sengetid, gæt ved stop, manglende nat). Samme syntetiske historik: 10 dage med nat 19:30–06:30 og lure 08:30–09:30, 12:00–13:30 og 16:30–17:00.
 
 **Gæt på lur eller nat**, når en søvn startes: nat, hvis klokken er 18:00 eller senere, eller før 05:00. Ellers lur.
+**Når den stoppes** uden at brugeren har valgt Lur/Nat (`nap_at_stop`): som ved start, men en «nat» under 2 t, der slutter
+samme dag, er en lur (aftenlur). Webappen sender kun `nap`, hvis brugeren har trykket Lur eller Nat.
 
 ## 4. Notifikationer (lokale)
 

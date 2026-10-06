@@ -77,16 +77,42 @@ def default_naps(age_days):
 SHORT_NAP = 30          # lure under 30 min er «uventede» (fx i barnevognen) og tæller ikke som en af dagens lure
 SHORT_FACTOR = 0.75     # vinduet efter en kort lur er 75 % af det normale
 OUTLIER = (0.6, 1.6)    # vinduer uden for 60-160 % af hans median (fx dage med misset lur) tæller ikke med
-MAX_BED_SHIFT = 60      # sengetiden rykkes højst 60 min frem efter en dag med for lidt søvn
+MAX_BED_SHIFT = 60      # sengetiden rykkes højst 60 min frem (lært rykning, eller lur der ikke kan nås uden aftenlur)
 DEFAULT_NAP_LEN = 60    # lurlængde, til der er data nok
+CATNAP_FROM = 17 * 60   # en dags sidste lur, der starter kl. 17 eller senere, er en aftenlur
+DEFAULT_CATNAP_LEN = 45 # aftenlurens længde, til der er data nok
+NIGHT_MIN = 120         # en «nat» under 2 timer, der slutter samme dag, er en aftenlur (fx registreret efter kl. 18)
+DEFICIT = 30            # en dag med mindst 30 min mindre dagsøvn end normalt
+LEARN_DAYS = 3          # så mange dage med underskud (af de seneste 10), før en rykning af sengetiden læres
+MAX_DAY_HOURS = 36      # en «dag» mellem to nætter over 36 timer betyder, at en nat ikke er registreret
 
 
 def _mins(a, b):
     return (b - a).total_seconds() / 60
 
 
+def _clock(t):
+    """Minutter efter midnat."""
+    return t.hour * 60 + t.minute
+
+
 def _short(s):
     return s["nap"] and _mins(s["start"], s["end"]) < SHORT_NAP
+
+
+def nap_at_stop(start, end):
+    """Gæt på lur eller nat, når en søvn stoppes uden at brugeren har valgt: som `nap_guess` ved start, men en
+    «nat» under 2 timer, der slutter samme dag, er en aftenlur (fx 18:23-19:10)."""
+    if not (start.hour >= 18 or start.hour < 5):
+        return True
+    return _mins(start, end) < NIGHT_MIN and end.date() == start.date()
+
+
+def _normalize(s):
+    """Tidligere registreringer: en kort «nat», der sluttede samme aften, læses som lur."""
+    if not s["nap"] and _mins(s["start"], s["end"]) < NIGHT_MIN and s["end"].date() == s["start"].date():
+        return {**s, "nap": True}
+    return s
 
 
 def _robust(samples, n):
@@ -105,16 +131,25 @@ class _Model:
         self.age_days = age_days
         self.windows, self.all_gaps, self.lengths, self.all_lengths = {}, [], {}, []
         self.naps_per_day, self.evenings = [], []
+        # Hele dage mellem to nætter: (dagsøvn, natten starter, sidste søvn før natten, aftenlur eller None)
+        self.days = []
         pos = k = 0
-        night_seen = False
+        night = None
+        day = []
         for i, s in enumerate(sleeps):
             if not s["nap"]:
-                if night_seen:
+                if night is not None and _mins(night["end"], s["start"]) < MAX_DAY_HOURS * 60:
                     self.naps_per_day.append(k)  # en hel dag mellem to nætter
-                night_seen, pos, k = True, 0, 0
+                    last_nap = next((x for x in reversed(day) if not _short(x)), None)
+                    catnap = last_nap if last_nap and _clock(last_nap["start"]) >= CATNAP_FROM else None
+                    self.days.append((sum(_mins(x["start"], x["end"]) for x in day), s["start"],
+                                      day[-1]["end"] if day else night["end"], catnap))
+                night, pos, k, day = s, 0, 0, []
                 if s["start"].hour >= 17:
-                    self.evenings.append(s["start"].hour * 60 + s["start"].minute)
-            elif not _short(s):
+                    self.evenings.append(_clock(s["start"]))
+            else:
+                day.append(s)
+            if s["nap"] and not _short(s):
                 k += 1
                 d = _mins(s["start"], s["end"])
                 self.lengths.setdefault(k, []).append(d)
@@ -154,6 +189,40 @@ class _Model:
     def bed_min(self):
         return int(statistics.median(self.evenings)) if len(self.evenings) >= 3 else DEFAULT_BEDTIME
 
+    def catnap_habit(self):
+        """Plejer han at tage en aftenlur? Mindst 3 af de seneste 7 hele dage, og mindst halvdelen."""
+        days = self.days[-7:]
+        n = sum(1 for d in days if d[3])
+        return n >= 3 and 2 * n >= len(days)
+
+    def catnap_length(self):
+        own = _robust([_mins(d[3]["start"], d[3]["end"]) for d in self.days if d[3]], 7)
+        return statistics.median(own) if own else DEFAULT_CATNAP_LEN
+
+    def evening_gap(self):
+        """Hvor længe han typisk er vågen efter dagens sidste søvn, før natten starter (None uden data)."""
+        own = _robust([_mins(d[2], d[1]) for d in self.days if d[3]], 7)
+        return statistics.median(own) if len(own) >= 3 else None
+
+    def normal_day_sleep(self):
+        """Normal dagsøvn i minutter: median af de hele dage, ellers summen af hans normale lurlængder."""
+        days = [d[0] for d in self.days[-7:]]
+        if len(days) >= 3:
+            return statistics.median(days)
+        return sum(self.nap_length(i) for i in range(1, self.naps() + 1))
+
+    def learned_shift(self):
+        """Minutter, han plejer at falde i søvn tidligere efter en dag med for lidt dagsøvn. 0, til hans egne
+        data viser det: mindst LEARN_DAYS dage med underskud og en median på mindst 15 min tidligere end normalt."""
+        if len(self.days) < 3:
+            return 0
+        normal, bed = statistics.median(d[0] for d in self.days), self.bed_min()
+        earlier = [bed - _clock(d[1]) for d in self.days if d[0] <= normal - DEFICIT and d[1].hour >= 17]
+        if len(earlier) < LEARN_DAYS:
+            return 0
+        shift = statistics.median(earlier)
+        return round(min(MAX_BED_SHIFT, shift)) if shift >= 15 else 0
+
 
 def plan_day(sleeps, birth_date, now, running=None, replan=True):
     """Plan for resten af dagen: kommende lure og sengetid, ud fra hans egne tal.
@@ -162,11 +231,15 @@ def plan_day(sleeps, birth_date, now, running=None, replan=True):
     i gang (nattesøvn i gang giver ingen plan). Genberegnes hver gang:
     - efter en kort lur (under 30 min) er næste vindue 75 % af det normale, og den kortere lur tæller ikke
       som en af dagens lure
-    - har dagen givet mindre søvn end normalt, rykkes sengetiden halvdelen af underskuddet frem (højst 60 min)
+    - aftenlur: plejer han at tage en, og er der ikke plads til en hel lur, planlægges en aftenlur, og sengetiden
+      er hans typiske tid vågen efter den (dog tidligst hans normale sengetid)
+    - har dagen givet mindre søvn end normalt, rykkes sengetiden kun frem, hvis hans egne data viser, at han
+      plejer at sove tidligere på sådanne dage (`learned_shift`)
+    - korte «nætter», der sluttede samme aften, læses som aftenlure (`_normalize`)
     - replan=True: er han stadig vågen OVERDUE_MIN efter planlagt lur, er næste lur «nu», og resten af dagen
       flyttes. (Beskederne bruger replan=False, så «virker meget frisk» kommer på det oprindelige tidspunkt.)
     """
-    sleeps = sorted(sleeps, key=lambda s: s["start"])
+    sleeps = sorted((_normalize(s) for s in sleeps), key=lambda s: s["start"])
     if not sleeps:
         return None
     m = _Model(sleeps, (now.date() - birth_date).days)
@@ -186,6 +259,8 @@ def plan_day(sleeps, birth_date, now, running=None, replan=True):
     short = round(_mins(last["start"], last["end"])) if _short(last) else None
     if short is not None:
         win *= SHORT_FACTOR
+    elif last["nap"] and _clock(last["start"]) >= CATNAP_FROM and m.catnap_habit() and m.evening_gap():
+        win = m.evening_gap()  # efter aftenluren: hans typiske tid vågen før natten
     wake, t = last["end"], last["end"] + timedelta(minutes=win)
     first_win, first_pos, wake_at = win, pos, None
 
@@ -206,26 +281,37 @@ def plan_day(sleeps, birth_date, now, running=None, replan=True):
             and t < bed_on(t) - timedelta(minutes=60)):
         missed_at, t = t, now  # den planlagte lur blev ikke til noget: prøv nu
 
-    items, dropped = [], False
+    items, dropped, catnap_end = [], False, None
     for _ in range(6):
         if t >= bed_on(t) - timedelta(minutes=60):
             break
         length = m.nap_length(k + 1)
         end = t + timedelta(minutes=length)
         if end + timedelta(minutes=m.window(pos + 1)[0]) > bed_on(t) + timedelta(minutes=30):
-            dropped = True  # ingen plads til luren og hans normale vindue bagefter: tidlig sengetid i stedet
+            if m.catnap_habit():
+                # Ingen plads til en hel lur, men han plejer at tage en aftenlur: planlæg den
+                length = m.catnap_length()
+                catnap_end = t + timedelta(minutes=length)
+                items.append({"kind": "lur", "start": t, "end": catnap_end, "catnap": True})
+                slept, wake = slept + length, catnap_end
+            else:
+                dropped = True  # ingen plads og ingen aftenlur: tidligere sengetid i stedet
             break
         items.append({"kind": "lur", "start": t, "end": end})
         k, pos, slept, wake = k + 1, pos + 1, slept + length, end
         win = m.window(pos)[0]
         t = end + timedelta(minutes=win)
 
-    # Sengetid: typisk tidspunkt, rykket frem, hvis dagen har givet for lidt søvn. Er en lur droppet,
-    # fordi den ikke kunne nås, er det sengetid, når vinduet er gået, dog højst MAX_BED_SHIFT før normalt.
-    normal = sum(m.nap_length(i) for i in range(1, m.naps() + 1))
-    shift = round(min(MAX_BED_SHIFT, max(0, (normal - slept) / 2)))
+    # Sengetid: hans typiske tidspunkt. Rykkes kun frem efter for lidt dagsøvn, hvis hans egne data viser,
+    # at han plejer at sove tidligere på sådanne dage. Efter en planlagt aftenlur: hans typiske tid vågen
+    # efter den. Er en lur droppet (ingen aftenlur), er det sengetid, når vinduet er gået, dog højst
+    # MAX_BED_SHIFT før normalt.
+    learned = m.learned_shift()
+    shift = learned if learned and slept <= m.normal_day_sleep() - DEFICIT else 0
     floor = t if not shift else wake + timedelta(minutes=win * SHORT_FACTOR)
-    if dropped:
+    if catnap_end:
+        shift, floor = 0, catnap_end + timedelta(minutes=m.evening_gap() or m.window(pos + 1)[0])
+    elif dropped:
         shift, floor = MAX_BED_SHIFT, t
     if missed_at:
         floor = max(floor, now)
@@ -245,6 +331,7 @@ def plan_day(sleeps, birth_date, now, running=None, replan=True):
         "pos": first_pos,
         "bed_basis": "own" if len(m.evenings) >= 3 else "default",
         "naps": m.naps(),
+        "catnap": m.catnap_habit(),  # han plejer at tage en aftenlur
         "last_id": last["id"],
     }
 

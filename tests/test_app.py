@@ -81,6 +81,14 @@ def test_stop_gemmer_soevn_og_sletter_timer(client, world):
     assert folke.parse(s["start"]) == st and s["nap"] is True
 
 
+def test_stop_uden_valg_gaetter_ud_fra_start_og_laengde(client, world):
+    st = (now() - timedelta(minutes=47)).replace(microsecond=0)
+    world.add_timer(st)
+    assert client.post("/api/stop", json={}).status_code == 200
+    [s] = world.sleeps()
+    assert s["nap"] is folke.nap_at_stop(st, folke.parse(s["end"]))
+
+
 def test_stop_med_vaagnetidspunkt(client, world):
     world.add_timer(now() - timedelta(hours=2))
     wake = now() - timedelta(minutes=30)

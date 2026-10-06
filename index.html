@@ -236,6 +236,8 @@ async function api(p,body,method='POST'){const r=await fetch(p,body===undefined?
 headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
 const j=await r.json();if(!r.ok)throw new Error(j.error||r.status);return j}
 const isNap=()=>napSel??S.nap_guess;
+// Lur/nat sendes kun, hvis man selv har valgt. Ellers gætter serveren ud fra både start og længde (aftenlur = lur)
+const napBody=()=>napSel===null?{}:{nap:napSel};
 async function load(){try{S=await api('/api/status');$('err').textContent='';if(S.setup||!S.child_name||!role())onb();if(S.setup)return;hello();$('logo').classList.toggle('new',S.board>seen()&&location.hash!=='#tavle');if(document.activeElement!==$('sname'))$('sname').value=S.child_name;$('srole').value=role()||'mor';const F=S.features||{};$('cb').checked=!!F.breast;$('cs').checked=!!F.solids;$('sx').value=S.sex||'boy';$('dsrc').hidden=S.backend!=='sqlite';$('cp').checked=!!F.pump;$('prem').value=String(S.pump_remind||3);$('premrow').hidden=$('premnote').hidden=$('kpump').hidden=!F.pump;$('imp').hidden=!S.can_import;
 if(S.sleeping){$('st').value='';$('lb').hidden=true}else{napSel=null;$('wt').value='';$('wb').hidden=true}}
 catch(e){$('err').textContent=e.message}render()}
@@ -258,13 +260,13 @@ const v=TL[!x.nap?'n':t<11?'m':t<15?'d':'e'];
 return `<li data-i="${i}" style="--c:${v[0]}"><div class="pill"><div class="ci">${v[1]}</div><div><div class="tm">${hm(x.start)} – ${hm(x.end)}</div><div class="lb">${x.nap?'Lur '+(++n):'Nat'}</div></div><span class="du">${dur(m)}</span><svg class="ch" viewBox="0 0 24 24"><path d="m9 6 6 6-6 6"/></svg></div></li>`}).join('');
 $('tot').textContent=dur(tot)}}
 $('btn').onclick=async()=>{$('btn').disabled=true;
-try{await api(S.sleeping?'/api/stop':'/api/start',S.sleeping?{nap:isNap()}:{})}catch(e){$('err').textContent=e.message}load()};
+try{await api(S.sleeping?'/api/stop':'/api/start',S.sleeping?napBody():{})}catch(e){$('err').textContent=e.message}load()};
 $('st').oninput=()=>$('lb').hidden=!$('st').value;
 $('wt').oninput=()=>$('wb').hidden=!$('wt').value;
 $('lb').onclick=async()=>{$('lb').disabled=true;
 try{await api('/api/start',{since:$('st').value})}catch(e){$('err').textContent=e.message}$('lb').disabled=false;load()};
 $('wb').onclick=async()=>{$('wb').disabled=true;
-try{await api('/api/stop',{nap:isNap(),wake:$('wt').value})}catch(e){$('err').textContent=e.message}$('wb').disabled=false;load()};
+try{await api('/api/stop',{...napBody(),wake:$('wt').value})}catch(e){$('err').textContent=e.message}$('wb').disabled=false;load()};
 document.querySelectorAll('#type button').forEach(x=>x.onclick=()=>{napSel=x.dataset.n==='1';render()});
 const CX=180,CY=200,pt=(r,t)=>{const a=(90+t*15)*Math.PI/180;return[CX+r*Math.cos(a),CY+r*Math.sin(a)]};
 const arc=(r,a,b)=>{const[x1,y1]=pt(r,a),[x2,y2]=pt(r,b);return `M${x1.toFixed(1)} ${y1.toFixed(1)}A${r} ${r} 0 ${b-a>12?1:0} 1 ${x2.toFixed(1)} ${y2.toFixed(1)}`};

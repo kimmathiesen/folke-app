@@ -130,7 +130,8 @@ def stop():
             e -= timedelta(days=1)
         if e <= s:
             return jsonify(ok=False, error=f"Søvnen startede kl. {s:%H:%M}"), 400
-    nap = body.get("nap", nap_guess(s))
+    # Har brugeren ikke selv valgt lur/nat, gættes der ud fra både start og længde (aftenlur efter kl. 18 = lur)
+    nap = body["nap"] if "nap" in body else folke.nap_at_stop(s, e)
     db().add_sleep(c["id"], s, e, nap)
     db().delete_timer(t["id"])
     return jsonify(ok=True)

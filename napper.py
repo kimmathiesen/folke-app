@@ -86,12 +86,13 @@ def predict(sleeps, birth_date, now):
 
     age_days = (now.date() - birth_date).days
     samples = windows.get(pos, [])[-7:]
+    # basis (til UI'et): own = eget vindue for netop denne position, all = alle vinduer, age = alder
     if len(samples) >= 3:
-        window, source = statistics.median(samples), f"eget mønster (position {pos})"
+        window, source, basis = statistics.median(samples), f"eget mønster (position {pos})", "own"
     elif len(all_gaps) >= 5:
-        window, source = statistics.median(all_gaps[-15:]), "gennemsnit af alle vinduer"
+        window, source, basis = statistics.median(all_gaps[-15:]), "gennemsnit af alle vinduer", "all"
     else:
-        window, source = default_window(age_days), "aldersbaseret standard"
+        window, source, basis = default_window(age_days), "aldersbaseret standard", "age"
 
     next_start = last["end"] + timedelta(minutes=window)
 
@@ -114,6 +115,9 @@ def predict(sleeps, birth_date, now):
         "time": when,
         "window_min": round(window),
         "source": source,
+        "basis": basis,
+        "pos": pos,  # 0 = efter natten, 1 = efter 1. lur ...
+        "bed_basis": "own" if len(evenings) >= 3 else "default",
         "last_id": last["id"],
     }
 

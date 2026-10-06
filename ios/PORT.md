@@ -1,0 +1,29 @@
+# Huskeliste: rettelser fra `standalone`, som iPhone-appen også skal have
+
+Arbejdsgang (også i CLAUDE.md):
+- **Den, der retter på `standalone`**, tilføjer et punkt her i samme omgang og opdaterer `ios/PLAN.md`.
+- **Mac-sessionen** starter med `git fetch && git merge origin/standalone`. Den laver de åbne punkter i Swift
+  og sætter `[x]` med sin commit, fx `[x] … (ios: 1a2b3c4)`.
+- Rene webting (CSS, iPad-layout i webappen) kommer ikke på listen.
+
+Format: `- [ ] dato · commit på standalone · hvad · hvor i PLAN.md · facit`
+
+## Åbne
+
+- [ ] 2026-10-06 · `08a003d` · Ringens midte viser næste lur/sengetid i stedet for klokkeslættet
+      («Næste lur kl. 13.40», «Sengetid kl. 19.30»), og «Faldt i søvn kl. 09.25», mens han sover.
+      PLAN.md afsnit 5, Forside → Ringen. Facit: `index.html`, `render()`.
+- [ ] 2026-10-06 · `07bfd30` · Forklaringen under «Næste lur» på almindeligt dansk i stedet for «eget mønster
+      (position N)». `predict()` giver også `basis`, `pos` og `bed_basis`. Varighed «1 t» i stedet for «1 t 0 min»
+      (også i dagens søvnliste). PLAN.md afsnit 3.5 og 5, Forudsigelseskort. Facit: `index.html` (`why`, `dur`)
+      og `tests/test_predict.py`.
+- [ ] 2026-10-06 · `eeaa016` · **Dagsplan med genberegning:** resten af dagen (lure og sengetid). Kort lur (under 30 min)
+      tæller ikke og giver et vindue på 75 %. For lidt dagsøvn eller en lur, der ikke kan nås, giver tidligere sengetid
+      (højst 60 min). Misset lur giver «nu» på skærmen (kun der). Hans tal beskyttes mod korte lure og afvigere.
+      UI: «Resten af dagen» på kortet, «Forventet vågen» under en lur, stiplede buer i ringen. Notifikationerne følger
+      `predict()` = planens første punkt. PLAN.md afsnit 3 (helt omskrevet), 4 og 5. Facit: `folke.py` (`plan_day`,
+      `_Model`) og `tests/test_dayplan.py`.
+
+## Lavet
+
+(ingen endnu)

@@ -216,12 +216,16 @@ const SUN='<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 
 const HALF='<svg viewBox="0 0 24 24"><path d="M6 17a6 6 0 0 1 12 0M3 17h18M12 6v2M4.5 10.5 6 12M19.5 10.5 18 12"/></svg>';
 const MOON='<svg viewBox="0 0 24 24"><path d="M20 14.5A8 8 0 0 1 9.5 4 8 8 0 1 0 20 14.5z"/></svg>';
 const TL={n:['#7c6ff0',MOON],m:['#e0a63c',HALF],d:['#3f9be0',SUN],e:['#e8814f',HALF]};
-const dur=m=>m<60?`${m} min`:`${m/60|0} t ${m%60} min`;
+const dur=m=>m<60?`${m} min`:`${m/60|0} t`+(m%60?` ${m%60} min`:'');
 const CLK='<svg class="ic" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>';
 const hm=d=>new Date(d).toLocaleTimeString('da-DK',{hour:'2-digit',minute:'2-digit'});
 const FM={'bottle':'Flaske','left breast':'Amning, venstre','right breast':'Amning, højre','both breasts':'Amning'};
 const ago=d=>{const m=Math.max(0,(Date.now()-new Date(d))/60000|0);return m<60?`${m} min`:`${m/60|0} t ${m%60} min`};
 const cap=s=>s.charAt(0).toUpperCase()+s.slice(1);
+// Forklaring under «Næste lur» i almindeligt dansk (pos 0 = efter natten, 1 = efter 1. lur ...)
+const why=p=>p.kind==='sengetid'?(p.bed_basis==='own'?'Sengetid ud fra de seneste aftener':'Typisk sengetid (for lidt data endnu)')
+:`Vågen ca. ${dur(p.window_min)}${p.basis==='own'?(p.pos?` efter ${p.pos}. lur`:' efter natten'):''} · `
++(p.basis==='age'?'typisk for alderen (for lidt data endnu)':'ud fra de seneste dage');
 async function api(p,body,method='POST'){const r=await fetch(p,body===undefined?{}:{method,
 headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
 const j=await r.json();if(!r.ok)throw new Error(j.error||r.status);return j}
@@ -238,7 +242,7 @@ $('btn').disabled=false;$('btn').className=sl?'stop':'';$('btn').innerHTML=(sl?S
 $('type').hidden=$('wake').hidden=!sl;$('late').hidden=sl;
 document.querySelectorAll('#type button').forEach(x=>x.classList.toggle('on',(x.dataset.n==='1')===isNap()));
 $('pred').hidden=!p;if(p){$('pk').textContent='Næste '+p.kind;$('pt').textContent='ca. kl. '+hm(p.time);
-$('sub').textContent=cap(`vindue ${p.window_min} min · ${p.source}`)}
+$('sub').textContent=why(p)}
 const lf=S.last_feed;$('lastfeed').textContent=lf?`${FM[lf.method]||lf.method}${lf.amount?' '+Math.round(+lf.amount)+' ml':''} kl. ${hm(lf.time)} · for ${ago(lf.time)} siden`:'Ingen måltider endnu';
 const F=S.features||{},sg=(S.suggestions||[])[0];$('fbr').hidden=!F.breast;$('fsolid').hidden=!F.solids;$('sug').hidden=!sg;if(sg)$('sugt').textContent=sg.text;
 pumpUI();

@@ -41,6 +41,7 @@ def test_eget_moenster_efter_anden_lur():
     assert p["window_min"] == 180
     assert p["time"] == at(last_day, (16, 30))
     assert p["source"] == "eget mønster (position 2)"
+    assert (p["basis"], p["pos"]) == ("own", 2)
     assert p["last_id"] == sleeps[-1]["id"]
 
 
@@ -58,6 +59,7 @@ def test_sengetid_efter_sidste_lur():
     p = predict(sleeps, BIRTH, at(last_day, (17, 30)))
     assert p["kind"] == "sengetid"
     assert p["time"] == at(last_day, NIGHT)  # median af aftensøvne
+    assert p["bed_basis"] == "own"
 
 
 def test_raekkefoelge_er_ligegyldig():
@@ -73,6 +75,7 @@ def test_aldersbaseret_standard_uden_nok_data():
     p = predict(sleeps, BIRTH, now)
     age = (now.date() - BIRTH).days  # 129 dage = 4,2 mdr.
     assert p["source"] == "aldersbaseret standard"
+    assert (p["basis"], p["bed_basis"]) == ("age", "default")
     assert p["window_min"] == default_window(age) == 120
     assert p["time"] == at(d, (8, 0))
 

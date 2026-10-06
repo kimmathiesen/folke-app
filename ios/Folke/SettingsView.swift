@@ -10,6 +10,8 @@ struct SettingsView: View {
     @Environment(\.scenePhase) private var scenePhase
     @State private var name = ""
     @State private var message = ""
+    @State private var importing = false
+    @State private var importMessage = ""
     @FocusState private var nameFocused: Bool
 
     static let remindOptions: [(Double, String)] = [(2, "efter 2 t"), (2.5, "efter 2½ t"), (3, "efter 3 t"),
@@ -60,6 +62,7 @@ struct SettingsView: View {
                     note("Skøn ud fra sidste længdemåling på vækstsiden. Gælder kun denne enhed.")
                 }
                 .card()
+                if model.importAvailable { serverImport }
                 if !message.isEmpty {
                     Text(message).font(.system(size: 14)).foregroundStyle(Color.errorText).padding(.top, 12)
                 }
@@ -109,6 +112,24 @@ struct SettingsView: View {
             }
         case .unknown:
             EmptyView()
+        }
+    }
+
+    /// Kun i egne builds: hent data fra den gamle Folke-server (eksportfilen fra `/api/export`).
+    var serverImport: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            Text("Importér fra Folke-server").font(.system(size: 18, weight: .medium)).foregroundStyle(Color.fg)
+            note("Vælg eksportfilen fra serveren (folke-….json). Søvn, mad, udpumpning og vækst lægges til. Det, der allerede er importeret, opdateres i stedet for at blive kopieret.")
+            ActionRow(options: [("Vælg fil", { importing = true })]).padding(.top, 10)
+            if !importMessage.isEmpty { note(importMessage) }
+        }
+        .card()
+        .padding(.top, 14)
+        .fileImporter(isPresented: $importing, allowedContentTypes: [.json]) { result in
+            switch result {
+            case .success(let url): importMessage = model.importServer(url)
+            case .failure(let error): importMessage = error.localizedDescription
+            }
         }
     }
 

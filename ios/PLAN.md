@@ -293,8 +293,14 @@ Tilbyd «Inviter din partner» (iCloud-deling) og «Importér fra Folke-server»
 - `growth`: `[{id, date, w, l, h}]`.
 - `prefs`: features, `sex`, `child_name`, `pump_remind`.
 
-Appen importerer filen via filvælgeren (eller via Del → Folke). En kørende `timer` bliver til `Sleep` uden slut.
+Appen importerer filen via filvælgeren. En kørende `timer` bliver til `Sleep` uden slut.
 Gentaget import må ikke give dubletter: brug serverens id som nøgle.
+
+*Lavet:* `FolkeStore.importServerExport` (`ServerImport.swift`).
+- Upsert på `serverID`. Timeren får `serverID = -id`, så den kun importeres én gang.
+- Barnet, funktionsvalg og påmindelse tages kun fra eksporten, hvis appen ikke har et barn endnu.
+- Vises under Indstillinger og i første opstart, kun når `AppTransaction.environment` ikke er `.production` (debug, Xcode, TestFlight).
+- Kendt begrænsning: stoppes timeren i appen og senere på serveren, giver en ny import begge søvn. Importér derfor kun én gang, når I skifter.
 
 ## 9. Betalingsmodel
 
@@ -343,7 +349,7 @@ Afgør derefter prisen. Indtægter er skattepligtige: tjek CVR og moms (Apple af
 6. iCloud-deling mellem to konti og tavlen (tavlen lokalt er færdig; deling mangler). Kræver betalt udviklerkonto, Team ID og endeligt bundle id. App Group `group.dk.folkeapp.folke` skal også oprettes på kontoen.
 7. Live Activity, widgets og App Intents. *(færdig, testet i simulatoren; Siri-sætninger og låseskærm-widgets er ikke afprøvet)*
 8. **Skjult** import fra Folke-serveren (kun i egne builds: debug og TestFlight, aldrig i App Store-versionen, da andre
-   brugere ikke har en server). TestFlight til familien.
+   brugere ikke har en server). *(import færdig)* TestFlight til familien.
 9. **Folke Plus** (afsnit 9): StoreKit 2-engangskøb med familiedeling, 14 dages prøve, låste funktioner, «Gendan køb».
    Test med StoreKit-konfigurationsfil i simulatoren. TestFlight til forældre uden for familien.
 10. Evt. redesign (afsnit 9), engelsk, privatlivspolitik, privacy manifest, eksport som CSV (dine data er dine, fx til

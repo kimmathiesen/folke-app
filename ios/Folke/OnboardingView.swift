@@ -13,6 +13,7 @@ struct OnboardingView: View {
     @State private var role: Role?
     @State private var sex: Sex?
     @State private var error = ""
+    @State private var importing = false
 
     var body: some View {
         let needsChild = !model.snapshot.hasChild
@@ -57,6 +58,14 @@ struct OnboardingView: View {
                 }
                 .buttonStyle(.plain)
                 .padding(.top, 22)
+
+                // Kun i egne builds: start med data fra den gamle Folke-server
+                if needsChild && model.importAvailable {
+                    Button("Hent data fra Folke-server") { importing = true }
+                        .font(.system(size: 15)).foregroundStyle(muted)
+                        .frame(maxWidth: .infinity)
+                        .padding(.top, 14)
+                }
             }
             .foregroundStyle(Color.fg)
             .padding(20)
@@ -71,6 +80,16 @@ struct OnboardingView: View {
         .onAppear {
             name = model.snapshot.childName
             role = model.role
+        }
+        .fileImporter(isPresented: $importing, allowedContentTypes: [.json]) { result in
+            guard case .success(let url) = result else { return }
+            let text = model.importServer(url)
+            if model.snapshot.hasChild {
+                name = model.snapshot.childName
+                error = ""
+            } else {
+                error = text
+            }
         }
     }
 

@@ -1,6 +1,7 @@
 import CoreData
 import FolkeCore
 import Observation
+import StoreKit
 import SwiftUI
 import WidgetKit
 
@@ -62,6 +63,9 @@ final class AppModel {
         didSet { FolkeShared.role = role }
     }
 
+    /// Import fra Folke-serveren vises kun i egne builds (Xcode, TestFlight), aldrig i App Store-udgaven.
+    private(set) var importAvailable = false
+
     init(store: FolkeStore) {
         self.store = store
         role = FolkeShared.role
@@ -70,6 +74,7 @@ final class AppModel {
             await notifier.refreshStatus()
             refresh()
         }
+        Task { importAvailable = await Self.isOwnBuild() }
         NotificationCenter.default.addObserver(forName: .NSPersistentStoreRemoteChange, object: nil, queue: .main) { [weak self] _ in
             MainActor.assumeIsolated { self?.refresh() }
         }
@@ -87,14 +92,14 @@ final class AppModel {
         #if DEBUG
         // Skærmbilleder i simulatoren. NB: databasen tømmes først, så widgets ser de samme data.
         // `-demoData YES` (evt. `-demoMonths 7`): barn på 4 mdr. med 10 dages søvn, mad, udpumpning og vækst.
-        // `-demoExport <sti>`: søvn fra en eksport fra Folke-serveren.
+        // `-demoExport <sti>`: en eksport fra Folke-serveren (som importen under Indstillinger).
         let d = UserDefaults.standard
         if d.string(forKey: "demoExport") != nil || d.bool(forKey: "demoData") {
             let store = FolkeShared.store
             do {
                 try store.deleteAll()
                 if let path = d.string(forKey: "demoExport") {
-                    try store.seedExport(URL(fileURLWithPath: path))
+                    try store.importServerExport(Data(contentsOf: URL(fileURLWithPath: path)))
                 } else {
                     let months = d.integer(forKey: "demoMonths")
                     try store.seedDemo(months: months > 0 ? months : 4)
@@ -337,6 +342,30 @@ final class AppModel {
                 try store.createChild(name: name, birthDate: birthDate ?? .now, sex: sex)
             }
             self.role = role
+        }
+    }
+
+    // MARK: Skjult import fra Folke-serveren (PLAN.md afsnit 8)
+
+    static func isOwnBuild() async -> Bool {
+        #if DEBUG
+        return true
+        #else
+        guard let t = try? await AppTransaction.shared.payloadValue else { return false }
+        return t.environment != .production
+        #endif
+    }
+
+    /// Importér en fil fra «Filer» (`GET /api/export` på serveren). Giver en tekst til brugeren.
+    func importServer(_ url: URL) -> String {
+        let scoped = url.startAccessingSecurityScopedResource()
+        defer { if scoped { url.stopAccessingSecurityScopedResource() } }
+        do {
+            let r = try store.importServerExport(Data(contentsOf: url))
+            refresh()
+            return r.summary
+        } catch {
+            return (error as? LocalizedError)?.errorDescription ?? error.localizedDescription
         }
     }
 }

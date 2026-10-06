@@ -1,0 +1,61 @@
+import Foundation
+import Testing
+@testable import FolkeCore
+
+/// Skjult import fra Folke-serverens eksport (PLAN.md afsnit 8).
+@MainActor @Suite("Import fra server", .serialized) struct ServerImportTests {
+    let json = """
+    {"child": [{"id": 1, "bb_id": 1, "first_name": "Folke", "birth_date": "2026-06-20"}],
+     "sleep": [{"id": 1, "bb_id": 28, "child": 1, "start": "2026-10-04T15:44:51+00:00", "end": "2026-10-04T17:22:01+00:00", "nap": 1},
+               {"id": 2, "bb_id": null, "child": 1, "start": "2026-10-04T18:15:00+00:00", "end": "2026-10-05T05:50:00+00:00", "nap": 0}],
+     "timer": [{"id": 1, "bb_id": null, "child": 1, "name": "Søvn", "start": "2026-10-06T09:33:29+00:00"}],
+     "feeding": [{"id": 1, "bb_id": 1, "child": 1, "start": "2026-10-04T18:14:00+00:00", "end": "2026-10-04T18:14:00+00:00", "type": "formula", "method": "bottle", "amount": 30.0, "notes": null},
+                 {"id": 2, "bb_id": null, "child": 1, "start": "2026-10-05T08:00:00+00:00", "end": "2026-10-05T08:00:00+00:00", "type": "breast milk", "method": "left breast", "amount": null, "notes": null},
+                 {"id": 3, "bb_id": null, "child": 1, "start": "2026-10-05T11:00:00+00:00", "end": "2026-10-05T11:00:00+00:00", "type": "solid food", "method": "parent fed", "amount": null, "notes": "grød"}],
+     "pumping": [{"id": 1, "bb_id": 2, "child": 1, "start": "2026-10-03T15:23:17+00:00", "end": "2026-10-03T15:23:17+00:00", "amount": 40.0, "notes": "", "side": "both", "minutes": 15.0}],
+     "growth": [{"id": 1, "date": "2026-09-01", "w": 6.1, "l": 61.0, "h": null}],
+     "prefs": {"features": {"breast": true, "solids": true, "pump": false}, "sug": {}, "sex": "boy", "pump_remind": 2.5, "child_name": ""}}
+    """
+
+    @Test func foersteImportOpretterBarnOgIndstillinger() throws {
+        let s = try FolkeStore(inMemory: true)
+        let r = try s.importServerExport(Data(json.utf8))
+        #expect(r == ServerImportResult(sleeps: 2, feedings: 3, pumpings: 1, growth: 1, createdChild: true, runningSleep: true))
+        #expect(s.child()?.name == "Folke" && s.child()?.sex == "boy")
+        let set = try #require(s.settings())
+        #expect(set.featureSolids && !set.featurePump && set.pumpRemindHours == 2.5)
+        #expect(s.runningSleep()?.start == FolkeStore.time("2026-10-06T09:33:29+00:00"))
+        let sleeps = s.sleeps(since: .distantPast)
+        #expect(sleeps.map(\.nap) == [true, false])
+        let feeds = s.fetch(Feeding.self).sorted { $0.serverID < $1.serverID }
+        #expect(feeds.map(\.kind) == ["bottle", "left", "solid"])
+        #expect(feeds[0].milk == "formula" && feeds[0].amountMl == 30 && feeds[2].note == "grød")
+        #expect(s.pumpings(since: .distantPast).first?.side == "both")
+        #expect(s.growthPoints().first?.values[.length] == 61)
+    }
+
+    @Test func gentagetImportGiverIngenDubletter() throws {
+        let s = try FolkeStore(inMemory: true)
+        try s.importServerExport(Data(json.utf8))
+        try s.stopSleep() // den importerede timer stoppes i appen
+        let r = try s.importServerExport(Data(json.utf8))
+        #expect(!r.createdChild && !r.runningSleep)
+        #expect(s.fetch(Sleep.self).count == 3) // 2 fra serveren + den stoppede timer
+        #expect(s.fetch(Feeding.self).count == 3 && s.fetch(Pumping.self).count == 1 && s.fetch(Growth.self).count == 1)
+    }
+
+    @Test func eksisterendeBarnBevaresOgAppensDataRoeresIkke() throws {
+        let s = try FolkeStore(inMemory: true)
+        try s.createChild(name: "Ida", birthDate: day(2026, 6, 20), sex: .girl)
+        try s.addPumping(amountMl: 100)
+        try s.importServerExport(Data(json.utf8))
+        #expect(s.child()?.name == "Ida" && s.child()?.sex == "girl")
+        #expect(s.fetch(Pumping.self).count == 2)
+    }
+
+    @Test func forkertFilAfvises() throws {
+        let s = try FolkeStore(inMemory: true)
+        #expect(throws: ServerImportError.self) { try s.importServerExport(Data("{\"x\": 1}".utf8)) }
+        #expect(throws: ServerImportError.self) { try s.importServerExport(Data("{\"child\": []}".utf8)) }
+    }
+}

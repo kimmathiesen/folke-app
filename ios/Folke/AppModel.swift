@@ -32,6 +32,7 @@ struct Snapshot {
     var growth: [GrowthPoint] = []
     var pumpHistory = PumpHistory(days: [], avgMl: nil)
     var pumpItems: [PumpItem] = []
+    var clothing: ClothingEstimate?
 
     struct PumpItem: Identifiable {
         var id: UUID
@@ -137,6 +138,7 @@ final class AppModel {
         s.suggestion = store.suggestions(now: now).first
         s.birthDate = child?.birthDate
         s.growth = store.growthPoints()
+        s.clothing = store.clothingEstimate(now: now)
         s.pumpHistory = store.pumpHistory(now: now)
         s.pumpItems = store.pumpings(since: now.addingTimeInterval(-7 * 86400)).reversed().compactMap { p in
             guard let id = p.id, let t = p.time else { return nil }

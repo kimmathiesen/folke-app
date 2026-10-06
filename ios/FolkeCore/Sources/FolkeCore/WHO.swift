@@ -56,6 +56,13 @@ public enum WHO {
         return L == 0 ? M * exp(S * z) : M * pow(1 + L * S * z, 1 / L)
     }
 
+    /// z-værdien for en måling (hvor mange standardafvigelser fra medianen), eller nil uden for 0-24 mdr.
+    public static func zScore(_ kind: Measure, _ sex: Sex, month: Double, value v: Double) -> Double? {
+        guard month >= 0, month <= 24, v > 0 else { return nil }
+        let (L, M, S) = lms(kind, sex, month: month)
+        return L == 0 ? log(v / M) / S : (pow(v / M, L) - 1) / (L * S)
+    }
+
     /// Omtrentlig percentil (1-99) for en måling, eller nil uden for 0-24 mdr.
     public static func percentile(_ kind: Measure, _ sex: Sex, month: Double, value v: Double?) -> Int? {
         guard let v, month >= 0, month <= 24 else { return nil }

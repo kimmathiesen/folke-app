@@ -232,6 +232,10 @@ Tilbyd «Inviter din partner» (iCloud-deling) og «Importér fra Folke-server»
 - Kurverne vises op til 12 mdr., til barnet er 9 mdr., derefter op til 24.
 - Køn vælges i indstillinger.
 - Data og formler: `who.py`. Facit: `tests/test_who.py`.
+- **Tøjstørrelse (kun når «Jeg er far» er valgt på enheden):** sidste længdemåling fremskrives langs sin egen percentil
+  (samme z-værdi på WHO-kurven) til i dag. Størrelsen er den mindste danske babystørrelse (44, 50, 56, 62, 68, 74, 80, 86,
+  92, 98), der er mindst lige så lang som barnet. Desuden hvornår næste størrelse passer: «Str. 74 om ca. 5 uger».
+  Kun 0-24 mdr. og kun med en længdemåling. Skrives tydeligt som et skøn (størrelser varierer mellem mærker).
 
 **Tavlen** (tryk på månen):
 - Delt kridttavle med fast format 3:4, så tegningen ser ens ud på alle enheder.
@@ -337,9 +341,14 @@ Afgør derefter prisen. Indtægter er skattepligtige: tjek CVR og moms (Apple af
 5. Vækst og udpumpningshistorik. *(færdig)*
 6. iCloud-deling mellem to konti og tavlen. Kræver betalt udviklerkonto, Team ID og endeligt bundle id. App Group `group.dk.folkeapp.folke` skal også oprettes på kontoen.
 7. Live Activity, widgets og App Intents. *(færdig, testet i simulatoren; Siri-sætninger og låseskærm-widgets er ikke afprøvet)*
-8. Import fra serveren. TestFlight til familien.
+8. **Skjult** import fra Folke-serveren (kun i egne builds: debug og TestFlight, aldrig i App Store-versionen, da andre
+   brugere ikke har en server). TestFlight til familien.
 9. **Folke Plus** (afsnit 9): StoreKit 2-engangskøb med familiedeling, 14 dages prøve, låste funktioner, «Gendan køb».
    Test med StoreKit-konfigurationsfil i simulatoren. TestFlight til forældre uden for familien.
-10. Evt. redesign (afsnit 9), engelsk, privatlivspolitik, App Store.
+10. Evt. redesign (afsnit 9), engelsk, privatlivspolitik, privacy manifest, eksport som CSV (dine data er dine, fx til
+    sundhedsplejersken), App Store.
+
+Ud over milepælene (kan laves uden udviklerkonto): app-ikon, baggrundsopdatering af notifikationer (`BGAppRefreshTask`),
+tavlen lokalt (deling kommer med milepæl 6) og tøjstørrelse for far (afsnit 5, Vækst).
 
 Hver milepæl afsluttes med grønne tests, et skærmbillede fra simulatoren og en commit.

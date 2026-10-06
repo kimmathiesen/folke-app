@@ -191,7 +191,7 @@ function render(){if(!S)return;const sl=S.sleeping,p=S.prediction,b=sl?S.since:S
 $('state').textContent=sl?'Sover':'Vågen';
 if(b){secs=Math.max(0,(Date.now()-new Date(b))/1000|0);const z=n=>String(n).padStart(2,'0');
 $('clock').textContent=`${z(secs/3600|0)}:${z(secs/60%60|0)}:${z(secs%60)}`}else $('clock').textContent='--';
-dial();$('nowt').textContent='kl. '+hm(Date.now());
+dial();$('nowt').textContent=sl?(S.since?'Faldt i søvn kl. '+hm(S.since):''):p?`${p.kind==='lur'?'Næste lur':'Sengetid'} kl. ${hm(p.time)}`:'';
 $('btn').disabled=false;$('btn').className=sl?'stop':'';$('btn').innerHTML=(sl?STOP:PLAY)+(sl?'Stop søvn':'Start søvn');
 $('type').hidden=$('wake').hidden=!sl;$('late').hidden=sl;
 document.querySelectorAll('#type button').forEach(x=>x.classList.toggle('on',(x.dataset.n==='1')===isNap()));

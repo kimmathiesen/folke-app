@@ -12,6 +12,7 @@ struct SettingsView: View {
     @State private var message = ""
     @State private var importing = false
     @State private var importMessage = ""
+    @State private var exportFile: URL?
     @FocusState private var nameFocused: Bool
 
     static let remindOptions: [(Double, String)] = [(2, "efter 2 t"), (2.5, "efter 2½ t"), (3, "efter 3 t"),
@@ -62,6 +63,7 @@ struct SettingsView: View {
                     note("Skøn ud fra sidste længdemåling på vækstsiden. Gælder kun denne enhed.")
                 }
                 .card()
+                yourData
                 if model.importAvailable { serverImport }
                 if !message.isEmpty {
                     Text(message).font(.system(size: 14)).foregroundStyle(Color.errorText).padding(.top, 12)
@@ -112,6 +114,20 @@ struct SettingsView: View {
             }
         case .unknown:
             EmptyView()
+        }
+    }
+
+    /// «Dine data»: eksport som CSV til fx sundhedsplejersken eller et regneark.
+    var yourData: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            Text("Dine data").font(.system(size: 18, weight: .medium)).foregroundStyle(Color.fg)
+            note("Søvn, mad, udpumpning og vækst som fire CSV-filer i én zip-fil. De kan åbnes i Numbers og Excel, fx til sundhedsplejersken.")
+            ActionRow(options: [("Eksportér som CSV", { exportFile = model.exportCSV() })]).padding(.top, 10)
+        }
+        .card()
+        .padding(.top, 14)
+        .sheet(isPresented: Binding(get: { exportFile != nil }, set: { if !$0 { exportFile = nil } })) {
+            if let exportFile { ShareSheet(items: [exportFile]).ignoresSafeArea() }
         }
     }
 
@@ -207,4 +223,15 @@ struct BackHeader: View {
         .padding(.top, 18)
         .padding(.bottom, 14)
     }
+}
+
+/// Systemets delingsark (gem i Filer, AirDrop, mail …).
+struct ShareSheet: UIViewControllerRepresentable {
+    var items: [Any]
+
+    func makeUIViewController(context: Context) -> UIActivityViewController {
+        UIActivityViewController(activityItems: items, applicationActivities: nil)
+    }
+
+    func updateUIViewController(_ vc: UIActivityViewController, context: Context) {}
 }

@@ -368,4 +368,30 @@ final class AppModel {
             return (error as? LocalizedError)?.errorDescription ?? error.localizedDescription
         }
     }
+
+    // MARK: Eksport som CSV
+
+    /// De fire CSV-filer samlet i én zip-fil («Folke-eksport-<dato>.zip») til delingsarket.
+    func exportCSV() -> URL? {
+        let files = store.csvExport()
+        let fm = FileManager.default
+        let name = files.first.map { "Folke-eksport-" + $0.name.suffix(14).dropLast(4) } ?? "Folke-eksport"
+        let root = fm.temporaryDirectory.appending(path: "eksport", directoryHint: .isDirectory)
+        let dir = root.appending(path: name, directoryHint: .isDirectory)
+        try? fm.removeItem(at: root)
+        do {
+            try fm.createDirectory(at: dir, withIntermediateDirectories: true)
+            for f in files { try f.data.write(to: dir.appending(path: f.name)) }
+        } catch {
+            return nil
+        }
+        // NSFileCoordinator zipper en mappe, når den læses «til upload»
+        var zip: URL?
+        var err: NSError?
+        NSFileCoordinator().coordinate(readingItemAt: dir, options: .forUploading, error: &err) { tmp in
+            let dest = root.appending(path: name + ".zip")
+            if (try? fm.copyItem(at: tmp, to: dest)) != nil { zip = dest }
+        }
+        return zip
+    }
 }

@@ -355,6 +355,10 @@ Afgør derefter prisen. Indtægter er skattepligtige: tjek CVR og moms (Apple af
 10. Evt. redesign (afsnit 9), engelsk, privatlivspolitik, privacy manifest, eksport som CSV (dine data er dine, fx til
     sundhedsplejersken), App Store.
 
+Fra milepæl 10 er lavet: eksport som CSV (`FolkeCore/Export.swift`, «Dine data» under Indstillinger: fire filer med
+semikolon og decimalkomma i én zip-fil) og privacy manifest (`PrivacyInfo.xcprivacy` i appen og widgets: ingen sporing,
+ingen indsamlede data, UserDefaults med årsag CA92.1 og 1C8F.1).
+
 Ud over milepælene (lavet uden udviklerkonto): app-ikon, baggrundsopdatering af notifikationer (`BGAppRefreshTask`,
 skal afprøves på telefon), tavlen lokalt (deling kommer med milepæl 6) og tøjstørrelse (afsnit 5, Vækst).
 Tavlen i appen viser «Sidst ændret» ud fra seneste streg (fortryd og «Visk ud» registreres ikke som ændring).

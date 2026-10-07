@@ -159,7 +159,11 @@ struct HomeView: View {
         let s = model.snapshot
         return VStack(spacing: 16) {
             ForgotCard(sleeping: s.running != nil)
-            PlanCard(snapshot: s, now: now)
+            if s.plus.unlocked {
+                PlanCard(snapshot: s, now: now)
+            } else {
+                LockedCard(feature: .prediction)
+            }
             FeedCard(now: now)
             if s.featurePump {
                 PumpCard(now: now)

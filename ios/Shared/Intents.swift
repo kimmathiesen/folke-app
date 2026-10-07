@@ -18,6 +18,13 @@ import WidgetKit
     }
 }
 
+extension FolkeShared {
+    /// Widgets, Live Activity og Siri er med i Folke Plus.
+    static func requirePlus() throws {
+        guard plus().unlocked else { throw IntentFailure(message: Plus.Feature.extensions.lockedText) }
+    }
+}
+
 struct IntentFailure: Error, CustomLocalizedStringResourceConvertible {
     var message: String
     var localizedStringResource: LocalizedStringResource { "\(message)" }
@@ -30,6 +37,7 @@ struct StartSleepIntent: LiveActivityIntent {
 
     @MainActor
     func perform() async throws -> some IntentResult & ProvidesDialog {
+        try FolkeShared.requirePlus()
         let store = FolkeShared.store
         guard let child = store.child() else { throw IntentFailure(message: "Åbn Folke og opret barnet først") }
         let name = child.name ?? "Babyen"
@@ -49,6 +57,7 @@ struct StopSleepIntent: LiveActivityIntent {
 
     @MainActor
     func perform() async throws -> some IntentResult & ProvidesDialog {
+        try FolkeShared.requirePlus()
         let store = FolkeShared.store
         guard let running = store.runningSleep(), let start = running.start else {
             return .result(dialog: "Der er ingen søvn i gang")
@@ -70,6 +79,7 @@ struct LogPumpingIntent: AppIntent {
 
     @MainActor
     func perform() async throws -> some IntentResult & ProvidesDialog {
+        try FolkeShared.requirePlus()
         let store = FolkeShared.store
         guard store.child() != nil else { throw IntentFailure(message: "Åbn Folke og opret barnet først") }
         do {
@@ -95,6 +105,7 @@ struct LogBottleIntent: AppIntent {
 
     @MainActor
     func perform() async throws -> some IntentResult & ProvidesDialog {
+        try FolkeShared.requirePlus()
         let store = FolkeShared.store
         guard store.child() != nil else { throw IntentFailure(message: "Åbn Folke og opret barnet først") }
         do {

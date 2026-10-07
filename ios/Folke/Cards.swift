@@ -197,3 +197,24 @@ struct PumpCard: View {
         }
     }
 }
+
+/// En funktion fra Folke Plus, der er låst: kort forklaring i stedet for funktionen (aldrig et pop-op midt i brugen).
+struct LockedCard: View {
+    var feature: Plus.Feature
+    @Environment(AppModel.self) private var model
+    @Environment(\.muted) private var muted
+
+    var body: some View {
+        HStack(alignment: .top, spacing: 14) {
+            CardIcon(name: "lock", size: 46)
+            VStack(alignment: .leading, spacing: 6) {
+                Text(feature.lockedText).font(.system(size: 15)).foregroundStyle(Color.fg)
+                    .fixedSize(horizontal: false, vertical: true)
+                Button("Se Folke Plus") { model.page = .settings }
+                    .font(.system(size: 15, weight: .medium)).foregroundStyle(Color.acc)
+            }
+            Spacer(minLength: 0)
+        }
+        .card()
+    }
+}

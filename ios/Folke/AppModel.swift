@@ -36,6 +36,7 @@ struct Snapshot {
     var clothing: ClothingEstimate?
     var strokes: [BoardStroke] = []
     var boardVersion = 0.0
+    var plus = Plus.Status.trial(daysLeft: Plus.trialDays)
 
     struct PumpItem: Identifiable {
         var id: UUID
@@ -50,6 +51,7 @@ struct Snapshot {
 final class AppModel {
     let store: FolkeStore
     let notifier = Notifier()
+    let plusStore = PlusStore()
     private(set) var snapshot = Snapshot()
     var error: String?
     /// Lur/Nat-valg, mens søvnen kører (nil = gæt ud fra klokkeslættet)
@@ -69,7 +71,9 @@ final class AppModel {
     init(store: FolkeStore) {
         self.store = store
         role = FolkeShared.role
+        if FolkeShared.trialStart == nil { FolkeShared.trialStart = .now }
         refresh()
+        plusStore.onChange = { [weak self] in self?.refresh() }
         Task {
             await notifier.refreshStatus()
             refresh()
@@ -125,8 +129,10 @@ final class AppModel {
             napSelection = nil
         }
         s.awakeSince = store.awakeSince(now: now)
-        s.prediction = store.prediction(now: now)
-        s.plan = store.dayPlan(now: now)
+        s.plus = FolkeShared.plus(now: now)
+        // Forudsigelsen er med i Folke Plus: uden den vises hverken kort, stiplede lure eller forventet opvågning
+        s.prediction = s.plus.unlocked ? store.prediction(now: now) : nil
+        s.plan = s.plus.unlocked ? store.dayPlan(now: now) : nil
         s.today = store.todaySleeps(now: now).compactMap { x in
             guard let id = x.id, let start = x.start, let end = x.end else { return nil }
             return .init(id: id, start: start, end: end, nap: x.nap)
@@ -168,7 +174,7 @@ final class AppModel {
         let running = s.running.map { ($0.start, $0.nap) }, name = s.childName, wake = s.plan?.wake
         Task { await SleepLiveActivity.sync(running: running, name: name, expectedWake: wake) }
         let key = [s.running?.start.description, s.awakeSince?.description,
-                   s.plan?.items.map { $0.start.description }.joined(), s.childName].map { $0 ?? "-" }.joined(separator: "|")
+                   s.plan?.items.map { $0.start.description }.joined(), s.childName, "\(s.plus.unlocked)"].map { $0 ?? "-" }.joined(separator: "|")
         if key != widgetKey {
             widgetKey = key
             WidgetCenter.shared.reloadAllTimelines()

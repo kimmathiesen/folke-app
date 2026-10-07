@@ -29,4 +29,31 @@ enum FolkeShared {
         }
         set { defaults.set(newValue?.rawValue, forKey: "folke.role") }
     }
+
+    // MARK: Folke Plus (PLAN.md afsnit 9)
+
+    /// Køb (fra StoreKit i appen) og første opstart gemmes i App Group, så widgets og intents kan se, om Plus er åbent.
+    static var plusPurchased: Bool {
+        get { defaults.bool(forKey: "folke.plusPurchased") }
+        set { defaults.set(newValue, forKey: "folke.plusPurchased") }
+    }
+
+    /// Første opstart på denne enhed (sættes én gang). Prøven regnes herfra.
+    static var trialStart: Date? {
+        get { defaults.object(forKey: "folke.trialStart") as? Date }
+        set { defaults.set(newValue, forKey: "folke.trialStart") }
+    }
+
+    static func plus(now: Date = .now) -> Plus.Status {
+        #if DEBUG
+        // Skærmbilleder: `-plus locked|trial|purchased`
+        switch UserDefaults.standard.string(forKey: "plus") {
+        case "locked": return .locked
+        case "trial": return .trial(daysLeft: 9)
+        case "purchased": return .purchased
+        default: break
+        }
+        #endif
+        return Plus.status(purchased: plusPurchased, trialStart: trialStart, now: now)
+    }
 }

@@ -15,6 +15,8 @@ struct SleepEntry: TimelineEntry {
     var nextNow = false
     var rest: [PlanItem] = []
     var catnap = false
+    /// Uden Folke Plus viser widgetten kun en henvisning til appen
+    var locked = false
 
     static let placeholder: SleepEntry = {
         let now = Date.now
@@ -49,6 +51,7 @@ struct SleepProvider: TimelineProvider {
         let store = FolkeShared.store
         store.context.refreshAllObjects()
         guard let child = store.child() else { return SleepEntry(date: now) }
+        guard FolkeShared.plus(now: now).unlocked else { return SleepEntry(date: now, hasChild: true, locked: true) }
         var e = SleepEntry(date: now, hasChild: true, name: child.name ?? "")
         e.sleepingSince = store.runningSleep()?.start
         e.awakeSince = store.awakeSince(now: now)
@@ -100,6 +103,8 @@ struct SleepWidgetView: View {
         Group {
             if !entry.hasChild {
                 Text("Åbn Folke for at komme i gang").font(.footnote).foregroundStyle(Color.mutedW)
+            } else if entry.locked {
+                locked
             } else {
                 switch family {
                 case .accessoryInline: inline
@@ -111,6 +116,20 @@ struct SleepWidgetView: View {
             }
         }
         .containerBackground(for: .widget) { WidgetSky(date: entry.date) }
+    }
+
+    @ViewBuilder var locked: some View {
+        switch family {
+        case .accessoryInline: Text("\(Image(systemName: "lock")) Folke Plus")
+        case .accessoryCircular: ZStack { AccessoryWidgetBackground(); Image(systemName: "lock") }
+        default:
+            VStack(alignment: .leading, spacing: 4) {
+                Label("Folke Plus", systemImage: "lock").font(.system(size: 14, weight: .semibold)).foregroundStyle(Color.fgW)
+                Text("Widgets er med i Folke Plus. Åbn Folke for at se mere.")
+                    .font(.system(size: 12)).foregroundStyle(Color.mutedW)
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+        }
     }
 
     func counter(_ size: CGFloat) -> some View {

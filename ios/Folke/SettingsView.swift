@@ -24,6 +24,7 @@ struct SettingsView: View {
         ScrollView {
             VStack(spacing: 0) {
                 BackHeader(title: "Indstillinger") { save(); model.page = .home }
+                PlusCard().padding(.bottom, 14)
                 VStack(alignment: .leading, spacing: 0) {
                     Text("Tilpas").font(.system(size: 18, weight: .medium)).foregroundStyle(Color.fg)
 
@@ -51,7 +52,7 @@ struct SettingsView: View {
                         row("Påmind om udpumpning") {
                             menu(s.pumpRemindHours, Self.remindOptions) { model.setPumpRemind($0) }
                         }
-                        note("Påmindelsen sendes kun til enheder, der har slået «Påmindelse om udpumpning» til under notifikationer herunder. Ingen påmindelser mellem 22 og 7.")
+                        if s.plus.unlocked { note("Påmindelsen sendes kun til enheder, der har slået «Påmindelse om udpumpning» til under notifikationer herunder. Ingen påmindelser mellem 22 og 7.") }
                     }
 
                     notifications
@@ -82,6 +83,15 @@ struct SettingsView: View {
 
     /// Notifikationer på denne enhed: status, slå til, send test og beskedtyper.
     @ViewBuilder var notifications: some View {
+        if model.snapshot.plus.unlocked {
+            notificationSettings
+        } else {
+            row("Notifikationer") { Image(systemName: "lock").foregroundStyle(muted) }
+            note(Plus.Feature.notifications.lockedText)
+        }
+    }
+
+    @ViewBuilder var notificationSettings: some View {
         let n = model.notifier
         row("Notifikationer på denne enhed") {
             Text(n.status == .allowed ? "Slået til" : n.status == .denied ? "Blokeret" : "Slået fra")
@@ -234,4 +244,55 @@ struct ShareSheet: UIViewControllerRepresentable {
     }
 
     func updateUIViewController(_ vc: UIActivityViewController, context: Context) {}
+}
+
+/// «Folke Plus»: status, køb og «Gendan køb» (PLAN.md afsnit 9).
+struct PlusCard: View {
+    @Environment(AppModel.self) private var model
+    @Environment(\.muted) private var muted
+
+    var body: some View {
+        let status = model.snapshot.plus
+        let shop = model.plusStore
+        VStack(alignment: .leading, spacing: 0) {
+            HStack {
+                Text("Folke Plus").font(.system(size: 18, weight: .medium)).foregroundStyle(Color.fg)
+                Spacer()
+                if status == .purchased { Image(systemName: "checkmark.seal.fill").foregroundStyle(Color.acc) }
+            }
+            Text(status.text).font(.system(size: 15)).foregroundStyle(Color.fg).padding(.top, 6)
+            if status != .purchased {
+                Text("Forudsigelse af næste lur og sengetid, notifikationer, widgets, Live Activity, Siri og vækstkurver. "
+                     + "Ét køb, intet abonnement, og det deles med familien. Søvn, mad, udpumpning, deling med partneren "
+                     + "og alt, du har registreret, er altid gratis.")
+                    .font(.system(size: 13)).foregroundStyle(muted).padding(.top, 6)
+                    .fixedSize(horizontal: false, vertical: true)
+                Button { Task { await shop.buy() } } label: {
+                    Group {
+                        if shop.busy {
+                            ProgressView().tint(.white)
+                        } else {
+                            Text(shop.product.map { "Køb Folke Plus · \($0.displayPrice)" } ?? "Køb Folke Plus")
+                        }
+                    }
+                    .font(.system(size: 16)).foregroundStyle(.white)
+                    .frame(maxWidth: .infinity).padding(12)
+                    .background(Color.acc, in: RoundedRectangle(cornerRadius: 12))
+                }
+                .buttonStyle(.plain)
+                .disabled(shop.product == nil || shop.busy)
+                .opacity(shop.product == nil ? 0.5 : 1)
+                .padding(.top, 12)
+                Button("Gendan køb") { Task { await shop.restore() } }
+                    .font(.system(size: 14)).foregroundStyle(muted)
+                    .frame(maxWidth: .infinity)
+                    .padding(.top, 10)
+                    .disabled(shop.busy)
+            }
+            if let m = shop.message {
+                Text(m).font(.system(size: 13)).foregroundStyle(Color.errorText).padding(.top, 8)
+            }
+        }
+        .card()
+    }
 }

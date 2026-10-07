@@ -78,7 +78,7 @@ final class Notifier: NSObject, UNUserNotificationCenterDelegate {
         guard status == .allowed else { return }
         var input = input
         input.enabled = enabled
-        let plan = Self.plan(input)
+        let plan = FolkeShared.plus(now: input.now).unlocked ? Self.plan(input) : []
         if plan == lastPlan { return }
         lastPlan = plan
         Self.apply(plan)
@@ -93,7 +93,7 @@ final class Notifier: NSObject, UNUserNotificationCenterDelegate {
                                               enabled: enabledKinds, pumpFeature: s?.featurePump ?? false,
                                               pumpRemindHours: s?.pumpRemindHours ?? 3, lastPump: store.lastPumping(now: now))
         input.enabled = enabledKinds
-        apply(plan(input))
+        apply(FolkeShared.plus(now: now).unlocked ? plan(input) : [])
     }
 
     private static func plan(_ input: NotificationPlanner.Input) -> [PlannedNotification] {

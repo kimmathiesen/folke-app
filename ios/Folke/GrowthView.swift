@@ -22,24 +22,33 @@ struct GrowthView: View {
         ScrollView {
             VStack(spacing: 0) {
                 BackHeader(title: "Vækst") { model.page = .home }
-                Segmented(options: WHO.Measure.allCases.map { ($0, $0.tab) }, selection: $kind)
-                VStack(alignment: .leading, spacing: 8) {
-                    GrowthChart(kind: k, curves: curves, points: points)
-                    summary(points.last, k)
+                if s.plus.unlocked {
+                    Segmented(options: WHO.Measure.allCases.map { ($0, $0.tab) }, selection: $kind)
                 }
-                .card()
-                .padding(.top, 16)
-                if let c = s.clothing {
+                if s.plus.unlocked {
+                    VStack(alignment: .leading, spacing: 8) {
+                        GrowthChart(kind: k, curves: curves, points: points)
+                        summary(points.last, k)
+                    }
+                    .card()
+                    .padding(.top, 16)
+                } else {
+                    LockedCard(feature: .growthCurves)
+                }
+                // Tøjstørrelsen følger hans percentil og hører derfor også til Plus
+                if s.plus.unlocked, let c = s.clothing {
                     ClothingCard(estimate: c, name: s.childName, showNext: model.showNextSize)
                 }
                 GoButton(title: "Tilføj måling") { editing = Editing(point: nil) }.padding(.top, 14)
                 if !s.growth.isEmpty {
                     list(s.growth.reversed())
                 }
+                if s.plus.unlocked {
                 Text("\(s.sex == .boy ? "Drengekurver" : "Pigekurver") fra WHO (2006), som Sundhedsstyrelsen anbefaler til børn 0-5 år. Båndene viser 3.-97. percentil, og den stiplede linje er midten. Vejninger kan afvige mellem forskellige vægte, og én måling siger ikke alt. Tal med sundhedsplejersken, hvis du er i tvivl. Skift kurver under Indstillinger.")
                     .font(.system(size: 13)).foregroundStyle(muted)
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .padding(.top, 16).padding(.horizontal, 4)
+                }
             }
             .frame(maxWidth: 640)
             .frame(maxWidth: .infinity)

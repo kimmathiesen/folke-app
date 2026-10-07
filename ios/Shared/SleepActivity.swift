@@ -19,6 +19,7 @@ struct SleepActivityAttributes: ActivityAttributes {
     /// Start, opdatér eller afslut, så den passer med den kørende søvn. Startes på den enhed, der ser søvnen
     /// (også når den anden forælder har startet den, og ændringen kommer fra iCloud, mens appen er åben).
     static func sync(running: (start: Date, nap: Bool)?, name: String, expectedWake: Date?) async {
+        let running = FolkeShared.plus().unlocked ? running : nil
         let state = running.map {
             SleepActivityAttributes.ContentState(start: $0.start, nap: $0.nap, expectedWake: $0.nap ? expectedWake : nil)
         }

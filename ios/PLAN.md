@@ -359,6 +359,17 @@ Fra milepæl 10 er lavet: eksport som CSV (`FolkeCore/Export.swift`, «Dine data
 semikolon og decimalkomma i én zip-fil) og privacy manifest (`PrivacyInfo.xcprivacy` i appen og widgets: ingen sporing,
 ingen indsamlede data, UserDefaults med årsag CA92.1 og 1C8F.1).
 
+Folke Plus (milepæl 9) er lavet, så langt det kan uden konto:
+- Regler i `FolkeCore/Plus.swift` (14 hele kalenderdage fra første opstart på enheden, tests i `PlusTests`).
+- Køb i `Folke/PlusStore.swift` (StoreKit 2, `Transaction.currentEntitlements` og `Transaction.updates`, «Gendan køb» = `AppStore.sync()`).
+  Status gemmes i App Group (`folke.plusPurchased`, `folke.trialStart`), så widgets og intents kan se den.
+- Låst uden Plus: forudsigelseskortet og de stiplede lure i ringen, notifikationer (intet planlægges), Live Activity,
+  widgets (viser en henvisning), intents/Siri, vækstkurver med percentil og tøjstørrelse. Målinger kan stadig skrives ind.
+- Testkøb: `ios/Folke.storekit` (produkt `dk.folkeapp.folke.plus`, 149 kr., familiedeling) bruges af den delte scheme, når
+  appen køres fra Xcode (⌘R). Debug: `-plus locked|trial|purchased`.
+- Mangler: produktet skal oprettes i App Store Connect (kræver konto), og prøven følger enheden (en ny installation
+  giver en ny prøve; godt nok, da forudsigelserne alligevel skal have en uges data).
+
 Ud over milepælene (lavet uden udviklerkonto): app-ikon, baggrundsopdatering af notifikationer (`BGAppRefreshTask`,
 skal afprøves på telefon), tavlen lokalt (deling kommer med milepæl 6) og tøjstørrelse (afsnit 5, Vækst).
 Tavlen i appen viser «Sidst ændret» ud fra seneste streg (fortryd og «Visk ud» registreres ikke som ændring).

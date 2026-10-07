@@ -1,0 +1,38 @@
+{
+  "identifier" : "6E0F4A2B",
+  "nonRenewingSubscriptions" : [
+
+  ],
+  "products" : [
+    {
+      "displayPrice" : "149.0",
+      "familyShareable" : true,
+      "internalID" : "6743000001",
+      "localizations" : [
+        {
+          "description" : "Forudsigelse, notifikationer, widgets og vækstkurver. Ét køb, intet abonnement.",
+          "displayName" : "Folke Plus",
+          "locale" : "da"
+        }
+      ],
+      "productID" : "dk.folkeapp.folke.plus",
+      "referenceName" : "Folke Plus",
+      "type" : "NonConsumable"
+    }
+  ],
+  "settings" : {
+    "_failTransactionsEnabled" : false,
+    "_locale" : "da",
+    "_storefront" : "DNK",
+    "_storeKitErrors" : [
+
+    ]
+  },
+  "subscriptionGroups" : [
+
+  ],
+  "version" : {
+    "major" : 4,
+    "minor" : 0
+  }
+}

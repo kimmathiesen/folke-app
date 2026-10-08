@@ -42,6 +42,7 @@ def status():
         return jsonify(setup=True)
     t = sleep_timer(c["id"])
     raw = db().sleeps(c["id"], now - timedelta(days=folke.HISTORY_DAYS))
+    wakes = db().wakes(c["id"], now - timedelta(days=2))
     sleeps = [{"id": s["id"], "start": folke.parse(s["start"]), "end": folke.parse(s["end"]),
                "nap": s["nap"]} for s in raw]
     birth = date.fromisoformat(c["birth_date"])
@@ -89,9 +90,11 @@ def status():
         features=prefs()["features"],
         sex=prefs()["sex"],
         suggestions=current_suggestions(c, now, prefs()),
-        today=[{"id": s["id"], "start": s["start"].isoformat(), "end": s["end"].isoformat(), "nap": s["nap"]}
+        today=[{"id": s["id"], "start": s["start"].isoformat(), "end": s["end"].isoformat(), "nap": s["nap"],
+                "wakes": [] if s["nap"] else wakes_in(wakes, s["start"], s["end"])}
                for s in sorted(sleeps, key=lambda s: s["start"])
                if now.date() in (s["start"].date(), s["end"].date())],
+        night_wakes=wakes_in(wakes, start, None) if start else [],
     )
 
 
@@ -137,10 +140,49 @@ def stop():
         if e <= s:
             return jsonify(ok=False, error=f"Søvnen startede kl. {s:%H:%M}"), 400
     # Har brugeren ikke selv valgt lur/nat, gættes der ud fra både start og længde (aftenlur efter kl. 18 = lur)
+    w = db().open_wake(c["id"])
+    if w:  # vågen om natten og ikke faldet i søvn igen: natten sluttede, da han vågnede
+        db().delete_wake(w["id"])
+        if not body.get("wake"):
+            e = max(folke.parse(w["start"]), s + timedelta(minutes=1))
     nap = body["nap"] if "nap" in body else folke.nap_at_stop(s, e)
     db().add_sleep(c["id"], s, e, nap)
     db().delete_timer(t["id"])
     return jsonify(ok=True)
+
+
+@app.post("/api/wake")
+def night_wake():
+    """Opvågning om natten, mens natten kører: {"action": "start"} (vågnede) eller {"action": "stop"} (sover igen)."""
+    c = get_child()
+    t = sleep_timer(c["id"])
+    if not t:
+        return jsonify(ok=False, error="Ingen søvn i gang"), 409
+    now = datetime.now(TZ)
+    w = db().open_wake(c["id"])
+    action = (request.get_json(silent=True) or {}).get("action")
+    if action == "start":
+        if not w:
+            db().add_wake(c["id"], now)
+    elif action == "stop":
+        if w:
+            db().end_wake(w["id"], now)
+    else:
+        return jsonify(ok=False, error="Ugyldig handling"), 400
+    return jsonify(ok=True)
+
+
+@app.delete("/api/wake/<int:wid>")
+def delete_night_wake(wid):
+    db().delete_wake(wid)
+    return jsonify(ok=True)
+
+
+def wakes_in(wakes, start, end):
+    """Opvågninger, der startede i søvnen [start, end] (end None = søvnen kører)."""
+    return [{"id": w["id"], "start": folke.parse(w["start"]).isoformat(),
+             "end": w["end"] and folke.parse(w["end"]).isoformat()}
+            for w in wakes if start <= folke.parse(w["start"]) and (end is None or folke.parse(w["start"]) <= end)]
 
 
 # ---------- Udpumpning ----------
@@ -551,6 +593,10 @@ def edit_sleep(sid):
 
 @app.delete("/api/sleep/<int:sid>")
 def delete_sleep(sid):
+    c = get_child()
+    s = next((x for x in db().sleeps(c["id"], datetime(2000, 1, 1, tzinfo=TZ)) if x["id"] == sid), None)
+    if s and not s["nap"]:
+        db().delete_wakes_between(c["id"], folke.parse(s["start"]), folke.parse(s["end"]))
     db().delete_sleep(sid)
     return jsonify(ok=True)
 

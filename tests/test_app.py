@@ -240,3 +240,42 @@ def test_status_giver_traefsikkerhed_og_interval(client, world):
                     {"error": 20, "actual": "sengetid", "predicted": "lur"}]) == {
         "n": 2, "mean_abs": 15.0, "median_abs": 15.0, "within_15": 0.5, "within_30": 1.0, "bias": 5.0, "wrong_kind": 1}
     assert backtest([], None) == []
+
+
+# ---------- opvågninger om natten ----------
+def test_opvaagning_om_natten(client, world):
+    assert client.post("/api/wake", json={"action": "start"}).status_code == 409  # ingen søvn i gang
+    world.add_timer(now() - timedelta(hours=3))
+    assert client.post("/api/wake", json={"action": "x"}).status_code == 400
+    client.post("/api/wake", json={"action": "start"})
+    client.post("/api/wake", json={"action": "start"})  # to tryk giver ikke to opvågninger
+    [w] = client.get("/api/status").get_json()["night_wakes"]
+    assert w["end"] is None
+    client.post("/api/wake", json={"action": "stop"})
+    [w] = client.get("/api/status").get_json()["night_wakes"]
+    assert w["end"] is not None
+    assert client.post("/api/stop", json={"nap": False}).status_code == 200
+    d = client.get("/api/status").get_json()
+    [night] = [x for x in d["today"] if not x["nap"]]
+    assert len(night["wakes"]) == 1 and d["night_wakes"] == []
+
+
+def test_stop_mens_han_er_vaagen_slutter_natten_ved_opvaagningen(client, world):
+    world.add_timer(now() - timedelta(hours=3))
+    client.post("/api/wake", json={"action": "start"})
+    started = folke.parse(client.get("/api/status").get_json()["night_wakes"][0]["start"])
+    client.post("/api/stop", json={"nap": False})
+    [s] = world.sleeps()
+    assert abs((folke.parse(s["end"]) - started).total_seconds()) < 2
+    assert client.get("/api/status").get_json()["today"][0]["wakes"] == []  # den åbne opvågning er væk
+
+
+def test_slet_nat_sletter_opvaagninger(client, world):
+    world.add_timer(now() - timedelta(hours=3))
+    client.post("/api/wake", json={"action": "start"})
+    client.post("/api/wake", json={"action": "stop"})
+    client.post("/api/stop", json={"nap": False})
+    sid = world.sleeps()[0]["id"]
+    assert len(world.store.wakes(world.cid, now() - timedelta(days=1))) == 1
+    client.delete(f"/api/sleep/{sid}")
+    assert world.store.wakes(world.cid, now() - timedelta(days=1)) == []

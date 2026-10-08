@@ -49,6 +49,8 @@ font-size:20px;font-weight:500;color:#fff;background:linear-gradient(90deg,#4f86
 #type{margin:16px 0 0;display:flex;gap:8px;justify-content:center}
 #type button{padding:8px 22px;border-radius:99px;border:1px solid var(--line);background:var(--card);color:var(--fg);font-size:15px}
 #type .on{background:var(--fg);color:#0b1224;border-color:var(--fg)}
+#wakebtn{margin:12px auto 0;display:block;padding:9px 20px;border-radius:99px;border:1px solid var(--line);background:var(--card);color:var(--fg);font-size:15px}
+#ewakes{margin-top:12px;color:var(--mut);font-size:14px}#ewakes div{display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-top:1px solid var(--line)}#ewakes button{border:0;background:none;color:#ff8b7e;font-size:14px}
 .card{margin:16px 0 0;padding:14px 16px;border-radius:20px;background:var(--card);border:1px solid var(--line);text-align:left}
 .row{display:flex;align-items:center;gap:14px}
 .ic{width:34px;height:34px;flex:none;stroke:var(--mut);fill:none;stroke-width:1.6;stroke-linecap:round;stroke-linejoin:round}
@@ -141,6 +143,7 @@ header{position:relative}
 <div class="lg"><span><i style="background:#a9c2ff"></i>Lur</span><span><i style="background:#8b7cf6"></i>Nat</span><span><i style="border:1.5px dashed #e9edf8"></i>Forventet næste</span></div>
 <button id="btn" disabled>…</button>
 <div id="type" hidden><button data-n="1">Lur</button><button data-n="0">Nat</button></div>
+<button id="wakebtn" hidden></button>
 </div>
 <div class="colB">
 <div id="late" class="card"><div class="row"><svg class="ic" viewBox="0 0 24 24"><path d="M3 20V6M21 20V6M3 12h18M3 17h18M7 12V9a2 2 0 0 1 2-2h6a2 2 0 0 1 2 2v3"/></svg>
@@ -153,7 +156,7 @@ header{position:relative}
 <label>Faldt i søvn<input type="datetime-local" id="es"></label>
 <label>Vågnede<input type="datetime-local" id="ee"></label>
 <div class="seg" id="etype"><button data-n="1">Lur</button><button data-n="0">Nat</button></div>
-<div id="edur"></div><div id="eerr"></div>
+<div id="edur"></div><div id="ewakes" hidden></div><div id="eerr"></div>
 <button class="go" id="esave">Gem ændringer</button><button class="go del" id="edel">Slet søvn</button><button class="go ghost" id="ecancel">Annullér</button></div></div>
 <div id="day" class="card" hidden><div class="dh"><div class="dl"><svg class="ic" viewBox="0 0 24 24"><rect x="4" y="5" width="16" height="15" rx="2"/><path d="M4 10h16M9 3v4M15 3v4"/></svg>Dagens søvn</div><span id="dd"></span></div>
 <ul id="tl"></ul><div class="sum"><span>Samlet søvn</span><b id="tot"></b></div></div>
@@ -270,6 +273,8 @@ $('clock').textContent=`${z(secs/3600|0)}:${z(secs/60%60|0)}:${z(secs%60)}`}else
 dial();const n=nxt();$('nowt').textContent=sl?(S.since?'Faldt i søvn kl. '+hm(S.since):''):n?(n.now?'Næste lur: nu':`${n.kind==='lur'?'Næste lur':'Sengetid'} kl. ${hm(n.time)}`):'';
 $('btn').disabled=false;$('btn').className=sl?'stop':'';$('btn').innerHTML=(sl?STOP:PLAY)+(sl?'Stop søvn':'Start søvn');
 $('type').hidden=$('wake').hidden=!sl;$('late').hidden=sl;
+const wo=sl&&wakeOpen();$('wakebtn').hidden=!sl||isNap();$('wakebtn').textContent=wo?'Sover igen':'Vågnede';
+if(wo){$('nowt').textContent='Vågen siden kl. '+hm(wo.start);$('state').textContent='Vågen om natten'}
 document.querySelectorAll('#type button').forEach(x=>x.classList.toggle('on',(x.dataset.n==='1')===isNap()));
 planUI(p,n);
 feedDay();const lf=S.last_feed;$('lastfeed').textContent=lf?`${FM[lf.method]||lf.method}${lf.amount?' '+Math.round(+lf.amount)+' ml':''} kl. ${hm(lf.time)} · for ${ago(lf.time)} siden`:'Ingen måltider endnu';
@@ -277,9 +282,10 @@ const F=S.features||{},sg=(S.suggestions||[])[0];$('fbr').hidden=!F.breast;$('fs
 pumpUI();
 $('day').hidden=!S.today.length;
 if(S.today.length){let n=0,tot=0;$('dd').textContent=cap(new Date().toLocaleDateString('da-DK',{weekday:'long',day:'numeric',month:'long'}));
-$('tl').innerHTML=S.today.map((x,i)=>{const a=new Date(x.start),m=Math.round((new Date(x.end)-a)/60000),t=a.getHours();tot+=m;
+$('tl').innerHTML=S.today.map((x,i)=>{const a=new Date(x.start),wm=Math.round(wakeMin(x.wakes)),m=Math.round((new Date(x.end)-a)/60000)-wm,t=a.getHours();tot+=m;
+const wk=(x.wakes||[]).length,lab=x.nap?'':wk?`Nat · ${wk} ${wk===1?'opvågning':'opvågninger'} · ${dur(wm)} vågen`:'Nat';
 const v=TL[!x.nap?'n':t<11?'m':t<15?'d':'e'];
-return `<li data-i="${i}" style="--c:${v[0]}"><div class="pill"><div class="ci">${v[1]}</div><div><div class="tm">${hm(x.start)} – ${hm(x.end)}</div><div class="lb">${x.nap?'Lur '+(++n):'Nat'}</div></div><span class="du">${dur(m)}</span><svg class="ch" viewBox="0 0 24 24"><path d="m9 6 6 6-6 6"/></svg></div></li>`}).join('');
+return `<li data-i="${i}" style="--c:${v[0]}"><div class="pill"><div class="ci">${v[1]}</div><div><div class="tm">${hm(x.start)} – ${hm(x.end)}</div><div class="lb">${x.nap?'Lur '+(++n):lab}</div></div><span class="du">${dur(m)}</span><svg class="ch" viewBox="0 0 24 24"><path d="m9 6 6 6-6 6"/></svg></div></li>`}).join('');
 $('tot').textContent=dur(tot)}}
 $('btn').onclick=async()=>{$('btn').disabled=true;
 try{await api(S.sleeping?'/api/stop':'/api/start',S.sleeping?napBody():{})}catch(e){$('err').textContent=e.message}load()};
@@ -308,8 +314,9 @@ const gc=t=>{for(let i=1;i<ST.length;i++)if(t<=ST[i][0]){const[a,A]=ST[i-1],[b,B
 (()=>{let s='';for(let i=0;i<96;i++)s+=`<path d="${arc(105,i/4,Math.min(24,(i+1)/4+.02))}" stroke="${gc(i/4+.125)}"/>`;
 [0,6,12,18].forEach(t=>{const[x,y]=pt(105,t);s+=`<circle cx="${x}" cy="${y}" r="3.5" fill="#fff" opacity=".85"/>`});$('seg').innerHTML=s})();
 function dial(){const n=new Date(),day=n.toDateString(),sa=(a,b,c,x)=>b>a?`<path d="${arc(88,a,b)}" fill="none" stroke="${c}" stroke-width="9" stroke-linecap="round"${x||''}/>`:'';
-let s=S.today.map(x=>sa(new Date(x.start).toDateString()===day?hr(x.start):0,hr(x.end),x.nap?'#a9c2ff':'#8b7cf6')).join('');
-if(S.sleeping)s+=sa(new Date(S.since).toDateString()===day?hr(S.since):0,hr(n),'#8b7cf6',' class="run"');
+let s=S.today.map(x=>minus(new Date(x.start).toDateString()===day?hr(x.start):0,hr(x.end),x.wakes,day)
+.map(([a,b])=>sa(a,b,x.nap?'#a9c2ff':'#8b7cf6')).join('')).join('');
+if(S.sleeping)s+=minus(new Date(S.since).toDateString()===day?hr(S.since):0,hr(n),S.night_wakes,day).map(([a,b])=>sa(a,b,'#8b7cf6',' class="run"')).join('');
 if(S.plan)S.plan.items.forEach(x=>{if(x.kind==='lur'&&new Date(x.start).toDateString()===day)s+=sa(hr(x.start),Math.min(24,hr(x.end)||24),'rgba(169,194,255,.45)',' stroke-dasharray="2 6"')});
 const nx=nxt();if(nx){const[x,y]=pt(88,hr(nx.now?n:nx.time));s+=`<circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="7" fill="#0f1830" stroke="#e9edf8" stroke-width="1.6" stroke-dasharray="3 2.5"/>`}
 const[x,y]=pt(105,hr(n));s+=`<circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="13" fill="#fff" opacity=".22"/><circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="7.5" fill="#fff"/>`;
@@ -325,7 +332,11 @@ function eui(){const m=Math.round((new Date($('ee').value)-new Date($('es').valu
 $('edur').textContent=m>0?'Varighed: '+dur(m):'Sluttid skal være efter starttid';
 document.querySelectorAll('#etype button').forEach(x=>x.classList.toggle('on',(x.dataset.n==='1')===edNap));
 $('edel').textContent=armed?'Tryk igen for at slette':'Slet søvn'}
-function openEdit(x){ed=x;edNap=x.nap;armed=false;$('es').value=loc(x.start);$('ee').value=loc(x.end);$('eerr').textContent='';$('sheet').hidden=false;eui()}
+function openEdit(x){ed=x;edNap=x.nap;armed=false;$('es').value=loc(x.start);$('ee').value=loc(x.end);$('eerr').textContent='';$('sheet').hidden=false;eui();
+const ws=x.wakes||[];$('ewakes').hidden=!ws.length;$('ewakes').innerHTML='Opvågninger'+ws.map(w=>`<div><span>${hm(w.start)} – ${w.end?hm(w.end):'nu'}</span><button data-w="${w.id}">Slet</button></div>`).join('')}
+$('ewakes').onclick=async e=>{const b=e.target.closest('button');if(!b)return;try{await api('/api/wake/'+b.dataset.w,{},'DELETE');
+ed.wakes=ed.wakes.filter(w=>w.id!==+b.dataset.w);openEdit(ed);load()}catch(er){$('eerr').textContent=er.message}};
+$('wakebtn').onclick=async()=>{$('wakebtn').disabled=true;try{await api('/api/wake',{action:wakeOpen()?'stop':'start'})}catch(e){$('err').textContent=e.message}$('wakebtn').disabled=false;load()};
 $('tl').onclick=e=>{const li=e.target.closest('li');if(li&&S)openEdit(S.today[+li.dataset.i])};
 $('es').oninput=$('ee').oninput=()=>{armed=false;eui()};
 document.querySelectorAll('#etype button').forEach(x=>x.onclick=()=>{edNap=x.dataset.n==='1';eui()});
@@ -505,6 +516,14 @@ $('bclr').onclick=async()=>{if(!barm){$('bclr').textContent='Tryk igen for at vi
 clearTimeout(barm);barm=null;$('bclr').textContent='Visk ud';try{bset(await api('/api/board/clear',{by:role()}))}catch(e){$('berr').textContent=e.message}};
 $('logo').onclick=()=>{location.hash='#tavle'};
 addEventListener('resize',()=>{if(bpoll)bsize()});
+// ---------- Opvågninger om natten ----------
+// Minutter vågen i en nat (en åben opvågning tæller til nu)
+const wakeMin=ws=>(ws||[]).reduce((a,w)=>a+Math.max(0,((w.end?new Date(w.end):new Date())-new Date(w.start))/60000),0);
+const wakeOpen=()=>(S.night_wakes||[]).find(w=>!w.end);
+// Buer i ringen for søvnen [a, b] (timer) minus opvågningerne
+function minus(a,b,ws,day){let parts=[[a,b]];for(const w of ws||[]){const wa=new Date(w.start).toDateString()===day?hr(w.start):0,
+wb=w.end?(new Date(w.end).toDateString()===day?hr(w.end):0):hr(new Date());if(wb<=wa)continue;
+parts=parts.flatMap(([x,y])=>wb<=x||wa>=y?[[x,y]]:[[x,Math.min(y,wa)],[Math.max(x,wb),y]].filter(([p,q])=>q>p))}return parts}
 // ---------- Dagsplan: kortet «Næste lur» og listen «Resten af dagen» ----------
 // Interval ud fra hvor meget forudsigelsen har ramt ved siden af de seneste 14 dage (status.accuracy), afrundet til 5 min
 const r5=(ms,up)=>Math[up?'ceil':'floor'](ms/3e5)*3e5;

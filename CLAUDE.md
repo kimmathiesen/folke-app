@@ -28,6 +28,11 @@ forudsigelse af næste lur/sengetid, notifikation via web push (Home Assistant e
 - `prefs.json` (ved siden af state.json) gemmer funktionsvalg og svar på forslag. `suggestions()` i app.py beregnes højst hvert 10. min.
 - Forslag: «Fast føde» ved 6 mdr., «skjul Amning» efter 21 dage uden amning. Intet ændres uden svar (Ja / Ikke nu = 30 dage / Aldrig). Siden «Indstillinger» (`#indstillinger`, knap øverst til venstre) gør alt reversibelt.
 
+## Opvågninger om natten
+- Tabel `night_wake` (migration 3, `end` NULL = vågen nu), knyttet til natten ud fra tidspunktet. `POST /api/wake` `{"action": "start"|"stop"}` mens søvnen kører, `DELETE /api/wake/<id>`.
+- Knappen «Vågnede»/«Sover igen» vises, når den kørende søvn er en nat. Stoppes natten, mens han er vågen, slutter natten ved opvågningen. Sletning af en nat sletter dens opvågninger.
+- `status.today[].wakes` og `status.night_wakes` (den kørende nat). Ringen tegner natten uden opvågningerne, listen viser «Nat · 2 opvågninger · 25 min vågen», og varighed og «Samlet søvn» trækker den vågne tid fra. Forudsigelsen bruger stadig hele natten.
+
 ## Udpumpning
 - Kort på forsiden, side `#pumpning` (graf 14 dage, liste 7 dage, ret/slet). Side og minutter kom til i migration 2.
 - Påmindelse: `pump_reminder()` i app.py, kaldt fra `tick()`. `prefs.pump_remind` timer (0 = fra), én gang pr. udpumpning (`pump_notified` i state.json), ikke mellem 22 og 7.

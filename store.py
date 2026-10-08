@@ -42,8 +42,13 @@ MIGRATIONS = [
     ALTER TABLE pumping ADD COLUMN side TEXT;
     ALTER TABLE pumping ADD COLUMN minutes REAL;
     """,
+    # Opvågninger om natten (end NULL = vågen nu). Hører til natten ud fra tidspunktet.
+    """
+    CREATE TABLE night_wake (id INTEGER PRIMARY KEY, child INTEGER NOT NULL, start TEXT NOT NULL, "end" TEXT);
+    CREATE INDEX night_wake_start ON night_wake (child, start);
+    """,
 ]
-TABLES = ("child", "sleep", "timer", "feeding", "pumping")
+TABLES = ("child", "sleep", "timer", "feeding", "pumping", "night_wake")
 
 
 class Sqlite:
@@ -120,6 +125,26 @@ class Sqlite:
 
     def delete_timer(self, tid):
         self._exec("DELETE FROM timer WHERE id = ?", (tid,))
+
+    def wakes(self, cid, since):
+        return self._rows('SELECT id, start, "end" FROM night_wake WHERE child = ? AND start >= ? ORDER BY start',
+                          (cid, iso(since)))
+
+    def open_wake(self, cid):
+        rows = self._rows('SELECT id, start, "end" FROM night_wake WHERE child = ? AND "end" IS NULL', (cid,))
+        return rows[0] if rows else None
+
+    def add_wake(self, cid, start):
+        self._exec("INSERT INTO night_wake (child, start) VALUES (?, ?)", (cid, iso(start)))
+
+    def end_wake(self, wid, end):
+        self._exec('UPDATE night_wake SET "end" = ? WHERE id = ?', (iso(end), wid))
+
+    def delete_wake(self, wid):
+        self._exec("DELETE FROM night_wake WHERE id = ?", (wid,))
+
+    def delete_wakes_between(self, cid, start, end):
+        self._exec("DELETE FROM night_wake WHERE child = ? AND start >= ? AND start <= ?", (cid, iso(start), iso(end)))
 
     def feedings(self, cid, since):
         return self._rows('SELECT id, start, "end", type, method, amount, notes FROM feeding '

@@ -740,14 +740,21 @@ def push_unsubscribe():
 
 @app.post("/api/push/kinds")
 def push_kinds():
-    """Hent ({endpoint}) eller sæt ({endpoint, kinds: {type: bool}}) beskedtyper for denne enhed."""
+    """Hent ({endpoint}) eller sæt ({endpoint, kinds: {type: bool}, minutes: {lead, overdue}}) beskedtyper
+    og minutter før/efter for denne enhed."""
     d = request.get_json(silent=True) or {}
     try:
         if isinstance(d.get("kinds"), dict):
             push.set_kinds(d.get("endpoint", ""), d["kinds"])
-        return jsonify(ok=True, kinds=push.kinds(d.get("endpoint", "")))
+        if isinstance(d.get("minutes"), dict):
+            push.set_minutes(d.get("endpoint", ""), d["minutes"])
+        e = d.get("endpoint", "")
+        return jsonify(ok=True, kinds=push.kinds(e), minutes=push.minutes(e),
+                       options={"lead": push.LEAD_OPTIONS, "overdue": push.OVERDUE_OPTIONS})
     except KeyError:
         return jsonify(ok=False, error="Enheden er ikke tilmeldt"), 404
+    except ValueError as e:
+        return jsonify(ok=False, error=str(e)), 400
 
 
 @app.post("/api/push/test")

@@ -42,8 +42,8 @@ Selfhostet baby-tracker. Start/stop søvn med ét tryk, få en forudsigelse af n
 | `HA_NOTIFY` | Notify-tjeneste, fx `notify.mobile_app_din_telefon` | |
 | `TZ` | Tidszone | `Europe/Copenhagen` |
 | `CHILD_ID` | Barnets id, hvis der er flere | første barn |
-| `LEAD_MIN` | Minutter før næste søvn, beskeden «Tid til at slappe af» sendes | `30` |
-| `OVERDUE_MIN` | Minutter efter forventet søvn, beskeden «… virker meget frisk» sendes | `15` |
+| `LEAD_MIN` | Minutter før næste søvn, beskeden «Tid til at slappe af» sendes (standard; hver enhed med web push kan vælge sit eget under Indstillinger) | `30` |
+| `OVERDUE_MIN` | Minutter efter forventet søvn, beskeden «… virker meget frisk» sendes (standard, kan vælges pr. enhed) | `15` |
 | `HA_KINDS` | Beskedtyper, Home Assistant får (`sleep_soon`, `overdue`, `pump`) | `sleep_soon,overdue` |
 | `HISTORY_DAYS` | Dage søvnhistorik til forudsigelsen | `10` |
 | `STATE_FILE` | Stien til tilstandsfil (`prefs.json` ligger ved siden af) | `/data/state.json` |

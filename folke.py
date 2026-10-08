@@ -4,6 +4,7 @@
 Henter søvnloggen fra databasen (store.py), beregner næste lur/sengetid og
 - opdaterer sensor.baby_next_sleep i Home Assistant
 - sender en notifikation LEAD_MIN minutter før, og en til, hvis tiden er overskredet med OVERDUE_MIN
+  (Home Assistant; hver enhed med web push kan vælge sine egne minutter)
   (hver kun én gang pr. forudsigelse)
 
 Kun standardbibliotek (Python 3.11+). Kør fx hvert 5. minut.
@@ -378,15 +379,19 @@ def can_notify(kind=None):
     return _ha(kind) or bool(push and push.active(kind))
 
 
+def notify_ha(title, msg):
+    try:
+        path = HA_NOTIFY.replace(".", "/", 1)
+        call(f"{HA_URL}/api/services/{path}", HA_TOKEN, "POST",
+             {"title": title, "message": msg}, scheme="Bearer")
+    except Exception as e:
+        print("notify ha:", e, flush=True)
+
+
 def notify(title, msg, kind=None):
     """Send via alle kanaler, der vil have beskedtypen. En fejl i den ene stopper ikke den anden."""
     if _ha(kind):
-        try:
-            path = HA_NOTIFY.replace(".", "/", 1)
-            call(f"{HA_URL}/api/services/{path}", HA_TOKEN, "POST",
-                 {"title": title, "message": msg}, scheme="Bearer")
-        except Exception as e:
-            print("notify ha:", e, flush=True)
+        notify_ha(title, msg)
     if push and push.active(kind):
         try:
             push.send(title, msg, kind=kind)
@@ -449,12 +454,24 @@ def main():
     if HA_URL:
         ha_update(pred)
 
-    # Notifikationer: LEAD_MIN før ("slap af") og OVERDUE_MIN efter ("virker frisk"),
-    # hver kun én gang pr. forudsigelse, og ikke hvis søvnen allerede er startet
+    # Notifikationer: «slap af» før og «virker frisk» efter, hver kun én gang pr. forudsigelse og kanal,
+    # og ikke hvis søvnen allerede er startet. Home Assistant bruger LEAD_MIN/OVERDUE_MIN; hver enhed med web push
+    # har sine egne minutter (push.json), og det, der er sendt, huskes pr. enhed (state["push_sent"]).
     until = (pred["time"] - now).total_seconds() / 60
-    soon = 0 <= until <= LEAD_MIN
-    late = -120 <= until <= -OVERDUE_MIN  # ikke flere timer efter, fx hvis appen har været nede
-    if not (soon or late) or not can_notify("sleep_soon" if soon else "overdue"):
+
+    def due(lead, overdue):
+        if 0 <= until <= lead:
+            return "sleep_soon"
+        if -120 <= until <= -overdue:  # ikke flere timer efter, fx hvis appen har været nede
+            return "overdue"
+        return None
+
+    ha_kind = due(LEAD_MIN, OVERDUE_MIN)
+    ha_kind = ha_kind if ha_kind and _ha(ha_kind) else None
+    devices = []
+    if push:
+        devices = [(s, k) for s in push.load() for k in [due(*push.timing(s))] if k and push.wants(s, k)]
+    if not ha_kind and not devices:
         return
     try:
         if db.timer(child["id"]):
@@ -462,17 +479,33 @@ def main():
     except Exception:
         pass
     state = load_state()
-    key = "notified" if soon else "overdue"
-    if state.get(key) == pred["last_id"]:
-        return
-    if soon:
-        notify("Søvn", soon_text(pred), kind="sleep_soon")
-    else:
-        name = (display_name and display_name()) or child.get("first_name")
-        notify("Søvn", overdue_text(pred, name), kind="overdue")
-    state[key] = pred["last_id"]
-    save_state(state)
+    name = (display_name and display_name()) or child.get("first_name")
+    text = {"sleep_soon": soon_text(pred), "overdue": overdue_text(pred, name)}
+    old = {"sleep_soon": "notified", "overdue": "overdue"}  # nøglerne fra før minutter pr. enhed
+    changed = False
+    if ha_kind and state.get(old[ha_kind]) != pred["last_id"]:
+        notify_ha("Søvn", text[ha_kind])
+        state[old[ha_kind]] = pred["last_id"]
+        changed = True
+    sent = state.setdefault("push_sent", {})
+    for s, k in devices:
+        dev = sent.setdefault(device_key(s["endpoint"]), {})
+        if dev.get(k, state.get(old[k])) == pred["last_id"]:
+            continue
+        try:
+            push.send("Søvn", text[k], kind=k, endpoints=[s["endpoint"]])
+        except Exception as e:
+            print("notify push:", e, flush=True)
+        dev[k] = pred["last_id"]
+        changed = True
+    if changed:
+        save_state(state)
 
+
+def device_key(endpoint):
+    """Kort, stabil nøgle for en enhed i state.json (selve adressen er lang)."""
+    import hashlib
+    return hashlib.sha1(endpoint.encode()).hexdigest()[:12]
 
 if __name__ == "__main__":
     main()

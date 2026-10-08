@@ -1,4 +1,4 @@
-"""SQLite-lageret: import fra Baby Buddy, eksport, backup, skema og folke.main() uden Baby Buddy."""
+"""SQLite-lageret: skema, tider, eksport, backup og folke.main()."""
 import json
 import os
 import sqlite3
@@ -21,20 +21,6 @@ def now():
 def db(tmp_path, monkeypatch):
     monkeypatch.setattr(store, "_current", [])
     return store.use(store.Sqlite(str(tmp_path / "folke.db")))
-
-
-def seed(fake):
-    t = now()
-    fake.add("sleep", start=(t - timedelta(hours=5)).isoformat(), end=(t - timedelta(hours=4)).isoformat(), nap=True)
-    fake.add("sleep", start=(t - timedelta(hours=2)).isoformat(), end=None, nap=True)  # ufærdig: springes over
-    fake.add("timers", name="Søvn", start=(t - timedelta(minutes=10)).isoformat())
-    fake.add("timers", name="Mad", start=(t - timedelta(minutes=5)).isoformat())
-    fake.add("feedings", start=(t - timedelta(hours=1)).isoformat(), end=(t - timedelta(hours=1)).isoformat(),
-             type="breast milk", method="left breast", amount=None)
-    fake.add("pumping", time=(t - timedelta(hours=3)).isoformat(), amount=80.0)  # ældre Baby Buddy-format
-    fake.add("pumping", start=(t - timedelta(hours=2)).isoformat(), end=(t - timedelta(hours=2)).isoformat(),
-             amount=60.0)
-    return t
 
 
 def test_skema_og_version(db):
@@ -65,44 +51,6 @@ def test_child_birth_fra_env(tmp_path, monkeypatch):
     assert len(s._rows("SELECT * FROM child")) == 1
 
 
-def test_import(db, fake_bb):
-    t = seed(fake_bb)
-    res = db.import_bb()
-    assert res == {"child": "Folke", "sleep": 1, "timer": 1, "feeding": 1, "pumping": 2}
-    c = db.child()
-    assert c["birth_date"] == fake_bb.db["children"][0]["birth_date"]
-    [s] = db.sleeps(c["id"], EPOCH)
-    assert folke.parse(s["end"]) == t - timedelta(hours=4)
-    assert folke.parse(db.timer(c["id"])["start"]) == t - timedelta(minutes=10)
-    assert db.feedings(c["id"], EPOCH)[0]["method"] == "left breast"
-    assert sorted(p["amount"] for p in db.pumpings(c["id"], EPOCH)) == [60.0, 80.0]
-
-
-def test_import_igen_er_spejl_af_baby_buddy(db, fake_bb):
-    seed(fake_bb)
-    db.import_bb()
-    cid = db.child()["id"]
-    db.add_sleep(cid, now() - timedelta(hours=1), now(), True)  # oprettet lokalt
-    assert db.import_bb()["sleep"] == 1
-    assert len(db.sleeps(cid, EPOCH)) == 2  # ingen dubletter
-
-    # Ret og slet i Baby Buddy, og importér igen
-    fake_bb.db["sleep"][0]["nap"] = False
-    fake_bb.db["timers"] = [t for t in fake_bb.db["timers"] if t["name"] != "Søvn"]
-    fake_bb.db["feedings"] = []
-    db.import_bb()
-    sleeps = db.sleeps(cid, EPOCH)
-    assert [s["nap"] for s in sleeps] == [False, True]  # den lokale er urørt
-    assert db.timer(cid) is None
-    assert db.feedings(cid, EPOCH) == []
-
-
-def test_import_uden_barn(db, fake_bb):
-    fake_bb.db["children"] = []
-    with pytest.raises(ValueError):
-        db.import_bb()
-
-
 def test_backup_roterer(db, tmp_path):
     folder = tmp_path / "backup"
     folder.mkdir()
@@ -129,19 +77,13 @@ def app_client(tmp_path, monkeypatch):
     return app_module.app.test_client()
 
 
-def test_import_endpoint(db, fake_bb, app_client):
+def test_eksport(db, app_client):
     assert app_client.get("/api/status").get_json()["setup"] is True  # intet barn endnu
-    seed(fake_bb)
-    r = app_client.post("/api/import")
-    assert r.status_code == 200 and r.get_json()["sleep"] == 1
-    d = app_client.get("/api/status").get_json()
-    assert d["backend"] == "sqlite" and d["can_import"] is True
-    assert d["sleeping"] is True  # den importerede timer
-
-
-def test_eksport(db, fake_bb, app_client):
-    seed(fake_bb)
-    app_client.post("/api/import")
+    assert app_client.post("/api/child", json={"name": "Folke", "birth_date": (now() - timedelta(days=90)).date().isoformat()}).status_code == 200
+    cid = db.child()["id"]
+    db.add_sleep(cid, now() - timedelta(hours=5), now() - timedelta(hours=4), True)
+    db.add_pumping(cid, start=now() - timedelta(hours=3), amount=80.0)
+    db.add_pumping(cid, start=now() - timedelta(hours=2), amount=60.0)
     app_client.post("/api/growth", json={"date": now().date().isoformat(), "w": 6})
     r = app_client.get("/api/export")
     assert "attachment" in r.headers["Content-Disposition"]
@@ -150,14 +92,8 @@ def test_eksport(db, fake_bb, app_client):
     assert d["child"][0]["first_name"] == "Folke"
 
 
-def test_import_og_eksport_kraever_sqlite(fake_bb, app_client, monkeypatch):
-    monkeypatch.setattr(store, "_current", [store.BabyBuddy()])
-    assert app_client.post("/api/import").status_code == 400
-    assert app_client.get("/api/export").status_code == 400
-
-
-# ---------- folke.main() uden Baby Buddy ----------
-def test_main_med_sqlite_opdaterer_valgt_sensor(db, fake_bb, real_main, monkeypatch):
+# ---------- folke.main() ----------
+def test_main_opdaterer_valgt_sensor(db, real_main, monkeypatch):
     db._exec("INSERT INTO child (birth_date) VALUES (?)", ((now() - timedelta(days=100)).date().isoformat(),))
     db.add_sleep(1, now() - timedelta(hours=2), now() - timedelta(hours=1), True)
     sent = []
@@ -165,16 +101,4 @@ def test_main_med_sqlite_opdaterer_valgt_sensor(db, fake_bb, real_main, monkeypa
     monkeypatch.setattr(folke, "HA_SENSOR", "sensor.folke_test")
     monkeypatch.setattr(folke, "call", lambda url, *a, **k: sent.append(url))
     real_main()
-    assert sent == ["http://ha.test/api/states/sensor.folke_test"]  # og intet kald til Baby Buddy
-
-
-def test_tick_importerer_tom_database_en_gang(db, fake_bb, monkeypatch):
-    import app as app_module
-
-    seed(fake_bb)
-    app_module.tick()
-    assert db.child()["first_name"] == "Folke"
-    assert len(db.sleeps(db.child()["id"], EPOCH)) == 1
-    calls = len(fake_bb.calls)
-    app_module.tick()
-    assert len(fake_bb.calls) == calls  # importerer ikke igen af sig selv
+    assert sent == ["http://ha.test/api/states/sensor.folke_test"]

@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
-"""folke.py - simpel selfhostet søvnforudsigelse oven på Baby Buddy.
+"""folke.py - motoren: forudsigelse og dagsplan ud fra søvnloggen.
 
-Henter søvnlog fra Baby Buddy, beregner næste lur/sengetid og
+Henter søvnloggen fra databasen (store.py), beregner næste lur/sengetid og
 - opdaterer sensor.baby_next_sleep i Home Assistant
 - sender en notifikation LEAD_MIN minutter før, og en til, hvis tiden er overskredet med OVERDUE_MIN
   (hver kun én gang pr. forudsigelse)
@@ -15,8 +15,6 @@ import urllib.request
 from datetime import datetime, timedelta, date
 from zoneinfo import ZoneInfo
 
-BB_URL = os.environ.get("BB_URL", "http://localhost:8000").rstrip("/")
-BB_TOKEN = os.environ.get("BB_TOKEN", "")
 HA_URL = os.environ.get("HA_URL", "").rstrip("/")
 HA_TOKEN = os.environ.get("HA_TOKEN", "")
 HA_NOTIFY = os.environ.get("HA_NOTIFY", "")  # fx notify.mobile_app_min_telefon
@@ -43,16 +41,6 @@ def call(url, token, method="GET", body=None, scheme="Token"):
     with urllib.request.urlopen(req, timeout=15) as r:
         raw = r.read()
         return json.loads(raw) if raw else None
-
-
-def bb_all(path):
-    url = f"{BB_URL}/api/{path}"
-    out = []
-    while url:
-        page = call(url, BB_TOKEN)
-        out += page["results"]
-        url = page.get("next")
-    return out
 
 
 # ---------- Forudsigelse ----------

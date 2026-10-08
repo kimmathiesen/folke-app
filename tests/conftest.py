@@ -7,9 +7,6 @@ ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, ROOT)
 
 os.environ.update({
-    "BACKEND": "babybuddy",
-    "BB_URL": "http://bb.test",
-    "BB_TOKEN": "test",
     "HA_URL": "",
     "HA_NOTIFY": "",
     "CHILD_ID": "",
@@ -28,8 +25,6 @@ import store  # noqa: E402
 # app.py starter en baggrundstråd ved import, som kalder folke.main() - ingen netværk i tests
 _real_main = folke.main
 folke.main = lambda: None
-
-from fakebb import FakeBB  # noqa: E402
 
 EPOCH = datetime(2000, 1, 1, tzinfo=timezone.utc)
 
@@ -54,51 +49,16 @@ def real_main():
     return _real_main
 
 
-@pytest.fixture
-def fake_bb(monkeypatch):
-    fake = FakeBB(birth=datetime.now(folke.TZ).date() - timedelta(days=120))
-    monkeypatch.setattr(folke, "call", fake)
-    return fake
-
-
-class BBWorld:
-    """Testdata direkte i den falske Baby Buddy."""
-
-    def __init__(self, fake):
-        self.fake = fake
-        self.store = store.use(store.BabyBuddy())
-        self.cid = 1
-
-    def add_sleep(self, start, end, nap=True):
-        return self.fake.add("sleep", start=start.isoformat(), end=end.isoformat(), nap=nap)["id"]
-
-    def add_timer(self, start):
-        return self.fake.add("timers", name=store.TIMER, start=start.isoformat())["id"]
-
-    def add_feeding(self, start, **f):
-        self.fake.add("feedings", start=start.isoformat(), **f)
-
-    def set_birth(self, d):
-        self.fake.db["children"][0]["birth_date"] = d.isoformat()
-
-    def birth(self):
-        return self.fake.db["children"][0]["birth_date"]
-
-    def timers(self):
-        return self.fake.db["timers"]
-
-    def sleeps(self):
-        return self.fake.db["sleep"]
-
-    def feedings(self):
-        return self.fake.db["feedings"]
-
-    def pumpings(self):
-        return self.fake.db["pumping"]
+@pytest.fixture(autouse=True)
+def no_network(monkeypatch):
+    """Intet går på netværket i tests (Home Assistant m.m.). Tests, der vil se kaldene, sætter selv folke.call."""
+    def call(url, *a, **k):
+        raise AssertionError(f"uventet netværkskald: {url}")
+    monkeypatch.setattr(folke, "call", call)
 
 
 class SqliteWorld:
-    """Testdata i en frisk SQLite-fil. Den falske Baby Buddy er tom og må ikke blive brugt."""
+    """Testdata i en frisk SQLite-fil."""
 
     def __init__(self, path, birth):
         self.store = store.use(store.Sqlite(path))
@@ -136,18 +96,14 @@ class SqliteWorld:
         return self.store.pumpings(self.cid, EPOCH)
 
 
-@pytest.fixture(params=["babybuddy", "sqlite"])
-def world(request, fake_bb, tmp_path, monkeypatch):
+@pytest.fixture
+def world(tmp_path, monkeypatch):
     import app as app_module
 
     monkeypatch.setattr(app_module, "PREFS", str(tmp_path / "prefs.json"))
     monkeypatch.setattr(app_module, "GROWTH", str(tmp_path / "growth.json"))
     app_module._sc.update(t=0, v=[])
-    if request.param == "babybuddy":
-        w = BBWorld(fake_bb)
-    else:
-        fake_bb.db["children"] = []  # SQLite-testene må ikke ramme Baby Buddy
-        w = SqliteWorld(str(tmp_path / "folke.db"), datetime.now(folke.TZ).date() - timedelta(days=120))
+    w = SqliteWorld(str(tmp_path / "folke.db"), datetime.now(folke.TZ).date() - timedelta(days=120))
     yield w
     store._current.clear()
 

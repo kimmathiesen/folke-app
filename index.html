@@ -203,7 +203,7 @@ header{position:relative}
 <div id="premnote" hidden>Påmindelsen sendes kun til enheder, der har slået «Påmindelse om udpumpning» til under notifikationer herunder. Ingen påmindelser mellem 22 og 7.</div>
 <label class="sw">Notifikationer på denne enhed<span id="pushst"></span></label><div class="seg" style="margin-top:10px"><button id="pushbtn" hidden>Slå til</button><button id="pushtest" hidden>Send test</button></div><div id="pushkinds" hidden><div id="pushkh">Send til denne enhed:</div><label class="sw"><span id="klead">Tid til at slappe af</span><input type="checkbox" data-k="sleep_soon"></label><label class="sw"><span id="klate">Hvis lurtiden er gået</span><input type="checkbox" data-k="overdue"></label><label class="sw" id="kpump">Påmindelse om udpumpning<input type="checkbox" data-k="pump"></label></div><div id="pushmsg"></div>
 <label class="sw">Vækstkurver<select id="sx"><option value="boy">Dreng</option><option value="girl">Pige</option></select></label>
-<div id="dsrc" hidden><label class="sw">Data<span>Lokal (SQLite)</span></label><div class="seg" style="margin-top:10px"><button id="imp">Importér fra Baby Buddy</button><button id="exp">Eksportér</button></div><div id="impmsg" class="dl" style="margin-top:8px"></div></div></div>
+<div id="dsrc"><label class="sw">Data<span>På serveren (SQLite)</span></label><div class="seg" style="margin-top:10px"><button id="exp">Eksportér</button></div></div></div>
 </div>
 <div id="v-board" class="ov" hidden>
 <div class="gh"><a href="#">‹ Tilbage</a><div class="dl">Tavlen</div><span></span></div>
@@ -224,7 +224,7 @@ header{position:relative}
 <label>Barnets navn<input type="text" id="oname" maxlength="40" autocomplete="off" placeholder="fx Folke"></label>
 <label id="obirthl" hidden>Fødselsdato<input type="date" id="obirth"></label>
 <label>Jeg er</label><div class="seg" id="orole"><button data-r="mor">Mor</button><button data-r="far">Far</button></div>
-<div id="oerr"></div><button class="go" id="osave">Kom i gang</button><button class="go ghost" id="oimp" hidden>Hent i stedet alt fra Baby Buddy</button></div></div>
+<div id="oerr"></div><button class="go" id="osave">Kom i gang</button></div></div>
 <div id="gsheet" hidden><div class="sh"><div class="dl" id="gtitle">Ny måling</div>
 <label>Dato<input type="date" id="gd"></label>
 <label>Vægt (kg)<input type="text" inputmode="decimal" id="gw" placeholder="fx 6,4"></label>
@@ -260,7 +260,7 @@ const j=await r.json();if(!r.ok)throw new Error(j.error||r.status);return j}
 const isNap=()=>napSel??S.nap_guess;
 // Lur/nat sendes kun, hvis man selv har valgt. Ellers gætter serveren ud fra både start og længde (aftenlur = lur)
 const napBody=()=>napSel===null?{}:{nap:napSel};
-async function load(){try{S=await api('/api/status');$('err').textContent='';if(S.setup||!S.child_name||!role())onb();if(S.setup)return;hello();$('logo').classList.toggle('new',S.board>seen()&&location.hash!=='#tavle');if(document.activeElement!==$('sname'))$('sname').value=S.child_name;$('srole').value=role()||'mor';const F=S.features||{};$('cb').checked=!!F.breast;$('cs').checked=!!F.solids;$('sx').value=S.sex||'boy';$('dsrc').hidden=S.backend!=='sqlite';$('cp').checked=!!F.pump;$('prem').value=String(S.pump_remind||3);$('premrow').hidden=$('premnote').hidden=$('kpump').hidden=!F.pump;$('imp').hidden=!S.can_import;
+async function load(){try{S=await api('/api/status');$('err').textContent='';if(S.setup||!S.child_name||!role())onb();if(S.setup)return;hello();$('logo').classList.toggle('new',S.board>seen()&&location.hash!=='#tavle');if(document.activeElement!==$('sname'))$('sname').value=S.child_name;$('srole').value=role()||'mor';const F=S.features||{};$('cb').checked=!!F.breast;$('cs').checked=!!F.solids;$('sx').value=S.sex||'boy';$('cp').checked=!!F.pump;$('prem').value=String(S.pump_remind||3);$('premrow').hidden=$('premnote').hidden=$('kpump').hidden=!F.pump;
 if(S.sleeping){$('st').value='';$('lb').hidden=true}else{napSel=null;$('wt').value='';$('wb').hidden=true}}
 catch(e){$('err').textContent=e.message}render()}
 function render(){if(!S||S.setup)return;const sl=S.sleeping,p=S.prediction,b=sl?S.since:S.awake_since;let secs=0;
@@ -374,8 +374,6 @@ $('gadd').onclick=()=>gopen(null);$('gcancel').onclick=()=>$('gsheet').hidden=tr
 $('gsave').onclick=async()=>{try{await api('/api/growth'+(gid?'/'+gid:''),{date:$('gd').value,w:$('gw').value,l:$('gl').value,h:$('gx').value});$('gsheet').hidden=true;loadG()}catch(e){$('gerr2').textContent=e.message}};
 $('gdel').onclick=async()=>{if(!garm){garm=true;$('gdel').textContent='Tryk igen for at slette';return}
 try{await api('/api/growth/'+gid,{},'DELETE');$('gsheet').hidden=true;loadG()}catch(e){$('gerr2').textContent=e.message;garm=false}};
-$('imp').onclick=async()=>{if(!confirm('Hent alle data fra Baby Buddy igen? Det, der kommer fra Baby Buddy, bliver opdateret. Det, du har registreret her, bevares.'))return;
-$('imp').disabled=true;try{const r=await api('/api/import',{});$('impmsg').textContent=`Importeret: ${r.sleep} søvn, ${r.feeding} måltider, ${r.pumping} pumpninger`}catch(e){$('impmsg').textContent=e.message}$('imp').disabled=false;load()};
 $('exp').onclick=()=>{location.href='/api/export'};
 $('sx').onchange=()=>api('/api/profile',{sex:$('sx').value}).then(load).catch(e=>$('err').textContent=e.message);
 addEventListener('hashchange',route);
@@ -392,7 +390,7 @@ $('fgo').onclick=()=>{const ml=+$('ml').value;if(!(ml>0)){$('err').textContent='
 // ---------- Udpumpning ----------
 const SIDE={left:'venstre',right:'højre',both:'begge'};let ps=null,P=null,ped=null,peSide=null,parm=false;
 const pdesc=x=>[Math.round(+x.amount)+' ml',x.side&&SIDE[x.side],x.minutes&&Math.round(x.minutes)+' min'].filter(Boolean).join(' · ');
-function pumpUI(){const F=S.features||{},u=S.pump||{},det=S.backend==='sqlite';$('pumpc').hidden=!F.pump;if($('p-pump').hidden!==!F.pump){$('p-pump').hidden=$('npump').hidden=!F.pump;if(!F.pump&&curPage==='p-pump')go('p-sleep',false)}$('pside').hidden=$('pmin').hidden=!det;
+function pumpUI(){const F=S.features||{},u=S.pump||{},det=true;$('pumpc').hidden=!F.pump;if($('p-pump').hidden!==!F.pump){$('p-pump').hidden=$('npump').hidden=!F.pump;if(!F.pump&&curPage==='p-pump')go('p-sleep',false)}$('pside').hidden=$('pmin').hidden=!det;
 const last=u.last?`sidst kl. ${hm(u.last.start)} · for ${ago(u.last.start)} siden`:'';
 $('psum').textContent=u.today_count?`I dag: ${u.today_count} ${u.today_count>1?'gange':'gang'} · ${u.today_ml} ml${last?' · '+last:''}`:(last?'Ingen i dag · '+last:'Ingen udpumpninger endnu');
 document.querySelectorAll('#pside button').forEach(x=>x.classList.toggle('on',x.dataset.s===ps))}
@@ -416,7 +414,7 @@ $('plist').innerHTML=wk.map(x=>`<li data-id="${x.id}"><div><div class="tm">${cap
 $('pnote').textContent='Grafen viser de seneste 14 dage, listen de seneste 7. Gennemsnittet regnes kun af hele dage med udpumpning.'+(P.remind?` Påmindelse efter ${String(P.remind).replace('.5','½')} timer.`:' Påmindelser kan slås til under Indstillinger.')}
 function peui(){document.querySelectorAll('#peside button').forEach(x=>x.classList.toggle('on',x.dataset.s===peSide));$('pedel').textContent=parm?'Tryk igen for at slette':'Slet udpumpning'}
 $('plist').onclick=e=>{const li=e.target.closest('li');if(!li)return;ped=P.items.find(x=>x.id==li.dataset.id);peSide=ped.side;parm=false;
-$('pes').value=loc(ped.start);$('peml').value=Math.round(+ped.amount*10)/10;$('pemin').value=ped.minutes?Math.round(ped.minutes):'';$('pedet').hidden=!P.detail;$('perr2').textContent='';$('psheet').hidden=false;peui()};
+$('pes').value=loc(ped.start);$('peml').value=Math.round(+ped.amount*10)/10;$('pemin').value=ped.minutes?Math.round(ped.minutes):'';$('perr2').textContent='';$('psheet').hidden=false;peui()};
 document.querySelectorAll('#peside button').forEach(x=>x.onclick=()=>{peSide=peSide===x.dataset.s?null:x.dataset.s;peui()});
 $('pecancel').onclick=()=>{$('psheet').hidden=true;ped=null};$('psheet').onclick=e=>{if(e.target.id==='psheet')$('pecancel').onclick()};
 $('pesave').onclick=async()=>{try{await api('/api/pump/'+ped.id,{start:$('pes').value,amount:$('peml').value,side:peSide,minutes:$('pemin').value||null});$('psheet').hidden=true;loadP();load()}catch(e){$('perr2').textContent=e.message}};
@@ -456,7 +454,7 @@ function hello(){const n=S&&S.child_name,r=role();$('hi').textContent=n&&r?`Hej 
 const devName=()=>{const r=role(),d=IPAD?'iPad':IOS?'iPhone':(navigator.userAgentData?.platform||'browser');return r?`${cap(r)}s ${d}`:cap(d)};
 let oRole=null;
 function onb(){if(!$('onb').hidden)return;oRole=role();$('oname').value=(S&&S.child_name)||'';$('obirthl').hidden=!S.setup;
-$('oimp').hidden=!(S.setup&&S.can_import);$('oerr').textContent='';$('onb').hidden=false;orui()}
+$('oerr').textContent='';$('onb').hidden=false;orui()}
 function orui(){document.querySelectorAll('#orole button').forEach(x=>x.classList.toggle('on',x.dataset.r===oRole))}
 document.querySelectorAll('#orole button').forEach(x=>x.onclick=()=>{oRole=x.dataset.r;orui()});
 $('osave').onclick=async()=>{const n=$('oname').value.trim();$('oerr').textContent='';
@@ -466,8 +464,6 @@ if(!oRole){$('oerr').textContent='Vælg, om du er mor eller far';return}
 $('osave').disabled=true;
 try{if(S.setup)await api('/api/child',{name:n,birth_date:$('obirth').value});else if(n!==S.child_name)await api('/api/profile',{name:n});
 setRole(oRole);$('onb').hidden=true;await syncDev();load()}catch(e){$('oerr').textContent=e.message}$('osave').disabled=false};
-$('oimp').onclick=async()=>{$('oimp').disabled=true;$('oerr').textContent='Henter fra Baby Buddy …';
-try{await api('/api/import',{});$('oerr').textContent='';$('onb').hidden=true;await load()}catch(e){$('oerr').textContent=e.message}$('oimp').disabled=false};
 $('sname').onchange=()=>api('/api/profile',{name:$('sname').value}).then(load).catch(e=>{$('err').textContent=e.message;$('sname').value=S.child_name});
 $('srole').onchange=async()=>{setRole($('srole').value);hello();await syncDev()};
 // Giver push-tilmeldingen et navn som «Mors iPhone», så man kan se, hvis enhed det er

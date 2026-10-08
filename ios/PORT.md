@@ -1,12 +1,12 @@
-# Huskeliste: rettelser fra `standalone`, som iPhone-appen også skal have
+# Huskeliste: rettelser fra `main` (webappen), som iPhone-appen også skal have
 
 Arbejdsgang (også i CLAUDE.md):
-- **Den, der retter på `standalone`**, tilføjer et punkt her i samme omgang og opdaterer `ios/PLAN.md`.
-- **Mac-sessionen** starter med `git fetch && git merge origin/standalone`. Den laver de åbne punkter i Swift
+- **Den, der retter på `main`**, tilføjer et punkt her i samme omgang og opdaterer `ios/PLAN.md`.
+- **Mac-sessionen** starter med `git fetch && git merge origin/main`. Den laver de åbne punkter i Swift
   og sætter `[x]` med sin commit, fx `[x] … (ios: 1a2b3c4)`.
 - Rene webting (CSS, iPad-layout i webappen) kommer ikke på listen.
 
-Format: `- [ ] dato · commit på standalone · hvad · hvor i PLAN.md · facit`
+Format: `- [ ] dato · commit på main · hvad · hvor i PLAN.md · facit`
 
 ## Åbne
 

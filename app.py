@@ -2,6 +2,7 @@
 import json, math, os, struct, threading, time, zlib
 from datetime import datetime, timedelta, date
 from flask import Flask, Response, jsonify, request, send_from_directory
+from werkzeug.exceptions import HTTPException
 import folke, push, store, who
 
 app = Flask(__name__)
@@ -16,7 +17,7 @@ def db():
 def get_child():
     c = db().child()
     if not c:
-        raise LookupError("Intet barn. Importér fra Baby Buddy eller sæt CHILD_BIRTH")
+        raise LookupError("Intet barn. Opret barnet ved første opstart eller sæt CHILD_BIRTH")
     return c
 
 
@@ -38,7 +39,7 @@ def status():
     now = datetime.now(TZ)
     c = db().child()
     if not c:  # første opstart uden import: UI'et spørger om navn og fødselsdato
-        return jsonify(setup=True, backend=db().name, can_import=db().name == "sqlite" and bool(folke.BB_TOKEN))
+        return jsonify(setup=True)
     t = sleep_timer(c["id"])
     raw = db().sleeps(c["id"], now - timedelta(days=folke.HISTORY_DAYS))
     sleeps = [{"id": s["id"], "start": folke.parse(s["start"]), "end": folke.parse(s["end"]),
@@ -87,8 +88,6 @@ def status():
         features=prefs()["features"],
         sex=prefs()["sex"],
         suggestions=current_suggestions(c, now, prefs()),
-        backend=db().name,
-        can_import=db().name == "sqlite" and bool(folke.BB_TOKEN),
         today=[{"id": s["id"], "start": s["start"].isoformat(), "end": s["end"].isoformat(), "nap": s["nap"]}
                for s in sorted(sleeps, key=lambda s: s["start"])
                if now.date() in (s["start"].date(), s["end"].date())],
@@ -249,7 +248,7 @@ def pump_history():
     out = [{"date": d.isoformat(), "ml": round(v["ml"]), "count": v["count"]} for d, v in sorted(per.items())]
     full = [x["ml"] for x in out[:-1] if x["count"]]  # i dag er ikke færdig
     return jsonify(days=out, avg_ml=round(sum(full) / len(full)) if full else None,
-                   items=list(reversed(rows)), remind=prefs()["pump_remind"], detail=db().name == "sqlite")
+                   items=list(reversed(rows)), remind=prefs()["pump_remind"])
 
 
 @app.post("/api/pump/remind")
@@ -312,7 +311,7 @@ def prefs():
 
 
 def child_name(c=None):
-    """Navnet fra opsætningen, ellers fra databasen (fx importeret fra Baby Buddy)."""
+    """Navnet fra opsætningen, ellers fra databasen."""
     return prefs()["child_name"] or ((c or db().child() or {}).get("first_name") or "")
 
 
@@ -414,9 +413,7 @@ def profile():
 
 @app.post("/api/child")
 def create_child():
-    """Første opstart i stand-alone uden import: opret barnet ud fra navn og fødselsdato."""
-    if db().name != "sqlite":
-        return jsonify(ok=False, error="Kun i stand-alone"), 400
+    """Første opstart: opret barnet ud fra navn og fødselsdato."""
     if db().child():
         return jsonify(ok=False, error="Barnet findes allerede"), 409
     d = request.get_json(silent=True) or {}
@@ -572,23 +569,10 @@ def feed():
     return jsonify(ok=True)
 
 
-# ---------- Stand-alone: import fra Baby Buddy, eksport ----------
-@app.post("/api/import")
-def import_bb():
-    """Envejs-import fra Baby Buddy til SQLite. Kan køres igen uden dubletter."""
-    if db().name != "sqlite":
-        return jsonify(ok=False, error="Import kræver BACKEND=sqlite"), 400
-    if not folke.BB_TOKEN:
-        return jsonify(ok=False, error="BB_URL og BB_TOKEN mangler"), 400
-    _sc["t"] = 0
-    return jsonify(ok=True, **db().import_bb())
-
-
+# ---------- Eksport ----------
 @app.get("/api/export")
 def export():
-    """Alle data som JSON (kun SQLite). Vækst og indstillinger ligger i growth.json og prefs.json."""
-    if db().name != "sqlite":
-        return jsonify(ok=False, error="Eksport kræver BACKEND=sqlite"), 400
+    """Alle data som JSON. Vækst og indstillinger ligger i growth.json og prefs.json."""
     data = {**db().export(), "growth": load_growth(), "prefs": prefs()}
     name = f"folke-{datetime.now(TZ):%Y-%m-%d}.json"
     return Response(json.dumps(data, ensure_ascii=False, indent=1), mimetype="application/json",
@@ -786,8 +770,10 @@ def index():
 
 @app.errorhandler(Exception)
 def err(e):
+    if isinstance(e, HTTPException):  # fx 404 og 405: behold Flasks statuskode
+        return jsonify(ok=False, error=e.description), e.code
     msg = str(e)
-    if hasattr(e, "read"):  # HTTP-fejl fra Baby Buddy: vis begrundelsen
+    if hasattr(e, "read"):  # HTTP-fejl (fx Home Assistant): vis begrundelsen
         try:
             msg += " " + e.read().decode()[:200]
         except Exception:
@@ -796,13 +782,7 @@ def err(e):
 
 
 def tick():
-    """Ét gennemløb: første import (tom SQLite), HA-sensor og notifikationer, daglig backup."""
-    if db().name == "sqlite":
-        try:
-            if not db().child() and folke.BB_TOKEN:
-                print("import:", db().import_bb(), flush=True)
-        except Exception as e:
-            print("import:", e, flush=True)
+    """Ét gennemløb: HA-sensor og notifikationer, påmindelse om udpumpning, daglig backup."""
     try:
         folke.main()
     except (Exception, SystemExit) as e:
@@ -811,11 +791,10 @@ def tick():
         pump_reminder(datetime.now(TZ))
     except Exception as e:
         print("pump:", e, flush=True)
-    if db().name == "sqlite":
-        try:
-            db().backup(os.path.join(os.path.dirname(db().path), "backup"))
-        except Exception as e:
-            print("backup:", e, flush=True)
+    try:
+        db().backup(os.path.join(os.path.dirname(db().path), "backup"))
+    except Exception as e:
+        print("backup:", e, flush=True)
 
 
 def loop():

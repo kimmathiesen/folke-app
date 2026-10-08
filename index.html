@@ -10,11 +10,24 @@
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
 [hidden]{display:none!important}
 html{background:var(--sky2)}
-body{margin:0;min-height:100vh;color:var(--fg);font:16px/1.35 -apple-system,system-ui,sans-serif;text-align:center;
+html,body{height:100%}
+body{margin:0;height:100vh;height:100dvh;overflow:hidden;color:var(--fg);font:16px/1.35 -apple-system,system-ui,sans-serif;text-align:center;
 background:radial-gradient(120% 55% at 50% 0,var(--glow) 0,transparent 70%),linear-gradient(var(--sky1),var(--sky2));background-attachment:fixed;
-padding:calc(env(safe-area-inset-top) + 14px) 18px calc(env(safe-area-inset-bottom) + 28px)}
-main{max-width:440px;margin:0 auto}
-header svg{width:84px;height:84px}
+padding:calc(env(safe-area-inset-top) + 14px) 0 calc(env(safe-area-inset-bottom) + 8px)}
+/* Forsiden: sider man stryger mellem (Søvn, Mad, Udpumpning, Vækst) som iPhones hjemmeskærm. Indstillinger og tavlen ligger over. */
+main{height:100%;display:flex;flex-direction:column}
+#top{position:relative;width:100%;max-width:476px;margin:0 auto;padding:0 18px;flex:none}
+#pages{flex:1;min-height:0;display:flex;overflow-x:auto;overflow-y:hidden;scroll-snap-type:x mandatory;scrollbar-width:none;overscroll-behavior-x:contain}
+#pages::-webkit-scrollbar{display:none}
+.pg{flex:0 0 100%;min-width:0;scroll-snap-align:start;scroll-snap-stop:always;overflow-y:auto;overscroll-behavior-y:contain;padding:0 18px 20px}
+.in,.ov>*{max-width:440px;margin-left:auto;margin-right:auto}
+.ov{flex:1;min-height:0;overflow-y:auto;padding:0 18px 20px}
+#pnav{flex:none;display:flex;gap:4px;margin:6px auto 0;padding:4px;border-radius:99px;background:var(--card);border:1px solid var(--line)}
+#pnav button{border:0;background:none;color:var(--mut);font-size:13px;padding:7px 12px;border-radius:99px}
+#pnav .on{background:rgba(255,255,255,.12);color:var(--fg);font-weight:600}
+#err{flex:none;margin:6px 18px 0}#err:empty{display:none}
+#fdl{list-style:none;margin:0;padding:0}#fdl li{display:flex;gap:14px;padding:9px 0;border-top:1px solid var(--line);font-size:15px}#fdl li span:last-child{color:var(--mut)}
+#logo{display:block;width:84px;height:84px;margin:0 auto}
 h1{margin:2px 0 4px;font-size:30px;font-weight:600}
 .tag{color:var(--mut);font-size:15px}
 #dial{position:relative;width:min(100%,360px);margin:6px auto 0}
@@ -46,6 +59,7 @@ input[type=time]{width:112px;padding:10px;border-radius:12px;border:1px solid va
 .big{font-size:26px;font-weight:600;margin:2px 0}
 #plan{list-style:none;margin:12px 0 0;padding:10px 0 0;border-top:1px solid var(--line)}#plan li{display:flex;justify-content:space-between;gap:10px;padding:3px 0;font-size:15px}#plan li span{color:var(--mut)}#plan .ph{color:var(--mut);font-size:13px;margin-bottom:2px}
 #err,#eerr,#gerr,#gerr2{color:#ff8b7e;font-size:14px;margin-top:12px}
+.pg h1{margin:2px 0 0}
 .seg{display:flex;gap:8px;margin-top:12px}
 .seg button{flex:1;padding:12px 6px;border-radius:14px;border:1px solid var(--line);background:rgba(255,255,255,.05);color:var(--fg);font-size:16px}
 .seg .on{background:var(--fg);color:#0b1224;border-color:var(--fg)}
@@ -80,9 +94,8 @@ input[type=number]{flex:1;min-width:0;padding:10px 12px;border-radius:12px;borde
 .sw input.tin{width:150px;height:auto;padding:8px 10px;border-radius:10px;border:1px solid var(--line);background:rgba(255,255,255,.06);color:var(--fg);font-size:15px;text-align:right}
 #onb{z-index:20;background:rgba(3,6,16,.82)}#onb .sh{border-radius:24px 24px 0 0}#onb p{color:var(--mut);font-size:15px;margin:6px 0 4px}#orole{margin-top:8px}#oerr{color:#ff9b8f;margin-top:10px;font-size:14px}
 header{position:relative}
-#gobtn,#setbtn{position:absolute;right:0;top:8px;display:flex;align-items:center;gap:6px;padding:8px 14px;border-radius:99px;border:1px solid var(--line);background:var(--card);color:var(--fg);font-size:14px;text-decoration:none}
-#setbtn{left:0;right:auto}
-#gobtn svg,#setbtn svg{width:16px;height:16px;stroke:var(--fg);fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+#setbtn{position:absolute;left:18px;top:8px;display:flex;align-items:center;gap:6px;padding:8px 14px;border-radius:99px;border:1px solid var(--line);background:var(--card);color:var(--fg);font-size:14px;text-decoration:none}
+#setbtn svg{width:16px;height:16px;stroke:var(--fg);fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
 .gh{display:flex;justify-content:space-between;align-items:center;margin:4px 0 14px}.gh a,.gh span{min-width:90px;text-align:left;color:var(--acc);text-decoration:none;font-size:16px}
 #gsvg,#psvg{display:block;width:100%;height:auto}#gsvg text,#psvg text{fill:var(--mut);font-size:11px}#gsum,#psum2{margin-top:8px;font-size:15px}
 #gnote{margin:16px 4px 0;color:var(--mut);font-size:13px;text-align:left}#gadd{margin-top:14px}
@@ -92,23 +105,25 @@ header{position:relative}
 #premnote,#pushmsg,#pushkh{font-size:13px;color:var(--mut);margin-top:6px;text-align:left}#pushst{color:var(--mut);font-size:14px;text-align:right;max-width:60%}
 .sw select{background:rgba(255,255,255,.06);color:var(--fg);border:1px solid var(--line);border-radius:10px;padding:8px 10px;font-size:15px}
 /* iPad på højkant: én bredere kolonne */
-@media (min-width:600px){main{max-width:600px}#dial{width:min(100%,420px)}
+@media (min-width:600px){.in,.ov>*{max-width:600px}#top{max-width:636px}#dial{width:min(100%,420px)}
 #sheet,#gsheet,#psheet,#onb{align-items:center}.sh{border-radius:24px;max-width:480px}}
 /* iPad på langs og pc: ring til venstre (bliver stående), kort til højre */
-@media (min-width:900px){main{max-width:1040px}
+@media (min-width:900px){#p-sleep .in{max-width:1040px}
 #v-main{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);column-gap:40px;align-items:start}
 #v-main>header{grid-column:1/-1}#v-main>#sug{grid-column:1/-1;max-width:600px;margin:16px auto 0;width:100%}
-.colA{position:sticky;top:calc(env(safe-area-inset-top) + 16px)}.colB>.card:first-child{margin-top:6px}
-#v-settings,#v-growth{max-width:640px;margin:0 auto}}
-</style></head><body><main><div id="v-main">
-<header>
-<a href="#indstillinger" id="setbtn" aria-label="Indstillinger"><svg viewBox="0 0 24 24"><path d="M4 6h9M17 6h3M4 12h3M11 12h9M4 18h11M19 18h1"/><circle cx="15" cy="6" r="2"/><circle cx="9" cy="12" r="2"/><circle cx="17" cy="18" r="2"/></svg>Indstillinger</a>
-<a href="#vaekst" id="gobtn"><svg viewBox="0 0 24 24"><path d="M4 19V5M4 19h16M8 15l4-5 3 3 5-6"/></svg>Vækst</a>
+.colA{position:sticky;top:0}.colB>.card:first-child{margin-top:6px}
+#v-settings>*,#p-growth .in{max-width:640px}}
+</style></head><body><main>
+<div id="top"><a href="#indstillinger" id="setbtn" aria-label="Indstillinger"><svg viewBox="0 0 24 24"><path d="M4 6h9M17 6h3M4 12h3M11 12h9M4 18h11M19 18h1"/><circle cx="15" cy="6" r="2"/><circle cx="9" cy="12" r="2"/><circle cx="17" cy="18" r="2"/></svg>Indstillinger</a>
 <svg viewBox="0 0 100 100" id="logo" role="button" aria-label="Tavlen"><path d="M60 14a34 34 0 1 0 25 55A30 30 0 0 1 60 14z" fill="none" stroke="url(#g)" stroke-width="3" stroke-linejoin="round"/>
 <path d="M46 52q3 3 6 0M60 58q3 3 6 0M52 66q3 2 6 0" fill="none" stroke="url(#g)" stroke-width="2.4" stroke-linecap="round"/>
 <path d="M82 14l1.8 4.2L88 20l-4.2 1.8L82 26l-1.8-4.2L76 20l4.2-1.8z" fill="#ffe28a"/>
 <path d="M18 30l1.3 3L22 34.3 19.3 35.6 18 39l-1.3-3.4L14 34.3 16.7 33z" fill="#ffe28a"/>
 <path d="M30 8l1 2.4 2.4 1-2.4 1L30 15l-1-2.6-2.4-1 2.4-1z" fill="#ffe28a"/></svg>
+</div>
+<div id="pages">
+<section class="pg" id="p-sleep"><div class="in" id="v-main">
+<header>
 <h1 id="hi">Baby Søvn</h1><div class="tag">Små drømme, store øjeblikke ♡</div>
 </header>
 <div id="sug" class="card" hidden><div class="t"><span>Forslag</span><b id="sugt" style="display:block"></b></div>
@@ -140,26 +155,47 @@ header{position:relative}
 <div class="seg" id="etype"><button data-n="1">Lur</button><button data-n="0">Nat</button></div>
 <div id="edur"></div><div id="eerr"></div>
 <button class="go" id="esave">Gem ændringer</button><button class="go del" id="edel">Slet søvn</button><button class="go ghost" id="ecancel">Annullér</button></div></div>
+<div id="day" class="card" hidden><div class="dh"><div class="dl"><svg class="ic" viewBox="0 0 24 24"><rect x="4" y="5" width="16" height="15" rx="2"/><path d="M4 10h16M9 3v4M15 3v4"/></svg>Dagens søvn</div><span id="dd"></span></div>
+<ul id="tl"></ul><div class="sum"><span>Samlet søvn</span><b id="tot"></b></div></div>
+</div>
+</div></section>
+<section class="pg" id="p-food"><div class="in"><h1>Mad</h1>
 <div id="feed" class="card"><div class="row"><svg class="ic" viewBox="0 0 24 24"><path d="M10 3h4M10.5 3v3M13.5 3v3M8 8a3 3 0 0 1 3-2h2a3 3 0 0 1 3 2v11a2 2 0 0 1-2 2h-4a2 2 0 0 1-2-2zM8 12h3M8 15h3"/></svg>
-<div class="t"><b>Mad</b><span id="lastfeed">Ingen måltider endnu</span></div></div>
+<div class="t"><b>Nyt måltid</b><span id="lastfeed">Ingen måltider endnu</span></div></div>
 <div class="seg" id="fbtns"><button data-k="breast" id="fbr">Amning</button><button data-k="bottle">Flaske</button><button data-k="solid" id="fsolid" hidden>Fast føde</button></div>
 <div class="inl" id="fwhen" hidden><span>Tidspunkt (valgfrit)</span><input type="time" id="ft"></div>
 <div class="seg" id="fbreast" hidden><button data-s="left">Venstre</button><button data-s="right">Højre</button><button data-s="both">Begge</button></div>
 <div id="fsolidbox" hidden><div class="inl"><input type="text" id="fnote" placeholder="Hvad spiste han? (valgfrit)"><button class="go" id="fsgo">Gem</button></div></div>
 <div id="fbottle" hidden><div class="seg" id="fmilk"><button data-m="breast milk">Modermælk</button><button data-m="formula">Erstatning</button></div>
 <div class="inl"><input type="number" id="ml" inputmode="numeric" min="1" max="500" placeholder="ml"><button class="go" id="fgo">Gem flaske</button></div></div></div>
+<div id="fday" class="card" hidden><div class="dh" style="margin-bottom:4px"><div class="dl">I dag</div><span id="fdayn"></span></div><ul id="fdl"></ul></div>
+</div></section>
+<section class="pg" id="p-pump"><div class="in"><h1>Udpumpning</h1>
 <div id="pumpc" class="card" hidden><div class="row"><svg class="ic" viewBox="0 0 24 24"><path d="M12 3c3 4 6 7.2 6 10.5a6 6 0 0 1-12 0C6 10.2 9 7 12 3z"/><path d="M9.5 14.5a2.5 2.5 0 0 0 2.5 2.5"/></svg>
-<div class="t"><b>Udpumpning</b><span id="psum">Ingen i dag</span></div><a href="#pumpning" class="more">Historik ›</a></div>
+<div class="t"><b>Ny udpumpning</b><span id="psum">Ingen i dag</span></div></div>
 <div class="seg" id="pside" hidden><button data-s="left">Venstre</button><button data-s="right">Højre</button><button data-s="both">Begge</button></div>
 <div class="inl"><input type="number" id="pml" inputmode="decimal" min="1" max="1000" placeholder="ml"><input type="number" id="pmin" inputmode="numeric" min="1" max="180" placeholder="minutter (valgfrit)" hidden></div>
 <div class="inl"><span>Tidspunkt (valgfrit)</span><input type="time" id="pat"></div>
 <button class="go" id="pgo">Gem udpumpning</button></div>
+<div id="v-pump">
+<div class="card"><svg id="psvg" viewBox="0 0 340 200"></svg><div id="psum2"></div></div>
+<ul id="plist" class="card" hidden></ul>
+<div id="pnote"></div><div id="perr"></div>
+</div>
+</div></section>
+<section class="pg" id="p-growth"><div class="in"><h1>Vækst</h1>
+<div id="v-growth">
+<div class="seg" id="gtabs"><button data-k="w">Vægt</button><button data-k="l">Længde</button><button data-k="h">Hoved</button></div>
+<div class="card"><svg id="gsvg" viewBox="0 0 340 262"></svg><div id="gsum"></div></div>
+<button class="go" id="gadd">Tilføj måling</button>
+<ul id="glist" class="card" hidden></ul>
+<div id="gnote"></div><div id="gerr"></div>
+</div>
+</div></section>
+</div>
 <div id="err"></div>
-<div id="day" class="card" hidden><div class="dh"><div class="dl"><svg class="ic" viewBox="0 0 24 24"><rect x="4" y="5" width="16" height="15" rx="2"/><path d="M4 10h16M9 3v4M15 3v4"/></svg>Dagens søvn</div><span id="dd"></span></div>
-<ul id="tl"></ul><div class="sum"><span>Samlet søvn</span><b id="tot"></b></div></div>
-</div>
-</div>
-<div id="v-settings" hidden>
+<nav id="pnav"><button data-p="p-sleep" class="on">Søvn</button><button data-p="p-food">Mad</button><button data-p="p-pump" id="npump">Udpumpning</button><button data-p="p-growth">Vækst</button></nav>
+<div id="v-settings" class="ov" hidden>
 <div class="gh"><a href="#">‹ Tilbage</a><div class="dl">Indstillinger</div><span></span></div>
 <div class="card"><div class="dl">Tilpas</div><label class="sw">Barnets navn<input type="text" id="sname" class="tin" maxlength="40" autocomplete="off"></label><label class="sw">Jeg er<select id="srole"><option value="mor">Mor</option><option value="far">Far</option></select></label><label class="sw">Amning i Mad-kortet<input type="checkbox" id="cb"></label><label class="sw">Fast føde i Mad-kortet<input type="checkbox" id="cs"></label>
 <label class="sw">Udpumpning<input type="checkbox" id="cp"></label>
@@ -169,18 +205,12 @@ header{position:relative}
 <label class="sw">Vækstkurver<select id="sx"><option value="boy">Dreng</option><option value="girl">Pige</option></select></label>
 <div id="dsrc" hidden><label class="sw">Data<span>Lokal (SQLite)</span></label><div class="seg" style="margin-top:10px"><button id="imp">Importér fra Baby Buddy</button><button id="exp">Eksportér</button></div><div id="impmsg" class="dl" style="margin-top:8px"></div></div></div>
 </div>
-<div id="v-board" hidden>
+<div id="v-board" class="ov" hidden>
 <div class="gh"><a href="#">‹ Tilbage</a><div class="dl">Tavlen</div><span></span></div>
 <div id="bframe"><canvas id="bcv" aria-label="Tavle til at tegne på"></canvas></div>
 <div id="bpal"><button class="bdot on" data-c="#f4f1ea" aria-label="Hvid"></button><button class="bdot" data-c="#ff8fa3" aria-label="Lyserød"></button><button class="bdot" data-c="#ffd27a" aria-label="Gul"></button><button class="bdot" data-c="#8fb0ff" aria-label="Blå"></button></div>
 <div class="seg" id="bbtns"><button id="bundo">Fortryd</button><button id="bclr">Visk ud</button></div>
 <div id="binfo"></div><div id="berr"></div>
-</div>
-<div id="v-pump" hidden>
-<div class="gh"><a href="#">‹ Tilbage</a><div class="dl">Udpumpning</div><span></span></div>
-<div class="card"><svg id="psvg" viewBox="0 0 340 200"></svg><div id="psum2"></div></div>
-<ul id="plist" class="card" hidden></ul>
-<div id="pnote"></div><div id="perr"></div>
 </div>
 <div id="psheet" hidden><div class="sh"><div class="dl">Ret udpumpning</div>
 <label>Tidspunkt<input type="datetime-local" id="pes"></label>
@@ -189,14 +219,6 @@ header{position:relative}
 <label>Minutter (valgfrit)<input type="number" inputmode="numeric" id="pemin"></label></div>
 <div id="perr2"></div>
 <button class="go" id="pesave">Gem ændringer</button><button class="go del" id="pedel">Slet udpumpning</button><button class="go ghost" id="pecancel">Annullér</button></div></div>
-<div id="v-growth" hidden>
-<div class="gh"><a href="#">‹ Tilbage</a><div class="dl">Vækst</div><span></span></div>
-<div class="seg" id="gtabs"><button data-k="w">Vægt</button><button data-k="l">Længde</button><button data-k="h">Hoved</button></div>
-<div class="card"><svg id="gsvg" viewBox="0 0 340 262"></svg><div id="gsum"></div></div>
-<button class="go" id="gadd">Tilføj måling</button>
-<ul id="glist" class="card" hidden></ul>
-<div id="gnote"></div><div id="gerr"></div>
-</div>
 <div id="onb" hidden><div class="sh"><div class="dl">Velkommen til Folke-App</div>
 <p>Et par ting, før vi går i gang.</p>
 <label>Barnets navn<input type="text" id="oname" maxlength="40" autocomplete="off" placeholder="fx Folke"></label>
@@ -250,7 +272,7 @@ $('btn').disabled=false;$('btn').className=sl?'stop':'';$('btn').innerHTML=(sl?S
 $('type').hidden=$('wake').hidden=!sl;$('late').hidden=sl;
 document.querySelectorAll('#type button').forEach(x=>x.classList.toggle('on',(x.dataset.n==='1')===isNap()));
 planUI(p,n);
-const lf=S.last_feed;$('lastfeed').textContent=lf?`${FM[lf.method]||lf.method}${lf.amount?' '+Math.round(+lf.amount)+' ml':''} kl. ${hm(lf.time)} · for ${ago(lf.time)} siden`:'Ingen måltider endnu';
+feedDay();const lf=S.last_feed;$('lastfeed').textContent=lf?`${FM[lf.method]||lf.method}${lf.amount?' '+Math.round(+lf.amount)+' ml':''} kl. ${hm(lf.time)} · for ${ago(lf.time)} siden`:'Ingen måltider endnu';
 const F=S.features||{},sg=(S.suggestions||[])[0];$('fbr').hidden=!F.breast;$('fsolid').hidden=!F.solids;$('sug').hidden=!sg;if(sg)$('sugt').textContent=sg.text;
 pumpUI();
 $('day').hidden=!S.today.length;
@@ -315,7 +337,15 @@ try{await api('/api/sleep/'+ed.id,{},'DELETE');$('sheet').hidden=true;ed=null;lo
 let G=null,gk='w',gid=null,garm=false;
 const GL={w:['Vægt','kg'],l:['Længde','cm'],h:['Hoved','cm']},nf=v=>v.toLocaleString('da-DK',{maximumFractionDigits:2}),dc=v=>v==null?'':String(v).replace('.',',');
 const gdate=d=>new Date(d+'T12:00').toLocaleDateString('da-DK',{day:'numeric',month:'short',year:'numeric'});
-function route(){const h=location.hash,g=h==='#vaekst',s=h==='#indstillinger',u=h==='#pumpning',t=h==='#tavle';$('v-main').hidden=g||s||u||t;$('v-growth').hidden=!g;$('v-settings').hidden=!s;$('v-pump').hidden=!u;$('v-board').hidden=!t;if(g||s||u||t)scrollTo(0,0);if(t)bopen();else if(typeof bclose==='function')bclose();if(s)pushUI();if(g)loadG();if(u)loadP()}
+function route(){const h=location.hash,s=h==="#indstillinger",t=h==="#tavle",ov=s||t;$("pages").hidden=$("pnav").hidden=$("top").hidden=ov;$("v-settings").hidden=!s;$("v-board").hidden=!t;if(t)bopen();else if(typeof bclose==="function")bclose();if(s)pushUI();const pg={"#mad":"p-food","#pumpning":"p-pump","#vaekst":"p-growth"}[h];if(pg)go(pg,false)}
+// Sider man stryger mellem: vælgeren i bunden følger med, og Vækst/Udpumpning hentes, når man kommer dertil
+let curPage="p-sleep";const pgs=()=>[...document.querySelectorAll(".pg")].filter(e=>!e.hidden);
+function go(id,smooth=true){const e=$(id);if(!e||e.hidden)return;$("pages").scrollTo({left:e.offsetLeft,behavior:smooth?"smooth":"instant"});seen_(id)}
+function seen_(id){if(id===curPage)return;curPage=id;document.querySelectorAll("#pnav button").forEach(b=>b.classList.toggle("on",b.dataset.p===id));if(id==="p-growth")loadG();if(id==="p-pump")loadP()}
+$("pages").addEventListener("scroll",()=>{const w=$("pages").clientWidth,l=pgs();const i=Math.round($("pages").scrollLeft/w);if(l[i])seen_(l[i].id)},{passive:true});
+document.querySelectorAll("#pnav button").forEach(b=>b.onclick=()=>go(b.dataset.p));
+// Dagens måltider (Mad-siden), nyeste først
+function feedDay(){const L=S.feed_today||[],esc=t=>String(t).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));$('fday').hidden=!L.length;$('fdayn').textContent=L.length===1?'1 måltid':L.length+' måltider';$('fdl').innerHTML=L.map(f=>{const d=[f.type==='solid food'?'Fast føde':(FM[f.method]||f.method)];if(f.amount)d.push(Math.round(+f.amount)+' ml');if(f.method==='bottle'&&f.type==='formula')d.push('erstatning');if(f.notes)d.push(f.notes);return`<li><span class="tm">${hm(f.time)}</span><span>${esc(d.join(' · '))}</span></li>`}).join('')}
 async function loadG(){try{G=await api('/api/growth');$('gerr').textContent=''}catch(e){$('gerr').textContent=e.message}drawG()}
 function drawG(){if(!G)return;
 document.querySelectorAll('#gtabs button').forEach(x=>x.classList.toggle('on',x.dataset.k===gk));
@@ -362,7 +392,7 @@ $('fgo').onclick=()=>{const ml=+$('ml').value;if(!(ml>0)){$('err').textContent='
 // ---------- Udpumpning ----------
 const SIDE={left:'venstre',right:'højre',both:'begge'};let ps=null,P=null,ped=null,peSide=null,parm=false;
 const pdesc=x=>[Math.round(+x.amount)+' ml',x.side&&SIDE[x.side],x.minutes&&Math.round(x.minutes)+' min'].filter(Boolean).join(' · ');
-function pumpUI(){const F=S.features||{},u=S.pump||{},det=S.backend==='sqlite';$('pumpc').hidden=!F.pump;$('pside').hidden=$('pmin').hidden=!det;
+function pumpUI(){const F=S.features||{},u=S.pump||{},det=S.backend==='sqlite';$('pumpc').hidden=!F.pump;if($('p-pump').hidden!==!F.pump){$('p-pump').hidden=$('npump').hidden=!F.pump;if(!F.pump&&curPage==='p-pump')go('p-sleep',false)}$('pside').hidden=$('pmin').hidden=!det;
 const last=u.last?`sidst kl. ${hm(u.last.start)} · for ${ago(u.last.start)} siden`:'';
 $('psum').textContent=u.today_count?`I dag: ${u.today_count} ${u.today_count>1?'gange':'gang'} · ${u.today_ml} ml${last?' · '+last:''}`:(last?'Ingen i dag · '+last:'Ingen udpumpninger endnu');
 document.querySelectorAll('#pside button').forEach(x=>x.classList.toggle('on',x.dataset.s===ps))}

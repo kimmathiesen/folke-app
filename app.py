@@ -59,8 +59,13 @@ def status():
         lf = max(fs, key=lambda f: folke.parse(f["start"]), default=None)
         last_feed = lf and {"time": folke.parse(lf["start"]).isoformat(), "method": lf["method"],
                             "type": lf["type"], "amount": lf.get("amount")}
+        # Dagens måltider til Mad-siden, nyeste først
+        feed_today = [{"time": folke.parse(f["start"]).isoformat(), "method": f["method"], "type": f["type"],
+                       "amount": f.get("amount"), "notes": f.get("notes")}
+                      for f in sorted(fs, key=lambda f: folke.parse(f["start"]), reverse=True)
+                      if folke.parse(f["start"]).astimezone(TZ).date() == now.date()]
     except Exception:
-        last_feed = None
+        last_feed, feed_today = None, []
     return jsonify(
         sleeping=bool(t),
         since=start.isoformat() if start else None,
@@ -69,6 +74,7 @@ def status():
         prediction=pred,
         plan=plan,
         last_feed=last_feed,
+        feed_today=feed_today,
         pump=pump_summary(c["id"], now),
         pump_remind=prefs()["pump_remind"],
         can_notify=folke.can_notify(),

@@ -10,6 +10,7 @@ forudsigelse af næste lur/sengetid, notifikation via Home Assistant.
 - `store.py`: datalag. `store.get()` giver `BabyBuddy` eller `Sqlite` (env `BACKEND`). app.py og `folke.main()` går altid gennem det, aldrig direkte til Baby Buddy. Tider gemmes i SQLite som UTC-tekst (`iso()`), så de kan sammenlignes som tekst. Skemaændringer: tilføj et trin til `MIGRATIONS` (PRAGMA user_version).
 - Stand-alone: envejs-import (`Sqlite.import_bb`, upsert på `bb_id`, spejler Baby Buddy-rækker, lokale rækker har `bb_id` NULL). `tick()` i app.py importerer automatisk ved tom database og tager daglig backup. Branch `standalone` -> image `:standalone`, skabelon `unraid/my-folke-standalone.xml` (port 6661, HA slået fra).
 - `index.html`: enkeltfil-UI (ingen build). Kør gunicorn med 1 worker (tråden).
+- Forsiden er sider, man stryger mellem (`#pages`, vandret scroll-snap): Søvn (standard), Mad (med dagens måltider, `status.feed_today`), Udpumpning (kun med funktionen slået til) og Vækst. Vælgeren i bunden er `#pnav`. `#mad`, `#pumpning` og `#vaekst` ruller til siden; `#indstillinger` og `#tavle` lægger sig over.
 - Konfiguration via env (se `.env.example`). Alle tider håndteres i TZ (Europe/Copenhagen).
 
 ## Uverificeret mod rigtig Baby Buddy (test først!)
@@ -51,7 +52,7 @@ forudsigelse af næste lur/sengetid, notifikation via Home Assistant.
 - Stjernerne ved månen blinker, når `status.board` (version, 0 hvis tom) er nyere end `localStorage` `folke.boardSeen`.
 
 ## Vækst
-- Egen side i index.html (`#vaekst`). Målinger i `growth.json` (ikke Baby Buddy). `who.py` har WHO LMS-tabeller 0-24 mdr. (fra pygrowup) og beregner kurver/percentiler. Køn vælges under Indstillinger (`prefs.json`).
+- Side på forsiden (`#p-growth`, `#vaekst`). Målinger i `growth.json` (ikke Baby Buddy). `who.py` har WHO LMS-tabeller 0-24 mdr. (fra pygrowup) og beregner kurver/percentiler. Køn vælges under Indstillinger (`prefs.json`).
 
 ## Dagsplan og genberegning
 - `plan_day()` i folke.py: lure med hans typiske længde pr. lurnummer, indtil sengetid. Genberegnes ved hver status.

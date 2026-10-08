@@ -161,6 +161,14 @@ def test_feed_med_tidspunkt(client, world):
     assert hm(folke.parse(world.feedings()[0]["start"])) == hm(t)
 
 
+def test_dagens_maaltider_i_status(client, world):
+    client.post("/api/feed", json={"kind": "left", "at": hm(now() - timedelta(minutes=2))})
+    client.post("/api/feed", json={"kind": "bottle", "amount": 90, "milk": "formula", "at": hm(now() - timedelta(minutes=1))})
+    ft = client.get("/api/status").get_json()["feed_today"]
+    assert [f["method"] for f in ft] == ["bottle", "left breast"]  # nyeste først
+    assert ft[0]["type"] == "formula" and ft[0]["amount"] == 90.0
+
+
 # ---------- vækst ----------
 def test_vaekst_gem_og_hent(client, world):
     birth = date.fromisoformat(world.birth())

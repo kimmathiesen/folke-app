@@ -20,6 +20,15 @@ import Foundation
     @NSManaged public var strokes: Set<Stroke>?
 }
 
+/// En opvågning om natten (version 3). `end` nil = vågen nu. Hører til natten ud fra tidspunktet.
+@objc(FKNightWake) public final class NightWake: NSManagedObject {
+    @NSManaged public var id: UUID?
+    @NSManaged public var start: Date?
+    @NSManaged public var end: Date?
+    @NSManaged public var createdBy: String?
+    @NSManaged public var child: Child?
+}
+
 @objc(FKChild) public final class Child: NSManagedObject {
     @NSManaged public var id: UUID?
     @NSManaged public var name: String?
@@ -34,6 +43,7 @@ import Foundation
     @NSManaged public var strokes: Set<Stroke>?
     @NSManaged public var settings: Set<Settings>?
     @NSManaged public var family: Family?
+    @NSManaged public var nightWakes: Set<NightWake>?
 }
 
 @objc(FKSleep) public final class Sleep: NSManagedObject {
@@ -117,12 +127,14 @@ import Foundation
 public enum FolkeModel {
     /// Én fælles instans: flere modeller med de samme klasser giver advarsler fra Core Data.
     nonisolated(unsafe) public static let shared: NSManagedObjectModel = build(version: current)
-    public static let current = 2
+    /// 1: før familien, 2: familien, 3: opvågninger om natten
+    public static let current = 3
 
     /// `version` 1 er modellen før familien (bruges kun til at opgradere gamle databaser). Den bygges uden
     /// klasser, så kun den aktuelle model gør krav på FK-klasserne.
     static func build(version: Int) -> NSManagedObjectModel {
         let v2 = version >= 2
+        let v3 = version >= 3
         func attr(_ name: String, _ type: NSAttributeType, default value: Any? = nil) -> NSAttributeDescription {
             let a = NSAttributeDescription()
             a.name = name
@@ -134,7 +146,7 @@ public enum FolkeModel {
         func entity<T: NSManagedObject>(_ cls: T.Type, _ attrs: [NSAttributeDescription]) -> NSEntityDescription {
             let e = NSEntityDescription()
             e.name = String(describing: cls)
-            e.managedObjectClassName = v2 ? NSStringFromClass(cls) : "NSManagedObject"
+            e.managedObjectClassName = version == current ? NSStringFromClass(cls) : "NSManagedObject"
             e.properties = attrs
             return e
         }
@@ -217,6 +229,13 @@ public enum FolkeModel {
             relate(family, "pumpings", pumping, "family")
             relate(family, "strokes", stroke, "family")
             model.entities.append(family)
+        }
+        if v3 {
+            let wake = entity(NightWake.self, [
+                id(), attr("start", .dateAttributeType), attr("end", .dateAttributeType), attr("createdBy", .stringAttributeType),
+            ])
+            relate(child, "nightWakes", wake, "child")
+            model.entities.append(wake)
         }
         return model
     }

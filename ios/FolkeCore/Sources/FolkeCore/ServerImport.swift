@@ -8,6 +8,7 @@ public struct ServerImportResult: Equatable, Sendable {
     public var feedings = 0
     public var pumpings = 0
     public var growth = 0
+    public var wakes = 0
     public var createdChild = false
     public var runningSleep = false
 
@@ -38,6 +39,7 @@ struct ServerExport: Decodable {
     }
     struct Pumping: Decodable { var id: Int; var start: String; var amount: Double?; var side: String?; var minutes: Double? }
     struct Growth: Decodable { var id: Int; var date: String; var w: Double?; var l: Double?; var h: Double? }
+    struct Wake: Decodable { var id: Int; var start: String; var end: String? }
     struct Prefs: Decodable {
         struct Features: Decodable { var breast: Bool?; var solids: Bool?; var pump: Bool? }
         var features: Features?
@@ -52,6 +54,7 @@ struct ServerExport: Decodable {
     var feeding: [Feeding]?
     var pumping: [Pumping]?
     var growth: [Growth]?
+    var night_wake: [Wake]?
     var prefs: Prefs?
 }
 
@@ -172,6 +175,20 @@ public extension FolkeStore {
             o.lengthCm = g.l ?? 0
             o.headCm = g.h ?? 0
             r.growth += 1
+        }
+
+        // Opvågninger om natten: genkendes på starttidspunktet (de har intet serverID)
+        for w in e.night_wake ?? [] {
+            guard let st = Self.time(w.start) else { continue }
+            let o = fetch(NightWake.self, forChild(NSPredicate(format: "start == %@", st as NSDate)), limit: 1).first ?? {
+                let n = insert(NightWake.self, child: c)
+                n.id = UUID()
+                n.start = st
+                n.child = c
+                return n
+            }()
+            o.end = w.end.flatMap(Self.time)
+            r.wakes += 1
         }
 
         try save()

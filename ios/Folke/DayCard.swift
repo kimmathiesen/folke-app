@@ -10,7 +10,7 @@ struct DayCard: View {
 
     var body: some View {
         let items = model.snapshot.today
-        let mins = items.map { Int(($0.end.timeIntervalSince($0.start) / 60).rounded()) }
+        let mins = items.map { $0.sleptMinutes() }
         VStack(spacing: 0) {
             HStack(spacing: 10) {
                 HStack(spacing: 12) {
@@ -26,7 +26,7 @@ struct DayCard: View {
             VStack(spacing: 10) {
                 ForEach(Array(items.enumerated()), id: \.element.id) { i, x in
                     let napNo = items[...i].filter(\.nap).count
-                    Button { editing = x } label: { row(x, label: x.nap ? "Lur \(napNo)" : "Nat", minutes: mins[i]) }
+                    Button { editing = x } label: { row(x, label: x.nap ? "Lur \(napNo)" : nightLabel(x), minutes: mins[i]) }
                         .buttonStyle(.plain)
                 }
             }
@@ -57,6 +57,13 @@ struct DayCard: View {
         .sheet(item: $editing) { x in
             EditSleepSheet(item: x)
         }
+    }
+
+    /// «Nat · 2 opvågninger · 25 min vågen»
+    func nightLabel(_ x: Snapshot.Item) -> String {
+        guard !x.wakes.isEmpty else { return "Nat" }
+        let n = x.wakes.count, m = Int(x.wakes.reduce(0) { $0 + $1.minutes() }.rounded())
+        return "Nat · \(n) \(n == 1 ? "opvågning" : "opvågninger") · \(Format.duration(minutes: m)) vågen"
     }
 
     func row(_ x: Snapshot.Item, label: String, minutes: Int) -> some View {
@@ -103,6 +110,7 @@ struct EditSleepSheet: View {
     @State private var nap: Bool?
     @State private var armed = false
     @State private var error = ""
+    @State private var wakes: [WakeItem]
     let item: Snapshot.Item
 
     init(item: Snapshot.Item) {
@@ -110,6 +118,7 @@ struct EditSleepSheet: View {
         _start = State(initialValue: item.start)
         _end = State(initialValue: item.end)
         _nap = State(initialValue: item.nap)
+        _wakes = State(initialValue: item.wakes)
     }
 
     var body: some View {
@@ -122,6 +131,24 @@ struct EditSleepSheet: View {
                 Segmented(options: [(true, "Lur"), (false, "Nat")], selection: $nap).padding(.top, 12)
                 Text(m > 0 ? "Varighed: \(Format.duration(minutes: m))" : "Sluttid skal være efter starttid")
                     .font(.system(size: 14)).foregroundStyle(muted).padding(.top, 12)
+                if !wakes.isEmpty {
+                    Text("Opvågninger").font(.system(size: 14)).foregroundStyle(muted).padding(.top, 12)
+                    ForEach(wakes) { w in
+                        HStack {
+                            Text("\(Format.time(w.start)) – \(w.end.map { Format.time($0) } ?? "nu")")
+                                .foregroundStyle(Color.fg)
+                            Spacer()
+                            Button("Slet") {
+                                model.deleteWake(id: w.id)
+                                wakes.removeAll { $0.id == w.id }
+                            }
+                            .foregroundStyle(Color.errorText)
+                        }
+                        .font(.system(size: 15))
+                        .padding(.vertical, 6)
+                        .overlay(alignment: .top) { Rectangle().fill(Color.line).frame(height: 1) }
+                    }
+                }
                 if !error.isEmpty {
                     Text(error).font(.system(size: 14)).foregroundStyle(Color.errorText).padding(.top, 12)
                 }

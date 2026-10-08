@@ -68,16 +68,17 @@ public final class FolkeStore: @unchecked Sendable {
         try ensureFamily()
     }
 
-    /// Version 1 -> 2 (familien). Modellen er bygget i kode, så Core Data kan ikke selv finde den gamle model:
-    /// den gamle bygges her, og flytningen udledes (kun nye felter og relationer). Data rykkes til familien i `ensureFamily`.
+    /// Ældre versioner -> den aktuelle (2: familien, 3: opvågninger). Modellen er bygget i kode, så Core Data kan ikke selv
+    /// finde den gamle model: den gamle bygges her, og flytningen udledes (kun nye felter, poster og relationer).
+    /// Data rykkes til familien i `ensureFamily`.
     static func migrateIfNeeded(_ url: URL) throws {
         guard FileManager.default.fileExists(atPath: url.path) else { return }
         let options: [String: Any] = [NSPersistentHistoryTrackingKey: true]
         let meta = try NSPersistentStoreCoordinator.metadataForPersistentStore(type: .sqlite, at: url, options: options)
         let new = FolkeModel.shared
         if new.isConfiguration(withName: nil, compatibleWithStoreMetadata: meta) { return }
-        let old = FolkeModel.build(version: 1)
-        guard old.isConfiguration(withName: nil, compatibleWithStoreMetadata: meta) else { return }
+        guard let old = (1..<FolkeModel.current).reversed().map({ FolkeModel.build(version: $0) })
+            .first(where: { $0.isConfiguration(withName: nil, compatibleWithStoreMetadata: meta) }) else { return }
         let mapping = try NSMappingModel.inferredMappingModel(forSourceModel: old, destinationModel: new)
         let tmp = url.deletingLastPathComponent().appendingPathComponent("Folke-opgradering.sqlite")
         let psc = NSPersistentStoreCoordinator(managedObjectModel: new)
@@ -264,7 +265,11 @@ public final class FolkeStore: @unchecked Sendable {
     /// Stop den kørende søvn nu eller på et tidligere tidspunkt («Vågnede kl.»).
     public func stopSleep(at end: Date? = nil, nap: Bool? = nil, now: Date = .now) throws {
         guard let s = runningSleep(), let start = s.start else { return }
-        let e = end ?? now
+        var e = end ?? now
+        if let w = openWake() { // vågen om natten og ikke faldet i søvn igen: natten sluttede, da han vågnede
+            if end == nil, let ws = w.start { e = max(ws, start.addingTimeInterval(60)) }
+            context.delete(w)
+        }
         if end != nil {
             try SleepRules.checkWake(e, start: start)
         }

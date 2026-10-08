@@ -14,13 +14,15 @@ import Testing
                  {"id": 3, "bb_id": null, "child": 1, "start": "2026-10-05T11:00:00+00:00", "end": "2026-10-05T11:00:00+00:00", "type": "solid food", "method": "parent fed", "amount": null, "notes": "grød"}],
      "pumping": [{"id": 1, "bb_id": 2, "child": 1, "start": "2026-10-03T15:23:17+00:00", "end": "2026-10-03T15:23:17+00:00", "amount": 40.0, "notes": "", "side": "both", "minutes": 15.0}],
      "growth": [{"id": 1, "date": "2026-09-01", "w": 6.1, "l": 61.0, "h": null}],
+     "night_wake": [{"id": 1, "child": 1, "start": "2026-10-04T23:10:00+00:00", "end": "2026-10-04T23:30:00+00:00"}],
      "prefs": {"features": {"breast": true, "solids": true, "pump": false}, "sug": {}, "sex": "boy", "pump_remind": 2.5, "child_name": ""}}
     """
 
     @Test func foersteImportOpretterBarnOgIndstillinger() throws {
         let s = try FolkeStore(inMemory: true)
         let r = try s.importServerExport(Data(json.utf8))
-        #expect(r == ServerImportResult(sleeps: 2, feedings: 3, pumpings: 1, growth: 1, createdChild: true, runningSleep: true))
+        #expect(r == ServerImportResult(sleeps: 2, feedings: 3, pumpings: 1, growth: 1, wakes: 1, createdChild: true, runningSleep: true))
+        #expect(s.wakes(from: .distantPast).first?.minutes() == 20)
         #expect(s.child()?.name == "Folke" && s.child()?.sex == "boy")
         let set = try #require(s.settings())
         let fam = try #require(s.family())
@@ -43,6 +45,7 @@ import Testing
         #expect(!r.createdChild && !r.runningSleep)
         #expect(s.fetch(Sleep.self).count == 3) // 2 fra serveren + den stoppede timer
         #expect(s.fetch(Feeding.self).count == 3 && s.fetch(Pumping.self).count == 1 && s.fetch(Growth.self).count == 1)
+        #expect(s.fetch(NightWake.self).count == 1) // opvågningen genkendes på starttidspunktet
     }
 
     @Test func eksisterendeBarnBevaresOgAppensDataRoeresIkke() throws {

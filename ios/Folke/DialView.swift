@@ -46,8 +46,7 @@ struct DialView: View {
                     // Kørende søvn pulserer
                     Canvas { ctx, _ in
                         ctx.scaleBy(x: k, y: k)
-                        let a = from(r.start), b = hour(now)
-                        if b > a {
+                        for (a, b) in segments(from(r.start), hour(now), r.wakes) where b > a {
                             ctx.stroke(Self.arc(88, a, b), with: .color(Color(Theme.night)),
                                        style: StrokeStyle(lineWidth: 9, lineCap: .round))
                         }
@@ -83,8 +82,7 @@ struct DialView: View {
 
     func drawDynamic(_ ctx: inout GraphicsContext) {
         for x in snapshot.today {
-            let a = from(x.start), b = hour(x.end)
-            if b > a {
+            for (a, b) in segments(from(x.start), hour(x.end), x.wakes) where b > a {
                 ctx.stroke(Self.arc(88, a, b), with: .color(Color(x.nap ? Theme.nap : Theme.night)),
                            style: StrokeStyle(lineWidth: 9, lineCap: .round))
             }
@@ -131,8 +129,25 @@ struct DialView: View {
         }
     }
 
+    /// En opvågning om natten, han ikke er faldet i søvn igen efter
+    var openWake: WakeItem? { snapshot.running?.wakes.first { $0.end == nil } }
+
+    /// Buer for søvnen [a, b] (timer) minus opvågningerne
+    func segments(_ a: Double, _ b: Double, _ wakes: [WakeItem]) -> [(Double, Double)] {
+        var parts = [(a, b)]
+        for w in wakes {
+            let wa = from(w.start), wb = w.end.map { calendar.isDate($0, inSameDayAs: now) ? hour($0) : 0 } ?? hour(now)
+            guard wb > wa else { continue }
+            parts = parts.flatMap { x, y -> [(Double, Double)] in
+                wb <= x || wa >= y ? [(x, y)] : [(x, min(y, wa)), (max(x, wb), y)].filter { $0.1 > $0.0 }
+            }
+        }
+        return parts
+    }
+
     /// Øverst i midten: hvornår han faldt i søvn, eller næste lur/sengetid (som `#nowt` i index.html).
     var headline: String {
+        if let w = openWake { return "Vågen siden kl. \(Format.time(w.start, calendar: calendar))" }
         if let r = snapshot.running { return "Faldt i søvn kl. \(Format.time(r.start, calendar: calendar))" }
         guard let n = snapshot.next(at: now) else { return "" }
         if n.now { return "Næste lur: nu" }
@@ -141,14 +156,15 @@ struct DialView: View {
 
     /// I midten: næste lur/sengetid, tæller og tilstand.
     func middle(_ k: Double) -> some View {
-        let since = snapshot.running?.start ?? snapshot.awakeSince
+        let since = openWake?.start ?? snapshot.running?.start ?? snapshot.awakeSince // vågen om natten: tæl fra opvågningen
         return VStack(spacing: 2) {
             Text(headline).font(.system(size: 14)).foregroundStyle(muted)
             Text(since.map { Format.counter(seconds: Int(now.timeIntervalSince($0))) } ?? "--")
                 .font(.system(size: min(34, 30 * k), weight: .light))
                 .monospacedDigit()
                 .foregroundStyle(Color.fg)
-            Text(snapshot.running != nil ? "Sover" : "Vågen").font(.system(size: 14)).foregroundStyle(muted)
+            Text(openWake != nil ? "Vågen om natten" : snapshot.running != nil ? "Sover" : "Vågen")
+                .font(.system(size: 14)).foregroundStyle(muted)
         }
         .position(x: Self.center.x * k, y: Self.center.y * k)
     }

@@ -57,10 +57,17 @@ public extension FolkeStore {
         func name(_ c: Child?) -> String { c?.name ?? "" }
 
         let sleeps = fetch(Sleep.self, kids, sort: [NSSortDescriptor(key: "start", ascending: true)])
+        let allWakes = fetch(NightWake.self, NSPredicate(format: "child.family == %@", family() ?? NSNull()))
         let sleepRows = sleeps.map { s in
-            [name(s.child), stamp(s.start), stamp(s.end),
-             s.start.flatMap { a in s.end.map { String(Int($0.timeIntervalSince(a) / 60)) } } ?? "",
-             s.nap ? "Lur" : "Nat"]
+            // Opvågninger i natten: antal og minutter vågen
+            let ws = s.nap ? [] : allWakes.filter { w in
+                w.child == s.child && (w.start.map { st in s.start.map { st >= $0 } ?? false } ?? false)
+                    && (w.start.map { st in s.end.map { st <= $0 } ?? true } ?? false)
+            }
+            let awake = ws.reduce(0.0) { $0 + max(0, (($1.end ?? s.end ?? now).timeIntervalSince($1.start ?? now)) / 60) }
+            return [name(s.child), stamp(s.start), stamp(s.end),
+                    s.start.flatMap { a in s.end.map { String(Int($0.timeIntervalSince(a) / 60)) } } ?? "",
+                    s.nap ? "Lur" : "Nat", ws.isEmpty ? "" : String(ws.count), ws.isEmpty ? "" : String(Int(awake.rounded()))]
         }
 
         let feeds = fetch(Feeding.self, kids, sort: [NSSortDescriptor(key: "time", ascending: true)])
@@ -80,7 +87,7 @@ public extension FolkeStore {
 
         return [
             CSVFile(name: "folke-soevn-\(today).csv",
-                    text: CSV.table(["Barn", "Start", "Slut", "Minutter", "Type"], sleepRows), rows: sleepRows.count),
+                    text: CSV.table(["Barn", "Start", "Slut", "Minutter", "Type", "Opvågninger", "Vågen (min)"], sleepRows), rows: sleepRows.count),
             CSVFile(name: "folke-mad-\(today).csv",
                     text: CSV.table(["Barn", "Tidspunkt", "Type", "Mængde (ml)", "Mælk", "Note"], feedRows), rows: feedRows.count),
             CSVFile(name: "folke-udpumpning-\(today).csv",

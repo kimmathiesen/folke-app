@@ -12,6 +12,13 @@ struct Snapshot {
         var start: Date
         var end: Date
         var nap: Bool
+        /// Opvågninger om natten
+        var wakes: [WakeItem] = []
+
+        /// Minutter sovet (uden opvågningerne)
+        func sleptMinutes(now: Date = .now) -> Int {
+            Int((end.timeIntervalSince(start) / 60 - wakes.reduce(0) { $0 + $1.minutes(now: now) }).rounded())
+        }
     }
 
     var childName = ""
@@ -174,7 +181,7 @@ final class AppModel {
         s.hasChild = child != nil
         s.childName = child?.name ?? ""
         if let r = store.runningSleep(), let id = r.id, let start = r.start {
-            s.running = .init(id: id, start: start, end: now, nap: r.nap)
+            s.running = .init(id: id, start: start, end: now, nap: r.nap, wakes: store.wakes(from: start))
         } else {
             napSelection = nil
         }
@@ -192,7 +199,7 @@ final class AppModel {
         s.plan = s.plus.unlocked ? store.dayPlan(now: now) : nil
         s.today = store.todaySleeps(now: now).compactMap { x in
             guard let id = x.id, let start = x.start, let end = x.end else { return nil }
-            return .init(id: id, start: start, end: end, nap: x.nap)
+            return .init(id: id, start: start, end: end, nap: x.nap, wakes: x.nap ? [] : store.wakes(from: start, to: end))
         }
         if let set = store.settings() {
             s.featureBreast = set.featureBreast
@@ -329,7 +336,18 @@ final class AppModel {
 
     func deleteSleep(id: UUID) {
         guard let s = store.sleep(id: id) else { return }
-        perform { try store.delete(s) }
+        perform { try store.deleteSleep(s) }
+    }
+
+    /// «Vågnede» / «Sover igen» om natten
+    func toggleWake() {
+        perform {
+            if store.openWake() != nil { try store.stopWake() } else { try store.startWake(by: role) }
+        }
+    }
+
+    func deleteWake(id: UUID) {
+        perform { try store.deleteWake(id: id) }
     }
 
     @discardableResult

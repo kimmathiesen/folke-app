@@ -111,4 +111,30 @@ import Testing
         try s.stopSleep(nap: false, now: at(d, 6, 30))
         #expect(!s.suggestions(now: at(d, 12, 0)).contains { $0.id == .hidePrediction })
     }
+
+    @Test func opgraderingFraVersion2BevarerFamilien() throws {
+        let dir = FileManager.default.temporaryDirectory.appending(path: "folke-v2-\(UUID().uuidString)")
+        try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: dir) }
+        let old = NSPersistentContainer(name: "Folke", managedObjectModel: FolkeModel.build(version: 2))
+        let desc = NSPersistentStoreDescription(url: dir.appending(path: "Folke.sqlite"))
+        desc.setOption(true as NSNumber, forKey: NSPersistentHistoryTrackingKey)
+        old.persistentStoreDescriptions = [desc]
+        var loadError: Error?
+        old.loadPersistentStores { _, e in loadError = e }
+        try #require(loadError == nil)
+        let ctx = old.viewContext
+        let fam = NSEntityDescription.insertNewObject(forEntityName: "Family", into: ctx)
+        fam.setValue(UUID(), forKey: "id")
+        fam.setValue(d, forKey: "createdAt")
+        let c = NSEntityDescription.insertNewObject(forEntityName: "Child", into: ctx)
+        for (k, v) in ["id": UUID(), "name": "Folke", "birthDate": day(2026, 2, 1), "createdAt": d] as [String: Any] { c.setValue(v, forKey: k) }
+        c.setValue(fam, forKey: "family")
+        try ctx.save()
+        for st in old.persistentStoreCoordinator.persistentStores { try old.persistentStoreCoordinator.remove(st) }
+
+        let s = try FolkeStore(directory: dir)
+        #expect(s.fetch(Family.self).count == 1 && s.child()?.family == s.family())
+        #expect(s.wakes(from: .distantPast).isEmpty)
+    }
 }

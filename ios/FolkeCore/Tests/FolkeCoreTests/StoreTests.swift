@@ -25,7 +25,7 @@ import Testing
             }
         }
         #expect(Set(FolkeModel.shared.entities.compactMap(\.name)) ==
-                ["Family", "Child", "Sleep", "Feeding", "Pumping", "Growth", "Stroke", "Settings"])
+                ["Family", "Child", "Sleep", "Feeding", "Pumping", "Growth", "Stroke", "Settings", "NightWake"])
     }
 
     @Test func barnOgIndstillinger() throws {

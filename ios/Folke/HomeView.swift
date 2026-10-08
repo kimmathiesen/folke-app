@@ -182,10 +182,23 @@ struct SleepPage: View {
                 .padding(.top, 6)
             legend
             sleepButton
-            if model.snapshot.running != nil {
+            if let r = model.snapshot.running {
                 Segmented(options: [(true, "Lur"), (false, "Nat")], selection: Binding(
                     get: { model.isNap }, set: { model.napSelection = $0 }), pill: true)
                     .padding(.top, 16)
+                if !model.isNap {
+                    // Opvågning om natten
+                    let awake = r.wakes.contains { $0.end == nil }
+                    Button { model.toggleWake() } label: {
+                        Label(awake ? "Sover igen" : "Vågnede", systemImage: awake ? "moon.zzz" : "eye")
+                            .font(.system(size: 15)).foregroundStyle(Color.fg)
+                            .padding(.vertical, 9).padding(.horizontal, 20)
+                            .background(Color.card, in: Capsule())
+                            .overlay(Capsule().strokeBorder(Color.line))
+                    }
+                    .buttonStyle(.plain)
+                    .padding(.top, 12)
+                }
             }
             if !model.snapshot.twins.isEmpty { TwinRow(now: now).padding(.top, 14) }
         }

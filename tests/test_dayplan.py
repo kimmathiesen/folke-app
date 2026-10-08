@@ -185,6 +185,27 @@ def test_efter_aftenluren_er_sengetid_hans_tid_vaagen_bagefter():
     assert times(p) == [("sengetid", "21:15", None)]  # 19:45 + 90 min
 
 
+def test_kort_aftenlur_er_aftenluren_og_sengetid_foelger():
+    """Folke 8/10: to korte lure (16:32 og 18:06). Den sidste er aftenluren, selvom den kun varede 20 min."""
+    day = date(2026, 6, 11)
+    sleeps = catnap_history() + [{"id": 900 + i, "start": at(day, a), "end": at(day, b), "nap": True} for i, (a, b) in
+                                 enumerate([((9, 0), (10, 0)), ((12, 30), (14, 0)), ((16, 32), (16, 53)), ((18, 6), (18, 26))])]
+    p = plan_day(sleeps, BIRTH, at(day, (18, 35)))
+    assert times(p) == [("sengetid", "19:33", None)]  # 18:26 + 75 % af 90 min, ingen lur mere
+    assert p["after_catnap"] and p["bed_shift"] == 0 and p["short"] is None
+    assert predict(sleeps, BIRTH, at(day, (18, 35)))["window_min"] == 68
+
+
+def test_tidlig_aftenlur_giver_tidligere_sengetid():
+    """En hel aftenlur, der slutter tidligt: sengetiden følger hans tid vågen efter den, ikke det faste klokkeslæt."""
+    day = date(2026, 6, 11)
+    sleeps = catnap_history() + [{"id": 900 + i, "start": at(day, a), "end": at(day, b), "nap": True} for i, (a, b) in
+                                 enumerate([((9, 0), (10, 0)), ((12, 30), (14, 0)), ((16, 0), (17, 0)), ((17, 40), (18, 25))])]
+    assert times(plan_day(sleeps, BIRTH, at(day, (18, 30)))) == [("sengetid", "19:55", None)]
+    # Er tiden gået, er det sengetid nu (ikke en ny lur)
+    assert times(plan_day(sleeps, BIRTH, at(day, (20, 10)))) == [("sengetid", "20:10", None)]
+
+
 def test_uden_aftenlur_gaelder_den_gamle_noedloesning():
     # Syntetisk historik uden aftenlur: misset sidste lur giver stadig tidligere sengetid
     m = _Model(history(), 130)

@@ -506,11 +506,15 @@ clearTimeout(barm);barm=null;$('bclr').textContent='Visk ud';try{bset(await api(
 $('logo').onclick=()=>{location.hash='#tavle'};
 addEventListener('resize',()=>{if(bpoll)bsize()});
 // ---------- Dagsplan: kortet «Næste lur» og listen «Resten af dagen» ----------
+// Interval ud fra hvor meget forudsigelsen har ramt ved siden af de seneste 14 dage (status.accuracy), afrundet til 5 min
+const r5=(ms,up)=>Math[up?'ceil':'floor'](ms/3e5)*3e5;
+const span=t=>{const A=S.accuracy,i=A&&A.interval||[-20,20],x=new Date(t).getTime();return`kl. ${hm(r5(x+i[0]*6e4))}–${hm(r5(x+i[1]*6e4,1))}`};
+const hit=()=>{const A=S.accuracy;return A&&A.n>=8?` · typisk ±${Math.round(A.median_abs)} min`:''};
 function planUI(p,n){const P=S.plan;let k='',big='',sub='';
 if(P&&P.wake){k='Forventet vågen';big='ca. kl. '+hm(P.wake);sub='Ud fra hvor længe hans lure plejer at vare'}
 else if(n&&n.now){k='Næste lur';big='Nu';sub=`Luren kl. ${hm(P.missed_at)} blev ikke til noget. Prøv at putte nu, så er resten af dagen flyttet.`}
-else if(n&&P.missed_at&&n.kind==='sengetid'){k='Sengetid';big='ca. kl. '+hm(n.time);sub=`Luren kl. ${hm(P.missed_at)} blev ikke til noget, så sengetid er rykket ${P.bed_shift} min frem.`}
-else if(p){k=p.kind==='lur'?'Næste lur':'Sengetid';big='ca. kl. '+hm(n?n.time:p.time);sub=why(p)}
+else if(n&&P.missed_at&&n.kind==='sengetid'){k='Sengetid';big=span(n.time);sub=`Luren kl. ${hm(P.missed_at)} blev ikke til noget, så sengetid er rykket ${P.bed_shift} min frem.`}
+else if(p){k=p.kind==='lur'?'Næste lur':'Sengetid';big=span(n?n.time:p.time);sub=why(p)+hit()}
 $('pred').hidden=!k;if(!k)return;$('pk').textContent=k;$('pt').textContent=big;$('sub').textContent=sub;
 const rest=P?P.items.filter((x,i)=>P.wake||i>0):[];$('plan').hidden=!rest.length;
 $('plan').innerHTML=rest.length?'<li class="ph">Resten af dagen</li>'+rest.map(x=>x.kind==='lur'

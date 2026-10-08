@@ -228,3 +228,15 @@ def test_feature_og_profil(client):
 def test_ukendt_adresse_giver_404(client, world):
     assert client.post("/api/import").status_code == 404  # fjernet sammen med Baby Buddy
     assert client.get("/api/start").status_code == 405
+
+
+def test_status_giver_traefsikkerhed_og_interval(client, world):
+    from evaluate import backtest, interval, summary
+    assert interval([]) == (-20, 20)  # for lidt data: ±20 min
+    assert interval([-30, -12, -5, 0, 3, 8, 15, 40]) == (-10, 13)
+    a = client.get("/api/status").get_json()["accuracy"]
+    assert a["n"] == 0 and a["interval"] == [-20, 20]
+    assert summary([{"error": -10, "actual": "lur", "predicted": "lur"},
+                    {"error": 20, "actual": "sengetid", "predicted": "lur"}]) == {
+        "n": 2, "mean_abs": 15.0, "median_abs": 15.0, "within_15": 0.5, "within_30": 1.0, "bias": 5.0, "wrong_kind": 1}
+    assert backtest([], None) == []

@@ -108,11 +108,25 @@ struct SettingsView: View {
         case .allowed:
             ActionRow(options: [("Send test", { n.sendTest() })]).padding(.top, 10)
             note("Send til denne enhed:")
-            toggle("Tid til at slappe af (\(NotificationPlanner.leadMin) min før)", n.enabled.contains(.sleepSoon)) {
+            toggle("Tid til at slappe af", n.enabled.contains(.sleepSoon)) {
                 model.setNotification(.sleepSoon, $0)
             }
-            toggle("Hvis lurtiden er gået (\(NotificationPlanner.overdueMin) min efter)", n.enabled.contains(.overdue)) {
+            if n.enabled.contains(.sleepSoon) {
+                row("Hvornår") {
+                    menu(n.leadMin, NotificationPlanner.leadOptions.map { ($0, "\($0) min før") }) {
+                        model.setNotificationMinutes(lead: $0)
+                    }
+                }
+            }
+            toggle("Hvis lurtiden er gået", n.enabled.contains(.overdue)) {
                 model.setNotification(.overdue, $0)
+            }
+            if n.enabled.contains(.overdue) {
+                row("Hvornår") {
+                    menu(n.overdueMin, NotificationPlanner.overdueOptions.map { ($0, "\($0) min efter") }) {
+                        model.setNotificationMinutes(overdue: $0)
+                    }
+                }
             }
             if model.snapshot.featurePump {
                 toggle("Påmindelse om udpumpning", n.enabled.contains(.pump)) { model.setNotification(.pump, $0) }

@@ -141,4 +141,13 @@ import Testing
         #expect(a.notifications.map(\.id) == ["sleep_soon.A"] && b.notifications.map(\.id) == ["sleep_soon.B"])
         #expect(b.notifications[0].title == "Ida" && b.log.entries.count == 2)
     }
+
+    @Test func egneMinutterFoerOgEfter() {
+        var i = input(at(d, 12, 0), pred(at: 13, 40))
+        i.leadMin = 20
+        i.overdueMin = 30
+        let (n, _) = planner.plan(i, log: .init())
+        #expect(n.first { $0.kind == .sleepSoon }?.fireDate == at(d, 13, 20))
+        #expect(n.first { $0.kind == .overdue }?.fireDate == at(d, 14, 10))
+    }
 }

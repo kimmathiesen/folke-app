@@ -65,6 +65,27 @@ final class Notifier: NSObject, UNUserNotificationCenterDelegate {
             .compactMap(NotificationKind.init(rawValue:)).reduce(into: Set()) { $0.insert($1) } ?? NotificationKind.defaultsOn
     }
 
+    /// Minutter før næste søvn («Tid til at slappe af») og efter («… virker meget frisk»), valgt på denne enhed.
+    static var leadMin: Int {
+        get { defaults.object(forKey: "folke.leadMin") as? Int ?? NotificationPlanner.leadMin }
+        set { defaults.set(newValue, forKey: "folke.leadMin") }
+    }
+
+    static var overdueMin: Int {
+        get { defaults.object(forKey: "folke.overdueMin") as? Int ?? NotificationPlanner.overdueMin }
+        set { defaults.set(newValue, forKey: "folke.overdueMin") }
+    }
+
+    /// Til Indstillinger (observeres, så valget vises med det samme)
+    private(set) var leadMin = Notifier.leadMin
+    private(set) var overdueMin = Notifier.overdueMin
+
+    func setMinutes(lead: Int? = nil, overdue: Int? = nil) {
+        if let lead { Self.leadMin = lead; leadMin = lead }
+        if let overdue { Self.overdueMin = overdue; overdueMin = overdue }
+        lastPlan = nil
+    }
+
     static var log: NotificationLog {
         get {
             defaults.data(forKey: "folke.notificationLog")
@@ -109,7 +130,7 @@ final class Notifier: NSObject, UNUserNotificationCenterDelegate {
             let input = NotificationPlanner.Input(
                 now: now, prediction: plus ? store.prediction(now: now) : store.basicPrediction(now: now),
                 sleeping: store.runningSleep() != nil, childName: c.name ?? "", enabled: enabled.subtracting([.pump]),
-                scope: scope, title: many ? (c.name ?? "Søvn") : "Søvn")
+                scope: scope, title: many ? (c.name ?? "Søvn") : "Søvn", leadMin: leadMin, overdueMin: overdueMin)
             let r = planner.plan(input, log: log)
             out += r.notifications
             log = r.log

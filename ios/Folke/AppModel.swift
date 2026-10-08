@@ -417,6 +417,11 @@ final class AppModel {
         return ok
     }
 
+    func setNotificationMinutes(lead: Int? = nil, overdue: Int? = nil) {
+        notifier.setMinutes(lead: lead, overdue: overdue)
+        refresh()
+    }
+
     func setNotification(_ kind: NotificationKind, _ on: Bool) {
         notifier.setEnabled(kind, on)
         refresh()

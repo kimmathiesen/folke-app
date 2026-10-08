@@ -12,7 +12,7 @@ enum BackgroundRefresh {
     @MainActor static func schedule(now: Date = .now) {
         var earliest = now.addingTimeInterval(30 * 60)
         if let p = FolkeShared.store.prediction(now: now) {
-            let soon = p.time.addingTimeInterval(-Double(NotificationPlanner.leadMin + 10) * 60)
+            let soon = p.time.addingTimeInterval(-Double(Notifier.leadMin + 10) * 60)
             if soon > now.addingTimeInterval(5 * 60) { earliest = min(earliest, soon) }
         }
         let r = BGAppRefreshTaskRequest(identifier: id)

@@ -40,8 +40,12 @@ public struct NotificationLog: Codable, Equatable, Sendable {
 
 /// Regler for lokale notifikationer (port af `folke.main` og `pump_reminder` i app.py).
 public struct NotificationPlanner: Sendable {
+    /// Standard: «Tid til at slappe af» 30 min før og «… virker meget frisk» 15 min efter. Kan ændres pr. enhed.
     public static let leadMin = 30
     public static let overdueMin = 15
+    /// Valgmulighederne under Indstillinger
+    public static let leadOptions = [10, 15, 20, 30, 45, 60]
+    public static let overdueOptions = [5, 10, 15, 20, 30, 45]
     /// `overdue` sendes ikke mere end 2 timer for sent.
     public static let overdueMaxMin = 120
     /// Ingen påmindelser om udpumpning mellem 22 og 7.
@@ -60,10 +64,16 @@ public struct NotificationPlanner: Sendable {
         /// Ved flere børn: barnets id (adskiller beskeder og log pr. barn), og titlen bliver barnets navn
         public var scope: String
         public var title: String
+        /// Minutter før næste søvn og efter (valgt på enheden)
+        public var leadMin: Int
+        public var overdueMin: Int
 
         public init(now: Date, prediction: Prediction?, sleeping: Bool, childName: String,
                     enabled: Set<NotificationKind>, pumpFeature: Bool = false, pumpRemindHours: Double = 3,
-                    lastPump: (id: UUID, time: Date)? = nil, scope: String = "", title: String = "Søvn") {
+                    lastPump: (id: UUID, time: Date)? = nil, scope: String = "", title: String = "Søvn",
+                    leadMin: Int = NotificationPlanner.leadMin, overdueMin: Int = NotificationPlanner.overdueMin) {
+            self.leadMin = leadMin
+            self.overdueMin = overdueMin
             self.scope = scope
             self.title = title
             self.now = now
@@ -105,9 +115,9 @@ public struct NotificationPlanner: Sendable {
 
         if let p = input.prediction, !input.sleeping {
             let key = p.lastID.uuidString
-            add(.sleepSoon, key: key, at: p.time.addingTimeInterval(-Double(Self.leadMin) * 60), latest: p.time,
+            add(.sleepSoon, key: key, at: p.time.addingTimeInterval(-Double(input.leadMin) * 60), latest: p.time,
                 title: input.title, body: soonText(p))
-            add(.overdue, key: key, at: p.time.addingTimeInterval(Double(Self.overdueMin) * 60),
+            add(.overdue, key: key, at: p.time.addingTimeInterval(Double(input.overdueMin) * 60),
                 latest: p.time.addingTimeInterval(Double(Self.overdueMaxMin) * 60),
                 title: input.title, body: overdueText(p, name: input.childName))
         }

@@ -50,8 +50,8 @@ struct TopBar: View {
             .overlay(alignment: .topLeading) {
                 Button { model.page = .settings } label: {
                     HStack(spacing: 6) {
-                        Image(systemName: "slider.horizontal.3").font(.system(size: 14))
-                        Text("Indstillinger").font(.system(size: 14))
+                        Image(systemName: "slider.horizontal.3").font(.subheadline)
+                        Text("Indstillinger").font(.subheadline)
                     }
                     .foregroundStyle(Color.fg)
                     .padding(.vertical, 8).padding(.horizontal, 14)
@@ -67,6 +67,7 @@ struct TopBar: View {
             }
             .padding(.horizontal, 18)
             .padding(.top, 14)
+            .dynamicTypeSize(...DynamicTypeSize.xLarge) // bjælke: vokser med, men ikke ind over månen
     }
 }
 
@@ -81,7 +82,7 @@ struct PageIndicator: View {
                 let on = t == model.tab
                 Button { withAnimation(.easeInOut(duration: 0.25)) { model.tab = t } } label: {
                     Text(t.title)
-                        .font(.system(size: 13, weight: on ? .semibold : .regular))
+                        .font(.footnote.weight(on ? .semibold : .regular))
                         .foregroundStyle(on ? Color.fg : muted)
                         .padding(.vertical, 7).padding(.horizontal, 12)
                         .background(on ? Color.white.opacity(0.12) : .clear, in: Capsule())
@@ -95,6 +96,8 @@ struct PageIndicator: View {
         .overlay(Capsule().strokeBorder(Color.line))
         .padding(.top, 6)
         .padding(.bottom, 4)
+        .lineLimit(1)
+        .dynamicTypeSize(...DynamicTypeSize.xLarge) // som faneblade: vokser med op til en grænse
     }
 }
 
@@ -104,7 +107,7 @@ struct PageTitle: View {
 
     var body: some View {
         Text(title)
-            .font(.system(size: 30, weight: .semibold))
+            .font(.title.weight(.semibold))
             .foregroundStyle(Color.fg)
             .frame(maxWidth: .infinity)
             .padding(.top, 2)
@@ -118,7 +121,7 @@ struct ErrorText: View {
 
     var body: some View {
         if let e = model.error {
-            Text(e).font(.system(size: 14)).foregroundStyle(Color.errorText)
+            Text(e).font(.subheadline).foregroundStyle(Color.errorText)
         }
     }
 }
@@ -165,12 +168,12 @@ struct SleepPage: View {
     var greeting: some View {
         VStack(spacing: 0) {
             Text(Format.greeting(name: model.snapshot.childName, role: model.role))
-                .font(.system(size: 30, weight: .semibold))
+                .font(.title.weight(.semibold))
                 .foregroundStyle(Color.fg)
                 .padding(.top, 2)
                 .padding(.bottom, 4)
             Text("Små drømme, store øjeblikke ♡")
-                .font(.system(size: 15))
+                .font(.subheadline)
                 .foregroundStyle(muted)
         }
     }
@@ -191,7 +194,7 @@ struct SleepPage: View {
                     let awake = r.wakes.contains { $0.end == nil }
                     Button { model.toggleWake() } label: {
                         Label(awake ? "Sover igen" : "Vågnede", systemImage: awake ? "moon.zzz" : "eye")
-                            .font(.system(size: 15)).foregroundStyle(Color.fg)
+                            .font(.subheadline).foregroundStyle(Color.fg)
                             .padding(.vertical, 9).padding(.horizontal, 20)
                             .background(Color.card, in: Capsule())
                             .overlay(Capsule().strokeBorder(Color.line))
@@ -215,7 +218,7 @@ struct SleepPage: View {
                 Text("Forventet næste")
             }
         }
-        .font(.system(size: 13))
+        .font(.footnote)
         .foregroundStyle(muted)
         .padding(.bottom, 18)
     }
@@ -231,8 +234,8 @@ struct SleepPage: View {
         let sleeping = model.snapshot.running != nil
         return Button { model.toggleSleep() } label: {
             HStack(spacing: 10) {
-                Image(systemName: sleeping ? "stop.fill" : "play.fill").font(.system(size: 18))
-                Text(sleeping ? "Stop søvn" : "Start søvn").font(.system(size: 20, weight: .medium))
+                Image(systemName: sleeping ? "stop.fill" : "play.fill").font(.body)
+                Text(sleeping ? "Stop søvn" : "Start søvn").font(.title3.weight(.medium))
             }
             .foregroundStyle(.white)
             .frame(minWidth: 240)
@@ -304,9 +307,9 @@ struct TwinRow: View {
                     HStack(spacing: 6) {
                         Image(systemName: t.since == nil ? "sun.max" : "moon.zzz.fill")
                         Text(t.since.map { "\(t.name) sover · siden \(Format.time($0))" } ?? "\(t.name) er vågen")
-                        Image(systemName: "chevron.right").font(.system(size: 11, weight: .semibold))
+                        Image(systemName: "chevron.right").font(.caption2.weight(.semibold))
                     }
-                    .font(.system(size: 14))
+                    .font(.subheadline)
                     .foregroundStyle(muted)
                 }
                 .buttonStyle(.plain)
@@ -323,7 +326,7 @@ struct TwinRow: View {
     func pill(_ title: String, _ icon: String, _ action: @escaping () -> Void) -> some View {
         Button(action: action) {
             Label(title, systemImage: icon)
-                .font(.system(size: 15, weight: .medium))
+                .font(.subheadline.weight(.medium))
                 .foregroundStyle(Color.fg)
                 .padding(.vertical, 9).padding(.horizontal, 18)
                 .background(Color.card, in: Capsule())
@@ -345,7 +348,7 @@ struct PlusHint: View {
                 Text("Resten af dagen og en plan, der tilpasser sig, er med i Folke Plus ›")
                     .multilineTextAlignment(.leading)
             }
-            .font(.system(size: 13))
+            .font(.footnote)
             .foregroundStyle(muted)
             .frame(maxWidth: .infinity, alignment: .leading)
             .padding(.top, 10)
@@ -404,17 +407,20 @@ struct PlanCard: View {
                 HStack(spacing: 14) {
                     CardIcon(name: "face.smiling", size: 46)
                     VStack(alignment: .leading, spacing: 2) {
-                        Text(k).font(.system(size: 14)).foregroundStyle(muted)
-                        Text(big).font(.system(size: 26, weight: .semibold)).foregroundStyle(Color.fg)
-                        Text(sub).font(.system(size: 14)).foregroundStyle(muted)
+                        Text(k).font(.subheadline).foregroundStyle(muted)
+                        Text(big).font(.title.weight(.semibold)).foregroundStyle(Color.fg)
+                            .lineLimit(1).minimumScaleFactor(0.6)
+                        Text(sub).font(.subheadline).foregroundStyle(muted)
                     }
                     Spacer(minLength: 0)
                 }
+                .accessibilityElement(children: .ignore)
+                .accessibilityLabel("\(k): \(big.replacingOccurrences(of: "–", with: " til ")). \(sub)")
                 if let P = snapshot.plan {
                     let rest = P.items.enumerated().filter { P.wake != nil || $0.offset > 0 }.map(\.element)
                     if !rest.isEmpty {
                         VStack(alignment: .leading, spacing: 6) {
-                            Text("Resten af dagen").font(.system(size: 13)).foregroundStyle(muted)
+                            Text("Resten af dagen").font(.footnote).foregroundStyle(muted)
                             ForEach(Array(rest.enumerated()), id: \.offset) { _, x in
                                 HStack {
                                     Text(x.kind == .bedtime ? "Sengetid" : isCatnap(x, P) ? "Aftenlur" : "Lur")
@@ -425,7 +431,7 @@ struct PlanCard: View {
                                          : "ca. \(Format.time(x.start))–\(Format.time(x.end ?? x.start))")
                                         .foregroundStyle(muted)
                                 }
-                                .font(.system(size: 15))
+                                .font(.subheadline)
                             }
                         }
                         .padding(.top, 10)

@@ -15,11 +15,11 @@ struct DayCard: View {
             HStack(spacing: 10) {
                 HStack(spacing: 12) {
                     CardIcon(name: "calendar", size: 26)
-                    Text("Dagens søvn").font(.system(size: 18, weight: .medium)).foregroundStyle(Color.fg)
+                    Text("Dagens søvn").font(.headline).foregroundStyle(Color.fg)
                 }
                 Spacer()
                 Text(now.formatted(.dateTime.weekday(.wide).day().month(.wide)).capitalizedFirst)
-                    .font(.system(size: 14)).foregroundStyle(muted)
+                    .font(.subheadline).foregroundStyle(muted)
             }
             .padding(.bottom, 16)
 
@@ -71,24 +71,24 @@ struct DayCard: View {
         let c = Color(part.color)
         return HStack(spacing: 12) {
             Image(systemName: part == .night ? "moon" : part == .day ? "sun.max" : "sunrise")
-                .font(.system(size: 17, weight: .medium))
+                .font(.body.weight(.medium))
                 .foregroundStyle(.white)
                 .frame(width: 40, height: 40)
                 .background(c, in: Circle())
             VStack(alignment: .leading, spacing: 0) {
-                Text("\(Format.time(x.start)) – \(Format.time(x.end))").font(.system(size: 17)).monospacedDigit()
+                Text("\(Format.time(x.start)) – \(Format.time(x.end))").font(.body).monospacedDigit()
                     .foregroundStyle(Color.fg)
                     .lineLimit(1)
                     .minimumScaleFactor(0.75)
-                Text(label).font(.system(size: 14)).foregroundStyle(muted)
+                Text(label).font(.subheadline).foregroundStyle(muted)
             }
             Spacer(minLength: 0)
             Text(Format.duration(minutes: minutes))
-                .font(.system(size: 14)).foregroundStyle(muted)
+                .font(.subheadline).foregroundStyle(muted)
                 .padding(.vertical, 6).padding(.horizontal, 12)
                 .background(Color.white.opacity(0.07), in: Capsule())
                 .fixedSize()
-            Image(systemName: "chevron.right").font(.system(size: 13, weight: .semibold)).foregroundStyle(muted)
+            Image(systemName: "chevron.right").font(.footnote.weight(.semibold)).foregroundStyle(muted)
         }
         .padding(.vertical, 10)
         .padding(.horizontal, 12)
@@ -125,14 +125,14 @@ struct EditSleepSheet: View {
         let m = Int((end.timeIntervalSince(start) / 60).rounded())
         ScrollView {
             VStack(alignment: .leading, spacing: 0) {
-                Text("Ret søvn").font(.system(size: 18, weight: .medium)).foregroundStyle(Color.fg)
+                Text("Ret søvn").font(.headline).foregroundStyle(Color.fg)
                 field("Faldt i søvn", $start)
                 field("Vågnede", $end)
                 Segmented(options: [(true, "Lur"), (false, "Nat")], selection: $nap).padding(.top, 12)
                 Text(m > 0 ? "Varighed: \(Format.duration(minutes: m))" : "Sluttid skal være efter starttid")
-                    .font(.system(size: 14)).foregroundStyle(muted).padding(.top, 12)
+                    .font(.subheadline).foregroundStyle(muted).padding(.top, 12)
                 if !wakes.isEmpty {
-                    Text("Opvågninger").font(.system(size: 14)).foregroundStyle(muted).padding(.top, 12)
+                    Text("Opvågninger").font(.subheadline).foregroundStyle(muted).padding(.top, 12)
                     ForEach(wakes) { w in
                         HStack {
                             Text("\(Format.time(w.start)) – \(w.end.map { Format.time($0) } ?? "nu")")
@@ -144,13 +144,13 @@ struct EditSleepSheet: View {
                             }
                             .foregroundStyle(Color.errorText)
                         }
-                        .font(.system(size: 15))
+                        .font(.subheadline)
                         .padding(.vertical, 6)
                         .overlay(alignment: .top) { Rectangle().fill(Color.line).frame(height: 1) }
                     }
                 }
                 if !error.isEmpty {
-                    Text(error).font(.system(size: 14)).foregroundStyle(Color.errorText).padding(.top, 12)
+                    Text(error).font(.subheadline).foregroundStyle(Color.errorText).padding(.top, 12)
                 }
                 VStack(spacing: 10) {
                     GoButton(title: "Gem ændringer") {
@@ -181,7 +181,7 @@ struct EditSleepSheet: View {
 
     func field(_ label: String, _ value: Binding<Date>) -> some View {
         HStack {
-            Text(label).font(.system(size: 14)).foregroundStyle(muted)
+            Text(label).font(.subheadline).foregroundStyle(muted)
             Spacer()
             DatePicker(label, selection: value).labelsHidden()
         }

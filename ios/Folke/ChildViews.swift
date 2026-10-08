@@ -33,8 +33,8 @@ struct ChildPicker: View {
             Button("Tilføj barn", systemImage: "plus") { adding = true }
         } label: {
             HStack(spacing: 6) {
-                Text(s.childName).font(.system(size: 14, weight: .medium)).lineLimit(1)
-                Image(systemName: "chevron.down").font(.system(size: 11, weight: .semibold))
+                Text(s.childName).font(.subheadline.weight(.medium)).lineLimit(1)
+                Image(systemName: "chevron.down").font(.caption2.weight(.semibold))
             }
             .foregroundStyle(Color.fg)
             .padding(.vertical, 8).padding(.horizontal, 14)
@@ -46,41 +46,42 @@ struct ChildPicker: View {
     }
 }
 
-/// «Børn» under Indstillinger: alle børn med alder, tilføj og slet.
-struct ChildrenCard: View {
+/// «Børn» (underside i Indstillinger): alle børn med alder, vælg, tilføj og slet.
+struct ChildrenSettings: View {
     @Environment(AppModel.self) private var model
-    @Environment(\.muted) private var muted
     @State private var adding = false
     @State private var confirmDelete = false
 
     var body: some View {
         let s = model.snapshot
-        VStack(alignment: .leading, spacing: 0) {
-            Text("Børn").font(.system(size: 18, weight: .medium)).foregroundStyle(Color.fg)
-            ForEach(s.children) { c in
-                Button { model.selectChild(c.id) } label: {
-                    HStack {
-                        Text(c.name).foregroundStyle(Color.fg)
-                        Text(Format.age(birthDate: c.birthDate)).foregroundStyle(muted)
-                        Spacer()
-                        if c.id == s.childID { Image(systemName: "checkmark").foregroundStyle(Color.acc) }
+        Form {
+            Section {
+                ForEach(s.children) { c in
+                    Button { model.selectChild(c.id) } label: {
+                        HStack {
+                            LabeledContent(c.name, value: Format.age(birthDate: c.birthDate))
+                            if c.id == s.childID { Image(systemName: "checkmark").foregroundStyle(Color.acc) }
+                        }
                     }
-                    .font(.system(size: 16))
-                    .padding(.vertical, 10)
-                    .contentShape(Rectangle())
-                    .overlay(alignment: .top) { Rectangle().fill(Color.line).frame(height: 1) }
+                    .foregroundStyle(Color.fg)
+                    .accessibilityAddTraits(c.id == s.childID ? .isSelected : [])
                 }
-                .buttonStyle(.plain)
-                .padding(.top, c.id == s.children.first?.id ? 8 : 0)
+            } footer: {
+                Text("Søvn, mad, vækst og forslag gælder det valgte barn. Udpumpning og tavlen er fælles for familien.")
             }
-            Text("Søvn, mad, vækst og forslag gælder det valgte barn. Udpumpning og tavlen er fælles for familien.")
-                .font(.system(size: 13)).foregroundStyle(muted).padding(.top, 6)
-                .fixedSize(horizontal: false, vertical: true)
-            ActionRow(options: [("Tilføj barn", { adding = true })]
-                      + (s.children.count > 1 ? [("Slet \(s.childName)", { confirmDelete = true })] : []))
-                .padding(.top, 10)
+            .listRowBackground(Color.card)
+            Section {
+                Button("Tilføj barn", systemImage: "plus") { adding = true }
+                if s.children.count > 1 {
+                    Button("Slet \(s.childName)", systemImage: "trash", role: .destructive) { confirmDelete = true }
+                }
+            }
+            .listRowBackground(Color.card)
         }
-        .card()
+        .scrollContentBackground(.hidden)
+        .background(SkyBackground(hour: Theme.hour(of: .now)))
+        .toolbarBackground(.hidden, for: .navigationBar)
+        .navigationTitle("Børn")
         .sheet(isPresented: $adding) { AddChildSheet() }
         .confirmationDialog("Slet \(s.childName)?", isPresented: $confirmDelete, titleVisibility: .visible) {
             Button("Slet \(s.childName) og alle data", role: .destructive) { model.deleteCurrentChild() }
@@ -103,13 +104,13 @@ struct AddChildSheet: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 0) {
-                Text("Tilføj barn").font(.system(size: 18, weight: .medium))
-                Text("Navn").font(.system(size: 14)).foregroundStyle(muted).padding(.top, 14)
+                Text("Tilføj barn").font(.headline)
+                Text("Navn").font(.subheadline).foregroundStyle(muted).padding(.top, 14)
                 TextField("", text: $name, prompt: Text("Barnets navn").foregroundStyle(muted))
                     .textInputAutocapitalization(.words)
                     .autocorrectionDisabled()
                     .field()
-                Text("Fødselsdato").font(.system(size: 14)).foregroundStyle(muted).padding(.top, 14)
+                Text("Fødselsdato").font(.subheadline).foregroundStyle(muted).padding(.top, 14)
                 DatePicker("Fødselsdato", selection: $birth,
                            in: Calendar.current.date(byAdding: .year, value: -6, to: .now)!...Date.now,
                            displayedComponents: .date)
@@ -118,14 +119,14 @@ struct AddChildSheet: View {
                     .frame(maxWidth: .infinity, maxHeight: 150)
                     .clipped()
                     .environment(\.locale, Locale(identifier: "da_DK"))
-                Text("Barnet er").font(.system(size: 14)).foregroundStyle(muted).padding(.top, 14)
+                Text("Barnet er").font(.subheadline).foregroundStyle(muted).padding(.top, 14)
                 Segmented(options: [(Sex.boy, "Dreng"), (.girl, "Pige")], selection: $sex).padding(.top, 8)
                 if !error.isEmpty {
-                    Text(error).font(.system(size: 14)).foregroundStyle(Color.errorText).padding(.top, 10)
+                    Text(error).font(.subheadline).foregroundStyle(Color.errorText).padding(.top, 10)
                 }
                 GoButton(title: "Gem") { save() }.padding(.top, 18)
                 Button("Annullér") { dismiss() }
-                    .font(.system(size: 15)).foregroundStyle(muted)
+                    .font(.subheadline).foregroundStyle(muted)
                     .frame(maxWidth: .infinity).padding(.top, 12)
             }
             .foregroundStyle(Color.fg)

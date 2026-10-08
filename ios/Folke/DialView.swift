@@ -63,6 +63,25 @@ struct DialView: View {
         .aspectRatio(Self.size, contentMode: .fit)
         .accessibilityElement(children: .ignore)
         .accessibilityLabel("Dagens rytme")
+        .accessibilityValue(spoken)
+    }
+
+    /// Det, VoiceOver læser: tilstand, næste lur/sengetid og dagens søvn
+    var spoken: String {
+        var parts: [String] = []
+        let since = openWake?.start ?? snapshot.running?.start ?? snapshot.awakeSince
+        let state = openWake != nil ? "Vågen om natten" : snapshot.running != nil ? "Sover" : "Vågen"
+        if let since {
+            parts.append("\(state) i \(Format.duration(minutes: max(0, Int(now.timeIntervalSince(since) / 60))))")
+        }
+        if !headline.isEmpty { parts.append(headline) }
+        let naps = snapshot.today.filter(\.nap).count, nights = snapshot.today.filter { !$0.nap }
+        if !snapshot.today.isEmpty {
+            let total = snapshot.today.reduce(0) { $0 + $1.sleptMinutes(now: now) }
+            parts.append("I dag \(naps) \(naps == 1 ? "lur" : "lure")\(nights.isEmpty ? "" : " og natten"), "
+                         + "i alt \(Format.duration(minutes: total))")
+        }
+        return parts.joined(separator: ". ")
     }
 
     func drawStatic(_ ctx: inout GraphicsContext) {

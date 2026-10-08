@@ -80,7 +80,7 @@ struct Segmented<T: Hashable>: View {
                 let on = selection == value
                 Button { selection = toggles && on ? nil : value } label: {
                     Text(label)
-                        .font(.system(size: pill ? 15 : 16))
+                        .font(pill ? .subheadline : .callout)
                         .padding(.vertical, pill ? 8 : 12)
                         .padding(.horizontal, pill ? 22 : 6)
                         .frame(maxWidth: pill ? nil : .infinity)

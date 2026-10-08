@@ -23,7 +23,7 @@ struct PumpHistoryView: View {
                          + Text(" · \(today.count) \(today.count == 1 ? "gang" : "gange")"
                                 + (h.avgMl.map { " · gennemsnit \($0) ml/dag (stiplet)" } ?? ""))
                             .foregroundStyle(muted))
-                            .font(.system(size: 15))
+                            .font(.subheadline)
                     }
                 }
                 .card()
@@ -34,7 +34,7 @@ struct PumpHistoryView: View {
                 Text("Grafen viser de seneste 14 dage, listen de seneste 7. Gennemsnittet regnes kun af hele dage med udpumpning."
                      + (s.pumpRemindHours > 0 ? " Påmindelse efter \(Format.hours(s.pumpRemindHours)) timer."
                                               : " Påmindelser kan slås til under Indstillinger."))
-                    .font(.system(size: 13)).foregroundStyle(muted)
+                    .font(.footnote).foregroundStyle(muted)
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .padding(.top, 16).padding(.horizontal, 4)
             }
@@ -57,12 +57,12 @@ struct PumpHistoryView: View {
                         VStack(alignment: .leading, spacing: 0) {
                             Text(x.time.formatted(.dateTime.weekday(.abbreviated).day().month(.abbreviated)).capitalizedFirst
                                  + " kl. \(Format.time(x.time))")
-                                .font(.system(size: 17)).foregroundStyle(Color.fg)
+                                .font(.body).foregroundStyle(Color.fg)
                             Text(Format.pumpDescription(amountMl: x.amountMl, side: x.side, minutes: x.minutes))
-                                .font(.system(size: 14)).foregroundStyle(muted)
+                                .font(.subheadline).foregroundStyle(muted)
                         }
                         Spacer()
-                        Image(systemName: "chevron.right").font(.system(size: 13, weight: .semibold)).foregroundStyle(muted)
+                        Image(systemName: "chevron.right").font(.footnote.weight(.semibold)).foregroundStyle(muted)
                     }
                     .padding(.vertical, 12)
                     .contentShape(Rectangle())
@@ -93,7 +93,7 @@ struct PumpChart: View {
             let top = (mx / st).rounded(.up) * st
             let sy = { (v: Double) in H - B - (H - T - B) * v / top }
             func label(_ s: String, _ x: Double, _ y: Double, _ anchor: UnitPoint) {
-                ctx.draw(Text(s).font(.system(size: 11)).foregroundStyle(muted), at: CGPoint(x: x, y: y), anchor: anchor)
+                ctx.draw(Text(s).font(.caption2).foregroundStyle(muted), at: CGPoint(x: x, y: y), anchor: anchor)
             }
             var v = 0.0
             while v <= top {
@@ -123,7 +123,10 @@ struct PumpChart: View {
             label("ml", L - 6, 6, .trailing)
         }
         .aspectRatio(340 / 200, contentMode: .fit)
+        .accessibilityElement(children: .ignore)
         .accessibilityLabel("Udpumpning de seneste 14 dage")
+        .accessibilityValue("I dag \(history.days.last?.ml ?? 0) ml"
+                            + (history.avgMl.map { ", gennemsnit \($0) ml om dagen" } ?? ""))
     }
 }
 
@@ -151,21 +154,21 @@ struct PumpSheet: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 0) {
-                Text("Ret udpumpning").font(.system(size: 18, weight: .medium)).foregroundStyle(Color.fg)
+                Text("Ret udpumpning").font(.headline).foregroundStyle(Color.fg)
                 HStack {
-                    Text("Tidspunkt").font(.system(size: 14)).foregroundStyle(muted)
+                    Text("Tidspunkt").font(.subheadline).foregroundStyle(muted)
                     Spacer()
                     DatePicker("Tidspunkt", selection: $time).labelsHidden()
                 }
                 .padding(.top, 14)
-                Text("Mængde (ml)").font(.system(size: 14)).foregroundStyle(muted).padding(.top, 14)
+                Text("Mængde (ml)").font(.subheadline).foregroundStyle(muted).padding(.top, 14)
                 TextField("", text: $ml).keyboardType(.decimalPad).field()
                 Segmented(options: [(Side.left, "Venstre"), (.right, "Højre"), (.both, "Begge")], selection: $side, toggles: true)
                     .padding(.top, 12)
-                Text("Minutter (valgfrit)").font(.system(size: 14)).foregroundStyle(muted).padding(.top, 14)
+                Text("Minutter (valgfrit)").font(.subheadline).foregroundStyle(muted).padding(.top, 14)
                 TextField("", text: $minutes).keyboardType(.numberPad).field()
                 if !error.isEmpty {
-                    Text(error).font(.system(size: 14)).foregroundStyle(Color.errorText).padding(.top, 12)
+                    Text(error).font(.subheadline).foregroundStyle(Color.errorText).padding(.top, 12)
                 }
                 VStack(spacing: 10) {
                     GoButton(title: "Gem ændringer", action: save)

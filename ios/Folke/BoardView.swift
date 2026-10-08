@@ -32,9 +32,9 @@ struct BoardView: View {
                     }
                     .frame(maxWidth: 460)
                     .padding(.top, 8)
-                    Text(info(strokes)).font(.system(size: 13)).foregroundStyle(muted).padding(.top, 10)
+                    Text(info(strokes)).font(.footnote).foregroundStyle(muted).padding(.top, 10)
                     if !error.isEmpty {
-                        Text(error).font(.system(size: 13)).foregroundStyle(Color(hex: "#ff9b8f")).padding(.top, 6)
+                        Text(error).font(.footnote).foregroundStyle(Color(hex: "#ff9b8f")).padding(.top, 6)
                     }
                 Spacer(minLength: 0)
             }

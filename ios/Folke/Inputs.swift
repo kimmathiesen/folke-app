@@ -5,7 +5,7 @@ import SwiftUI
 struct InputFrame: ViewModifier {
     func body(content: Content) -> some View {
         content
-            .font(.system(size: 17))
+            .font(.body)
             .foregroundStyle(Color.fg)
             .padding(.vertical, 10)
             .padding(.horizontal, 12)
@@ -92,7 +92,7 @@ struct GoButton: View {
     var body: some View {
         Button(action: action) {
             Text(title)
-                .font(.system(size: 16))
+                .font(.callout)
                 .foregroundStyle(kind == .ghost ? Color.white.opacity(0.62) : .white)
                 .frame(maxWidth: .infinity)
                 .padding(12)
@@ -109,11 +109,14 @@ struct CardIcon: View {
     var name: String
     var size: CGFloat = 34
     @Environment(\.muted) private var muted
+    /// Følger tekststørrelsen (Dynamic Type)
+    @ScaledMetric private var scale: CGFloat = 1
 
     var body: some View {
         Image(systemName: name)
-            .font(.system(size: size * 0.72, weight: .light))
+            .font(.system(size: size * 0.72 * scale, weight: .light))
             .foregroundStyle(muted)
-            .frame(width: size, height: size)
+            .frame(width: size * scale, height: size * scale)
+            .accessibilityHidden(true) // kun pynt
     }
 }

@@ -30,10 +30,10 @@ struct FoodPage: View {
         if !items.isEmpty {
             VStack(alignment: .leading, spacing: 0) {
                 HStack {
-                    Text("I dag").font(.system(size: 16, weight: .medium)).foregroundStyle(Color.fg)
+                    Text("I dag").font(.callout.weight(.medium)).foregroundStyle(Color.fg)
                     Spacer()
                     Text(items.count == 1 ? "1 måltid" : "\(items.count) måltider")
-                        .font(.system(size: 14)).foregroundStyle(muted)
+                        .font(.subheadline).foregroundStyle(muted)
                 }
                 .padding(.bottom, 4)
                 ForEach(items) { x in
@@ -42,7 +42,7 @@ struct FoodPage: View {
                         Text(describe(x)).foregroundStyle(muted)
                         Spacer(minLength: 0)
                     }
-                    .font(.system(size: 15))
+                    .font(.subheadline)
                     .padding(.vertical, 9)
                     .overlay(alignment: .top) { Rectangle().fill(Color.line).frame(height: 1) }
                     .contentShape(Rectangle())
@@ -51,7 +51,7 @@ struct FoodPage: View {
                     }
                 }
                 Text("Hold fingeren på et måltid for at slette det.")
-                    .font(.system(size: 12)).foregroundStyle(muted).padding(.top, 6)
+                    .font(.caption).foregroundStyle(muted).padding(.top, 6)
             }
             .card()
         }

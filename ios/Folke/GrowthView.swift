@@ -45,7 +45,7 @@ struct GrowthView: View {
                 }
                 if s.plus.unlocked {
                 Text("\(s.sex == .boy ? "Drengekurver" : "Pigekurver") fra WHO (2006), som Sundhedsstyrelsen anbefaler til børn 0-5 år. Båndene viser 3.-97. percentil, og den stiplede linje er midten. Vejninger kan afvige mellem forskellige vægte, og én måling siger ikke alt. Tal med sundhedsplejersken, hvis du er i tvivl. Skift kurver under Indstillinger.")
-                    .font(.system(size: 13)).foregroundStyle(muted)
+                    .font(.footnote).foregroundStyle(muted)
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .padding(.top, 16).padding(.horizontal, 4)
                 }
@@ -70,7 +70,7 @@ struct GrowthView: View {
                 Text("Ingen målinger endnu").foregroundStyle(muted)
             }
         }
-        .font(.system(size: 15))
+        .font(.subheadline)
     }
 
     func list(_ entries: [GrowthPoint]) -> some View {
@@ -80,13 +80,13 @@ struct GrowthView: View {
                     HStack {
                         VStack(alignment: .leading, spacing: 0) {
                             Text(e.date.formatted(.dateTime.day().month(.abbreviated).year()))
-                                .font(.system(size: 17)).foregroundStyle(Color.fg)
+                                .font(.body).foregroundStyle(Color.fg)
                             Text(WHO.Measure.allCases.compactMap { m in e.values[m].map { "\(Format.number($0)) \(m.unit)" } }
                                     .joined(separator: " · "))
-                                .font(.system(size: 14)).foregroundStyle(muted)
+                                .font(.subheadline).foregroundStyle(muted)
                         }
                         Spacer()
-                        Image(systemName: "chevron.right").font(.system(size: 13, weight: .semibold)).foregroundStyle(muted)
+                        Image(systemName: "chevron.right").font(.footnote.weight(.semibold)).foregroundStyle(muted)
                     }
                     .padding(.vertical, 12)
                     .contentShape(Rectangle())
@@ -118,7 +118,7 @@ struct GrowthChart: View {
             let sx = { (m: Double) in L + (W - L - R) * m / X }
             let sy = { (v: Double) in H - B - (H - T - B) * (v - y0) / (y1 - y0) }
             func label(_ s: String, _ x: Double, _ y: Double, _ anchor: UnitPoint) {
-                ctx.draw(Text(s).font(.system(size: 11)).foregroundStyle(muted), at: CGPoint(x: x, y: y), anchor: anchor)
+                ctx.draw(Text(s).font(.caption2).foregroundStyle(muted), at: CGPoint(x: x, y: y), anchor: anchor)
             }
 
             // Vandrette linjer med tal
@@ -167,7 +167,12 @@ struct GrowthChart: View {
             }
         }
         .aspectRatio(340 / 262, contentMode: .fit)
-        .accessibilityLabel("Vækstkurve")
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel("Vækstkurve, \(kind.tab.lowercased())")
+        .accessibilityValue(points.last.flatMap { p in p.values[kind].map { v in
+            "Seneste måling \(Format.number(v)) \(kind.unit) ved \(Format.number(p.months)) måneder"
+                + (p.percentiles[kind].map { ", ca. \($0). percentil" } ?? "")
+        } } ?? "Ingen målinger endnu")
     }
 }
 
@@ -195,22 +200,22 @@ struct GrowthSheet: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 0) {
-                Text(point == nil ? "Ny måling" : "Ret måling").font(.system(size: 18, weight: .medium)).foregroundStyle(Color.fg)
+                Text(point == nil ? "Ny måling" : "Ret måling").font(.headline).foregroundStyle(Color.fg)
                 HStack {
-                    Text("Dato").font(.system(size: 14)).foregroundStyle(muted)
+                    Text("Dato").font(.subheadline).foregroundStyle(muted)
                     Spacer()
                     DatePicker("Dato", selection: $date, in: ...Date.now, displayedComponents: .date).labelsHidden()
                 }
                 .padding(.top, 14)
                 ForEach(WHO.Measure.allCases, id: \.self) { m in
-                    Text("\(m.name) (\(m.unit))").font(.system(size: 14)).foregroundStyle(muted).padding(.top, 14)
+                    Text("\(m.name) (\(m.unit))").font(.subheadline).foregroundStyle(muted).padding(.top, 14)
                     TextField("", text: Binding(get: { text[m] ?? "" }, set: { text[m] = $0 }),
                               prompt: Text(Self.placeholders[m] ?? "").foregroundStyle(muted))
                         .keyboardType(.decimalPad)
                         .field()
                 }
                 if !error.isEmpty {
-                    Text(error).font(.system(size: 14)).foregroundStyle(Color.errorText).padding(.top, 12)
+                    Text(error).font(.subheadline).foregroundStyle(Color.errorText).padding(.top, 12)
                 }
                 VStack(spacing: 10) {
                     GoButton(title: "Gem måling", action: save)
@@ -263,21 +268,21 @@ struct ClothingCard: View {
     var body: some View {
         HStack(alignment: .top, spacing: 14) {
             Image(systemName: "tshirt")
-                .font(.system(size: 26, weight: .light))
+                .font(.title2.weight(.light))
                 .foregroundStyle(muted)
                 .frame(width: 34, height: 34)
             VStack(alignment: .leading, spacing: 2) {
-                Text("Tøjstørrelse").font(.system(size: 14)).foregroundStyle(muted)
-                Text("Str. \(estimate.size)").font(.system(size: 26, weight: .semibold)).foregroundStyle(Color.fg)
+                Text("Tøjstørrelse").font(.subheadline).foregroundStyle(muted)
+                Text("Str. \(estimate.size)").font(.title.weight(.semibold)).foregroundStyle(Color.fg)
                 if showNext, let next = estimate.nextSize, let from = estimate.nextSizeFrom {
                     Text("Str. \(next) \(Format.untilText(from, now: .now)) (ca. \(from.formatted(.dateTime.day().month(.abbreviated))))")
-                        .font(.system(size: 15)).foregroundStyle(Color.fg)
+                        .font(.subheadline).foregroundStyle(Color.fg)
                 }
                 Text("Skøn: \(name.isEmpty ? "barnet" : name) er ca. \(Format.number((estimate.lengthToday * 2).rounded() / 2)) cm i dag, "
                      + "ud fra målingen \(estimate.measuredAt.formatted(.dateTime.day().month(.abbreviated)))"
                      + (estimate.percentile.map { " (ca. \($0). percentil)" } ?? "")
                      + ". Størrelser varierer mellem mærker.")
-                    .font(.system(size: 13)).foregroundStyle(muted)
+                    .font(.footnote).foregroundStyle(muted)
                     .fixedSize(horizontal: false, vertical: true)
                     .padding(.top, 4)
             }

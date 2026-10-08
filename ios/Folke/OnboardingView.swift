@@ -31,9 +31,9 @@ struct OnboardingView: View {
         let needsChild = !model.snapshot.hasChild
         ScrollView {
             VStack(alignment: .leading, spacing: 0) {
-                Text("Velkommen til Folke").font(.system(size: 18, weight: .medium))
+                Text("Velkommen til Folke").font(.headline)
                 Text("Et par ting, før vi går i gang.")
-                    .font(.system(size: 15)).foregroundStyle(muted).padding(.top, 6)
+                    .font(.subheadline).foregroundStyle(muted).padding(.top, 6)
 
                 label("Barnets navn")
                 TextField("", text: $name, prompt: Text("fx Folke").foregroundStyle(muted))
@@ -59,7 +59,7 @@ struct OnboardingView: View {
                     ForEach($extras) { $e in extraBlock($e) }
                     Button { withAnimation { extras.append(Extra()) } } label: {
                         Label("Tilføj endnu et barn", systemImage: "plus")
-                            .font(.system(size: 15)).foregroundStyle(Color.acc)
+                            .font(.subheadline).foregroundStyle(Color.acc)
                     }
                     .buttonStyle(.plain)
                     .padding(.top, 16)
@@ -69,10 +69,10 @@ struct OnboardingView: View {
                 Segmented(options: [(Role.mor, "Mor"), (.far, "Far")], selection: $role).padding(.top, 8)
 
                 if !error.isEmpty {
-                    Text(error).font(.system(size: 14)).foregroundStyle(Color(hex: "#ff9b8f")).padding(.top, 10)
+                    Text(error).font(.subheadline).foregroundStyle(Color(hex: "#ff9b8f")).padding(.top, 10)
                 }
                 Button(action: save) {
-                    Text("Kom i gang").font(.system(size: 16)).foregroundStyle(.white)
+                    Text("Kom i gang").font(.callout).foregroundStyle(.white)
                         .frame(maxWidth: .infinity).padding(12)
                         .background(Color.acc, in: RoundedRectangle(cornerRadius: 12))
                 }
@@ -82,7 +82,7 @@ struct OnboardingView: View {
                 // Kun i egne builds: start med data fra den gamle Folke-server
                 if needsChild && model.importAvailable {
                     Button("Hent data fra Folke-server") { importing = true }
-                        .font(.system(size: 15)).foregroundStyle(muted)
+                        .font(.subheadline).foregroundStyle(muted)
                         .frame(maxWidth: .infinity)
                         .padding(.top, 14)
                 }
@@ -118,10 +118,10 @@ struct OnboardingView: View {
         VStack(alignment: .leading, spacing: 0) {
             HStack {
                 Text("Barn \((extras.firstIndex { $0.id == e.wrappedValue.id } ?? 0) + 2)")
-                    .font(.system(size: 16, weight: .medium))
+                    .font(.callout.weight(.medium))
                 Spacer()
                 Button("Fjern") { withAnimation { extras.removeAll { $0.id == e.wrappedValue.id } } }
-                    .font(.system(size: 14)).foregroundStyle(muted)
+                    .font(.subheadline).foregroundStyle(muted)
             }
             label("Navn")
             TextField("", text: e.name, prompt: Text("Barnets navn").foregroundStyle(muted))
@@ -130,7 +130,7 @@ struct OnboardingView: View {
                 .field()
             Toggle("Tvilling (samme fødselsdato)", isOn: e.twin)
                 .tint(Color.acc)
-                .font(.system(size: 15))
+                .font(.subheadline)
                 .padding(.top, 12)
             if !e.wrappedValue.twin {
                 label("Fødselsdato")
@@ -152,7 +152,7 @@ struct OnboardingView: View {
     }
 
     func label(_ s: String) -> some View {
-        Text(s).font(.system(size: 14)).foregroundStyle(muted).padding(.top, 14)
+        Text(s).font(.subheadline).foregroundStyle(muted).padding(.top, 14)
     }
 
     func save() {
@@ -181,7 +181,7 @@ extension View {
     func field() -> some View {
         padding(.vertical, 11)
             .padding(.horizontal, 12)
-            .font(.system(size: 17))
+            .font(.body)
             .background(Color.white.opacity(0.04), in: RoundedRectangle(cornerRadius: 12))
             .overlay(RoundedRectangle(cornerRadius: 12).strokeBorder(Color.line))
             .padding(.top, 6)

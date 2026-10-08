@@ -9,12 +9,12 @@ struct SuggestionCard: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
-            Text("Forslag").font(.system(size: 14)).foregroundStyle(muted)
-            Text(suggestion.text).font(.system(size: 16, weight: .medium)).foregroundStyle(Color.fg)
+            Text("Forslag").font(.subheadline).foregroundStyle(muted)
+            Text(suggestion.text).font(.callout.weight(.medium)).foregroundStyle(Color.fg)
             ActionRow(options: [("Ja, gør det", { model.answer(.yes) }),
                                 ("Ikke nu", { model.answer(.later) }),
                                 ("Aldrig", { model.answer(.never) })])
-                .font(.system(size: 15))
+                .font(.subheadline)
                 .padding(.top, 12)
         }
         .card()
@@ -33,8 +33,8 @@ struct ForgotCard: View {
             HStack(spacing: 14) {
                 CardIcon(name: "bed.double")
                 VStack(alignment: .leading, spacing: 0) {
-                    Text("Glemte du at trykke?").font(.system(size: 16, weight: .medium)).foregroundStyle(Color.fg)
-                    Text(sleeping ? "Vågnede kl." : "Faldt i søvn kl.").font(.system(size: 14)).foregroundStyle(muted)
+                    Text("Glemte du at trykke?").font(.callout.weight(.medium)).foregroundStyle(Color.fg)
+                    Text(sleeping ? "Vågnede kl." : "Faldt i søvn kl.").font(.subheadline).foregroundStyle(muted)
                 }
                 Spacer(minLength: 0)
                 OptionalTimeField(time: $time)
@@ -72,10 +72,10 @@ struct FeedCard: View {
             HStack(spacing: 14) {
                 CardIcon(name: "waterbottle")
                 VStack(alignment: .leading, spacing: 0) {
-                    Text("Nyt måltid").font(.system(size: 16, weight: .medium)).foregroundStyle(Color.fg)
+                    Text("Nyt måltid").font(.callout.weight(.medium)).foregroundStyle(Color.fg)
                     Text(s.lastFeed.map { Format.lastFeed(kind: $0.kind, amountMl: $0.amountMl, time: $0.time, now: now) }
                          ?? "Ingen måltider endnu")
-                        .font(.system(size: 14)).foregroundStyle(muted)
+                        .font(.subheadline).foregroundStyle(muted)
                 }
             }
             Segmented(options: [(Mode.breast, "Amning"), (.bottle, "Flaske"), (.solid, "Fast føde")]
@@ -84,7 +84,7 @@ struct FeedCard: View {
                 .padding(.top, 12)
             if mode != nil {
                 HStack {
-                    Text("Tidspunkt (valgfrit)").font(.system(size: 14)).foregroundStyle(muted)
+                    Text("Tidspunkt (valgfrit)").font(.subheadline).foregroundStyle(muted)
                     Spacer()
                     OptionalTimeField(time: $time)
                 }
@@ -154,8 +154,8 @@ struct PumpCard: View {
             HStack(spacing: 14) {
                 CardIcon(name: "drop")
                 VStack(alignment: .leading, spacing: 0) {
-                    Text("Ny udpumpning").font(.system(size: 16, weight: .medium)).foregroundStyle(Color.fg)
-                    Text(Format.pumpSummary(model.snapshot.pump, now: now)).font(.system(size: 14)).foregroundStyle(muted)
+                    Text("Ny udpumpning").font(.callout.weight(.medium)).foregroundStyle(Color.fg)
+                    Text(Format.pumpSummary(model.snapshot.pump, now: now)).font(.subheadline).foregroundStyle(muted)
                 }
                 Spacer(minLength: 0)
             }
@@ -169,7 +169,7 @@ struct PumpCard: View {
             }
             .padding(.top, 12)
             HStack {
-                Text("Tidspunkt (valgfrit)").font(.system(size: 14)).foregroundStyle(muted)
+                Text("Tidspunkt (valgfrit)").font(.subheadline).foregroundStyle(muted)
                 Spacer()
                 OptionalTimeField(time: $time)
             }
@@ -203,10 +203,10 @@ struct LockedCard: View {
         HStack(alignment: .top, spacing: 14) {
             CardIcon(name: "lock", size: 46)
             VStack(alignment: .leading, spacing: 6) {
-                Text(feature.lockedText).font(.system(size: 15)).foregroundStyle(Color.fg)
+                Text(feature.lockedText).font(.subheadline).foregroundStyle(Color.fg)
                     .fixedSize(horizontal: false, vertical: true)
                 Button("Se Folke Plus") { model.page = .settings }
-                    .font(.system(size: 15, weight: .medium)).foregroundStyle(Color.acc)
+                    .font(.subheadline.weight(.medium)).foregroundStyle(Color.acc)
             }
             Spacer(minLength: 0)
         }

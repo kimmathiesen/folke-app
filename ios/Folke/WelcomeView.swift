@@ -18,24 +18,24 @@ struct WelcomeView: View {
             VStack(spacing: 0) {
                 MoonLogo()
                 Text("Du kender dit barn bedst")
-                    .font(.system(size: 26, weight: .semibold))
+                    .font(.title.weight(.semibold))
                     .multilineTextAlignment(.center)
                     .padding(.top, 8)
                 VStack(alignment: .leading, spacing: 16) {
                     ForEach(Self.points, id: \.icon) { p in
                         HStack(alignment: .top, spacing: 14) {
                             Image(systemName: p.icon)
-                                .font(.system(size: 20, weight: .light))
+                                .font(.title3.weight(.light))
                                 .foregroundStyle(Color.acc)
                                 .frame(width: 28)
-                            Text(p.text).font(.system(size: 16)).foregroundStyle(Color.fg)
+                            Text(p.text).font(.callout).foregroundStyle(Color.fg)
                                 .fixedSize(horizontal: false, vertical: true)
                         }
                     }
                 }
                 .padding(.top, 22)
                 Button { model.welcomeSeen = true } label: {
-                    Text("Det forstår jeg").font(.system(size: 16)).foregroundStyle(.white)
+                    Text("Det forstår jeg").font(.callout).foregroundStyle(.white)
                         .frame(maxWidth: .infinity).padding(12)
                         .background(Color.acc, in: RoundedRectangle(cornerRadius: 12))
                 }

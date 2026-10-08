@@ -21,161 +21,177 @@ struct SettingsView: View {
 
     var body: some View {
         let s = model.snapshot
-        ScrollView {
-            VStack(spacing: 0) {
-                BackHeader(title: "Indstillinger") { save(); model.page = .home }
-                PlusCard().padding(.bottom, 14)
-                VStack(alignment: .leading, spacing: 0) {
-                    Text("Tilpas").font(.system(size: 18, weight: .medium)).foregroundStyle(Color.fg)
+        NavigationStack {
+            Form {
+                Section { PlusCard(inList: true) }
+                    .listRowBackground(Color.card)
 
-                    row("Barnets navn") {
-                        TextField("", text: $name)
+                Section("Barnet") {
+                    LabeledContent("Navn") {
+                        TextField("Navn", text: $name)
                             .multilineTextAlignment(.trailing)
                             .textInputAutocapitalization(.words)
                             .autocorrectionDisabled()
                             .submitLabel(.done)
                             .focused($nameFocused)
                             .onSubmit(save)
-                            .font(.system(size: 15))
-                            .padding(.vertical, 8).padding(.horizontal, 10)
-                            .frame(width: 150)
-                            .background(Color.white.opacity(0.06), in: RoundedRectangle(cornerRadius: 10))
-                            .overlay(RoundedRectangle(cornerRadius: 10).strokeBorder(Color.line))
                     }
-                    row("Jeg er") {
-                        menu(model.role, [(Role.mor, "Mor"), (.far, "Far")]) { model.role = $0 }
+                    Picker("Vækstkurver", selection: Binding(get: { s.sex }, set: { model.setSex($0) })) {
+                        Text("Dreng").tag(Sex.boy)
+                        Text("Pige").tag(Sex.girl)
                     }
-                    toggle("Amning i Mad-kortet", s.featureBreast) { model.setFeature(.breast, $0) }
-                    toggle("Fast føde i Mad-kortet", s.featureSolids) { model.setFeature(.solids, $0) }
-                    toggle("Forudsigelse af lure", s.featurePrediction) { model.setFeature(.prediction, $0) }
-                    toggle("Udpumpning", s.featurePump) { model.setFeature(.pump, $0) }
-                    if s.featurePump {
-                        row("Påmind om udpumpning") {
-                            menu(s.pumpRemindHours, Self.remindOptions) { model.setPumpRemind($0) }
-                        }
-                        note("Påmindelsen sendes kun til enheder, der har slået «Påmindelse om udpumpning» til under notifikationer herunder. Ingen påmindelser mellem 22 og 7.")
+                    NavigationLink {
+                        ChildrenSettings()
+                    } label: {
+                        LabeledContent("Børn", value: s.children.count == 1 ? "1 barn" : "\(s.children.count) børn")
                     }
-
-                    notifications
-
-                    row("Vækstkurver") {
-                        menu(s.sex, [(Sex.boy, "Dreng"), (.girl, "Pige")]) { model.setSex($0) }
+                    if !message.isEmpty {
+                        Text(message).font(.footnote).foregroundStyle(Color.errorText)
                     }
-                    toggle("Vis næste tøjstørrelse", model.showNextSize) { model.showNextSize = $0 }
-                    note("Skøn ud fra sidste længdemåling på vækstsiden. Gælder kun denne enhed.")
                 }
-                .card()
-                ChildrenCard().padding(.top, 14)
-                yourData
-                if model.importAvailable { serverImport }
-                about
-                if !message.isEmpty {
-                    Text(message).font(.system(size: 14)).foregroundStyle(Color.errorText).padding(.top, 12)
+                .listRowBackground(Color.card)
+
+                Section {
+                    Picker("Jeg er", selection: Binding(get: { model.role ?? .mor }, set: { model.role = $0 })) {
+                        Text("Mor").tag(Role.mor)
+                        Text("Far").tag(Role.far)
+                    }
+                } footer: {
+                    Text("Gælder kun denne enhed.")
+                }
+                .listRowBackground(Color.card)
+
+                Section("Mad og søvn") {
+                    Toggle("Amning i Mad-kortet", isOn: bind(s.featureBreast) { model.setFeature(.breast, $0) })
+                    Toggle("Fast føde i Mad-kortet", isOn: bind(s.featureSolids) { model.setFeature(.solids, $0) })
+                    Toggle("Forudsigelse af lure", isOn: bind(s.featurePrediction) { model.setFeature(.prediction, $0) })
+                }
+                .listRowBackground(Color.card)
+
+                Section {
+                    Toggle("Udpumpning", isOn: bind(s.featurePump) { model.setFeature(.pump, $0) })
+                    if s.featurePump {
+                        Picker("Påmind", selection: Binding(get: { s.pumpRemindHours }, set: { model.setPumpRemind($0) })) {
+                            ForEach(Self.remindOptions, id: \.0) { Text($0.1).tag($0.0) }
+                        }
+                    }
+                } footer: {
+                    if s.featurePump {
+                        Text("Påmindelsen sendes kun til enheder, der har slået «Påmindelse om udpumpning» til under notifikationer. Ingen påmindelser mellem 22 og 7.")
+                    }
+                }
+                .listRowBackground(Color.card)
+
+                notifications
+
+                Section {
+                    Toggle("Vis næste tøjstørrelse", isOn: bind(model.showNextSize) { model.showNextSize = $0 })
+                } header: {
+                    Text("Vækst")
+                } footer: {
+                    Text("Skøn ud fra sidste længdemåling på vækstsiden. Gælder kun denne enhed.")
+                }
+                .listRowBackground(Color.card)
+
+                Section {
+                    Button("Eksportér som CSV") { exportFile = model.exportCSV() }
+                } header: {
+                    Text("Dine data")
+                } footer: {
+                    Text("Søvn, mad, udpumpning og vækst som fire CSV-filer i én zip-fil. De kan åbnes i Numbers og Excel, fx til sundhedsplejersken.")
+                }
+                .listRowBackground(Color.card)
+
+                if model.importAvailable {
+                    Section {
+                        Button("Vælg fil") { importing = true }
+                        if !importMessage.isEmpty { Text(importMessage).font(.footnote) }
+                    } header: {
+                        Text("Importér fra Folke-server")
+                    } footer: {
+                        Text("Vælg eksportfilen fra serveren (folke-….json). Det, der allerede er importeret, opdateres i stedet for at blive kopieret.")
+                    }
+                    .listRowBackground(Color.card)
+                }
+
+                Section("Du kender dit barn bedst") {
+                    ForEach(WelcomeView.points, id: \.icon) { p in
+                        Label(p.text, systemImage: p.icon).font(.footnote).foregroundStyle(muted)
+                    }
+                }
+                .listRowBackground(Color.card)
+            }
+            .scrollContentBackground(.hidden)
+            .background(SkyBackground(hour: Theme.hour(of: .now))) // navigationen har ellers sin egen sorte baggrund
+            .toolbarBackground(.hidden, for: .navigationBar)
+            .tint(Color.acc)
+            .navigationTitle("Indstillinger")
+            .toolbar {
+                ToolbarItem(placement: .topBarLeading) {
+                    Button("Tilbage", systemImage: "chevron.left") { save(); model.page = .home }
                 }
             }
-            .frame(maxWidth: 640)
-            .frame(maxWidth: .infinity)
+            .scrollDismissesKeyboard(.interactively)
         }
-        .contentMargins(.horizontal, 18, for: .scrollContent)
-        .contentMargins(.bottom, 28, for: .scrollContent)
-        .scrollDismissesKeyboard(.interactively)
         .onAppear { name = s.childName }
         .onChange(of: s.childID) { name = model.snapshot.childName } // skiftet barn: vis det nye navn
         .onChange(of: nameFocused) { if !nameFocused { save() } }
         .onChange(of: scenePhase) { if scenePhase == .active { Task { await model.notifier.refreshStatus() } } }
-    }
-
-    /// Notifikationer på denne enhed: status, slå til, send test og beskedtyper.
-    @ViewBuilder var notifications: some View {
-        let n = model.notifier
-        row("Notifikationer på denne enhed") {
-            Text(n.status == .allowed ? "Slået til" : n.status == .denied ? "Blokeret" : "Slået fra")
-            .font(.system(size: 14)).foregroundStyle(muted)
-        }
-        switch n.status {
-        case .notAsked:
-            ActionRow(options: [("Slå til", {
-                Task {
-                    message = await model.requestNotifications()
-                        ? "" : "Notifikationer blev ikke tilladt"
-                }
-            })]).padding(.top, 10)
-        case .denied:
-            note("Tillad notifikationer for Folke under Indstillinger → Notifikationer.")
-            ActionRow(options: [("Åbn Indstillinger", {
-                if let url = URL(string: UIApplication.openNotificationSettingsURLString) { openURL(url) }
-            })]).padding(.top, 10)
-        case .allowed:
-            ActionRow(options: [("Send test", { n.sendTest() })]).padding(.top, 10)
-            note("Send til denne enhed:")
-            toggle("Tid til at slappe af", n.enabled.contains(.sleepSoon)) {
-                model.setNotification(.sleepSoon, $0)
-            }
-            if n.enabled.contains(.sleepSoon) {
-                row("Hvornår") {
-                    menu(n.leadMin, NotificationPlanner.leadOptions.map { ($0, "\($0) min før") }) {
-                        model.setNotificationMinutes(lead: $0)
-                    }
-                }
-            }
-            toggle("Hvis lurtiden er gået", n.enabled.contains(.overdue)) {
-                model.setNotification(.overdue, $0)
-            }
-            if n.enabled.contains(.overdue) {
-                row("Hvornår") {
-                    menu(n.overdueMin, NotificationPlanner.overdueOptions.map { ($0, "\($0) min efter") }) {
-                        model.setNotificationMinutes(overdue: $0)
-                    }
-                }
-            }
-            if model.snapshot.featurePump {
-                toggle("Påmindelse om udpumpning", n.enabled.contains(.pump)) { model.setNotification(.pump, $0) }
-            }
-        case .unknown:
-            EmptyView()
-        }
-    }
-
-    /// Samme besked som velkomstskærmen, så den altid kan findes igen
-    var about: some View {
-        VStack(alignment: .leading, spacing: 0) {
-            Text("Du kender dit barn bedst").font(.system(size: 18, weight: .medium)).foregroundStyle(Color.fg)
-            ForEach(WelcomeView.points, id: \.icon) { p in note(p.text) }
-        }
-        .card()
-        .padding(.top, 14)
-    }
-
-    /// «Dine data»: eksport som CSV til fx sundhedsplejersken eller et regneark.
-    var yourData: some View {
-        VStack(alignment: .leading, spacing: 0) {
-            Text("Dine data").font(.system(size: 18, weight: .medium)).foregroundStyle(Color.fg)
-            note("Søvn, mad, udpumpning og vækst som fire CSV-filer i én zip-fil. De kan åbnes i Numbers og Excel, fx til sundhedsplejersken.")
-            ActionRow(options: [("Eksportér som CSV", { exportFile = model.exportCSV() })]).padding(.top, 10)
-        }
-        .card()
-        .padding(.top, 14)
         .sheet(isPresented: Binding(get: { exportFile != nil }, set: { if !$0 { exportFile = nil } })) {
             if let exportFile { ShareSheet(items: [exportFile]).ignoresSafeArea() }
         }
-    }
-
-    /// Kun i egne builds: hent data fra den gamle Folke-server (eksportfilen fra `/api/export`).
-    var serverImport: some View {
-        VStack(alignment: .leading, spacing: 0) {
-            Text("Importér fra Folke-server").font(.system(size: 18, weight: .medium)).foregroundStyle(Color.fg)
-            note("Vælg eksportfilen fra serveren (folke-….json). Søvn, mad, udpumpning og vækst lægges til. Det, der allerede er importeret, opdateres i stedet for at blive kopieret.")
-            ActionRow(options: [("Vælg fil", { importing = true })]).padding(.top, 10)
-            if !importMessage.isEmpty { note(importMessage) }
-        }
-        .card()
-        .padding(.top, 14)
         .fileImporter(isPresented: $importing, allowedContentTypes: [.json]) { result in
             switch result {
             case .success(let url): importMessage = model.importServer(url)
             case .failure(let error): importMessage = error.localizedDescription
             }
         }
+    }
+
+    func bind(_ value: Bool, _ set: @escaping (Bool) -> Void) -> Binding<Bool> {
+        Binding(get: { value }, set: set)
+    }
+
+    /// Notifikationer på denne enhed: status, slå til, send test, beskedtyper og minutter.
+    @ViewBuilder var notifications: some View {
+        let n = model.notifier
+        Section {
+            LabeledContent("Status", value: n.status == .allowed ? "Slået til" : n.status == .denied ? "Blokeret" : "Slået fra")
+            switch n.status {
+            case .notAsked:
+                Button("Slå til") {
+                    Task { message = await model.requestNotifications() ? "" : "Notifikationer blev ikke tilladt" }
+                }
+            case .denied:
+                Button("Åbn Indstillinger") {
+                    if let url = URL(string: UIApplication.openNotificationSettingsURLString) { openURL(url) }
+                }
+            case .allowed:
+                Button("Send test") { n.sendTest() }
+                Toggle("Tid til at slappe af", isOn: bind(n.enabled.contains(.sleepSoon)) { model.setNotification(.sleepSoon, $0) })
+                if n.enabled.contains(.sleepSoon) {
+                    Picker("Hvornår", selection: Binding(get: { n.leadMin }, set: { model.setNotificationMinutes(lead: $0) })) {
+                        ForEach(NotificationPlanner.leadOptions, id: \.self) { Text("\($0) min før").tag($0) }
+                    }
+                }
+                Toggle("Hvis lurtiden er gået", isOn: bind(n.enabled.contains(.overdue)) { model.setNotification(.overdue, $0) })
+                if n.enabled.contains(.overdue) {
+                    Picker("Hvornår", selection: Binding(get: { n.overdueMin }, set: { model.setNotificationMinutes(overdue: $0) })) {
+                        ForEach(NotificationPlanner.overdueOptions, id: \.self) { Text("\($0) min efter").tag($0) }
+                    }
+                }
+                if model.snapshot.featurePump {
+                    Toggle("Påmindelse om udpumpning", isOn: bind(n.enabled.contains(.pump)) { model.setNotification(.pump, $0) })
+                }
+            case .unknown:
+                EmptyView()
+            }
+        } header: {
+            Text("Notifikationer på denne enhed")
+        } footer: {
+            if n.status == .denied { Text("Tillad notifikationer for Folke under Indstillinger → Notifikationer.") }
+        }
+        .listRowBackground(Color.card)
     }
 
     func save() {
@@ -189,48 +205,6 @@ struct SettingsView: View {
             model.error = nil
         }
     }
-
-    // Rækker som `.sw` i webappen: tekst til venstre, valg til højre
-    func row<V: View>(_ label: String, @ViewBuilder _ trailing: () -> V) -> some View {
-        HStack {
-            Text(label).foregroundStyle(Color.fg)
-            Spacer(minLength: 12)
-            trailing()
-        }
-        .font(.system(size: 16))
-        .padding(.top, 12)
-    }
-
-    func toggle(_ label: String, _ on: Bool, _ set: @escaping (Bool) -> Void) -> some View {
-        Toggle(label, isOn: Binding(get: { on }, set: set))
-            .tint(Color.acc)
-            .foregroundStyle(Color.fg)
-            .font(.system(size: 16))
-            .padding(.top, 12)
-    }
-
-    func menu<T: Hashable>(_ value: T?, _ options: [(T, String)], _ set: @escaping (T) -> Void) -> some View {
-        Menu {
-            ForEach(options, id: \.0) { v, label in
-                Button { set(v) } label: { if v == value { Label(label, systemImage: "checkmark") } else { Text(label) } }
-            }
-        } label: {
-            HStack(spacing: 4) {
-                Text(options.first { $0.0 == value }?.1 ?? "Vælg")
-                Image(systemName: "chevron.up.chevron.down").font(.system(size: 11))
-            }
-            .font(.system(size: 15))
-            .foregroundStyle(Color.fg)
-            .padding(.vertical, 8).padding(.horizontal, 10)
-            .background(Color.white.opacity(0.06), in: RoundedRectangle(cornerRadius: 10))
-            .overlay(RoundedRectangle(cornerRadius: 10).strokeBorder(Color.line))
-        }
-    }
-
-    func note(_ s: String) -> some View {
-        Text(s).font(.system(size: 13)).foregroundStyle(muted).padding(.top, 6)
-            .fixedSize(horizontal: false, vertical: true)
-    }
 }
 
 /// «‹ Tilbage» med titel i midten (`.gh` i webappen).
@@ -240,10 +214,10 @@ struct BackHeader: View {
 
     var body: some View {
         ZStack {
-            Text(title).font(.system(size: 18, weight: .medium)).foregroundStyle(Color.fg)
+            Text(title).font(.headline).foregroundStyle(Color.fg)
             HStack {
                 Button(action: back) {
-                    Text("‹ Tilbage").font(.system(size: 16)).foregroundStyle(Color.acc)
+                    Text("‹ Tilbage").font(.callout).foregroundStyle(Color.acc)
                 }
                 .buttonStyle(.plain)
                 Spacer()
@@ -269,22 +243,24 @@ struct ShareSheet: UIViewControllerRepresentable {
 struct PlusCard: View {
     @Environment(AppModel.self) private var model
     @Environment(\.muted) private var muted
+    /// I en liste (Indstillinger) står kortet uden egen baggrund
+    var inList = false
 
     var body: some View {
         let status = model.snapshot.plus
         let shop = model.plusStore
         VStack(alignment: .leading, spacing: 0) {
             HStack {
-                Text("Folke Plus").font(.system(size: 18, weight: .medium)).foregroundStyle(Color.fg)
+                Text("Folke Plus").font(.headline).foregroundStyle(Color.fg)
                 Spacer()
                 if status == .purchased { Image(systemName: "checkmark.seal.fill").foregroundStyle(Color.acc) }
             }
-            Text(status.text).font(.system(size: 15)).foregroundStyle(Color.fg).padding(.top, 6)
+            Text(status.text).font(.subheadline).foregroundStyle(Color.fg).padding(.top, 6)
             if status != .purchased {
                 Text("Resten af dagen med en plan, der tilpasser sig korte og oversprungne lure, widgets, Live Activity, "
                      + "Siri og vækstkurver. Ét køb, intet abonnement, og det deles med familien. Søvn, mad, udpumpning, "
                      + "næste lur og sengetid, notifikationer, deling med partneren og alt, du har registreret, er altid gratis.")
-                    .font(.system(size: 13)).foregroundStyle(muted).padding(.top, 6)
+                    .font(.footnote).foregroundStyle(muted).padding(.top, 6)
                     .fixedSize(horizontal: false, vertical: true)
                 Button { Task { await shop.buy() } } label: {
                     Group {
@@ -294,7 +270,7 @@ struct PlusCard: View {
                             Text(shop.product.map { "Køb Folke Plus · \($0.displayPrice)" } ?? "Køb Folke Plus")
                         }
                     }
-                    .font(.system(size: 16)).foregroundStyle(.white)
+                    .font(.callout).foregroundStyle(.white)
                     .frame(maxWidth: .infinity).padding(12)
                     .background(Color.acc, in: RoundedRectangle(cornerRadius: 12))
                 }
@@ -303,15 +279,22 @@ struct PlusCard: View {
                 .opacity(shop.product == nil ? 0.5 : 1)
                 .padding(.top, 12)
                 Button("Gendan køb") { Task { await shop.restore() } }
-                    .font(.system(size: 14)).foregroundStyle(muted)
+                    .font(.subheadline).foregroundStyle(muted)
                     .frame(maxWidth: .infinity)
                     .padding(.top, 10)
                     .disabled(shop.busy)
             }
             if let m = shop.message {
-                Text(m).font(.system(size: 13)).foregroundStyle(Color.errorText).padding(.top, 8)
+                Text(m).font(.footnote).foregroundStyle(Color.errorText).padding(.top, 8)
             }
         }
-        .card()
+        .modifier(OptionalCard(on: !inList))
+    }
+}
+
+struct OptionalCard: ViewModifier {
+    var on: Bool
+    func body(content: Content) -> some View {
+        if on { content.card() } else { content.padding(.vertical, 6) }
     }
 }

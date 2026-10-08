@@ -25,7 +25,9 @@ struct RootView: View {
             let hour = Theme.hour(of: tl.date)
             ZStack {
                 SkyBackground(hour: hour)
-                if model.needsOnboarding {
+                if !model.welcomeSeen {
+                    WelcomeView()
+                } else if model.needsOnboarding {
                     OnboardingView()
                 } else if model.page == .settings {
                     SettingsView()

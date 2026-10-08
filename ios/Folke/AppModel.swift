@@ -333,6 +333,11 @@ final class AppModel {
     }
 
     /// Vis skøn over næste tøjstørrelse på vækstsiden (pr. enhed, standard til)
+    /// «Du kender dit barn bedst» er vist på denne enhed (én gang, før opsætningen)
+    var welcomeSeen: Bool = FolkeShared.defaults.bool(forKey: "folke.welcomeSeen") {
+        didSet { FolkeShared.defaults.set(welcomeSeen, forKey: "folke.welcomeSeen") }
+    }
+
     var showNextSize: Bool = FolkeShared.defaults.object(forKey: "folke.showNextSize") as? Bool ?? true {
         didSet { FolkeShared.defaults.set(showNextSize, forKey: "folke.showNextSize") }
     }

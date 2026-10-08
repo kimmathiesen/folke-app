@@ -66,6 +66,7 @@ struct SettingsView: View {
                 .card()
                 yourData
                 if model.importAvailable { serverImport }
+                about
                 if !message.isEmpty {
                     Text(message).font(.system(size: 14)).foregroundStyle(Color.errorText).padding(.top, 12)
                 }
@@ -116,6 +117,16 @@ struct SettingsView: View {
         case .unknown:
             EmptyView()
         }
+    }
+
+    /// Samme besked som velkomstskærmen, så den altid kan findes igen
+    var about: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            Text("Du kender dit barn bedst").font(.system(size: 18, weight: .medium)).foregroundStyle(Color.fg)
+            ForEach(WelcomeView.points, id: \.icon) { p in note(p.text) }
+        }
+        .card()
+        .padding(.top, 14)
     }
 
     /// «Dine data»: eksport som CSV til fx sundhedsplejersken eller et regneark.

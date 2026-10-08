@@ -385,6 +385,10 @@ Folke Plus (milepæl 9) er lavet, så langt det kan uden konto:
 - Mangler: produktet skal oprettes i App Store Connect (kræver konto), og prøven følger enheden (en ny installation
   giver en ny prøve; godt nok, da forudsigelserne alligevel skal have en uges data).
 
+«Du kender dit barn bedst» (8/10 2026): velkomstskærm én gang pr. enhed før opsætningen (`Folke/WelcomeView.swift`,
+`folke.welcomeSeen`) og samme tekst nederst i Indstillinger. Folke er en hjælp, ikke en regel, og ikke medicinsk rådgivning.
+Vigtigt over for App Review (sundhedsapp til børn) og bør med i App Store-beskrivelsen.
+
 Ud over milepælene (lavet uden udviklerkonto): app-ikon, baggrundsopdatering af notifikationer (`BGAppRefreshTask`,
 skal afprøves på telefon), tavlen lokalt (deling kommer med milepæl 6) og tøjstørrelse (afsnit 5, Vækst).
 Tavlen i appen viser «Sidst ændret» ud fra seneste streg (fortryd og «Visk ud» registreres ikke som ændring).

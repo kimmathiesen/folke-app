@@ -85,6 +85,43 @@ def test_beskedtyper_pr_enhed(client, world, sent, real_main):  # noqa: F811
     assert client.post("/api/push/kinds", json={"endpoint": "https://ukendt"}).status_code == 404
 
 
+def test_minutter_pr_enhed(client, world, sent, real_main, monkeypatch):  # noqa: F811
+    push.subscribe(SUB, "https://folke.test", "Mors iPhone")
+    push.subscribe(SUB2, "https://folke.test", "Fars iPhone")
+    r = client.post("/api/push/kinds", json={"endpoint": SUB["endpoint"], "minutes": {"lead": 20}})
+    assert r.get_json()["minutes"] == {"lead": 20, "overdue": 15}
+    assert r.get_json()["options"]["lead"] == [10, 15, 20, 30, 45, 60]
+    due_in(world, 25)  # 25 min før: kun far (30 min) får besked
+    real_main()
+    assert [e for e, _, _ in sent] == [SUB2["endpoint"]]
+    monkeypatch.setattr(folke, "datetime", type("Later", (folke.datetime,), {"now": classmethod(
+        lambda cls, tz=None: datetime.now(tz).replace(hour=12, minute=10, second=0, microsecond=0))}))
+    real_main()  # 15 min før: nu mor, og far får den ikke igen
+    assert [e for e, _, _ in sent] == [SUB2["endpoint"], SUB["endpoint"]]
+
+
+def test_ugyldige_minutter(client, sent):  # noqa: F811
+    push.subscribe(SUB, "https://folke.test")
+    r = client.post("/api/push/kinds", json={"endpoint": SUB["endpoint"], "minutes": {"lead": 7}})
+    assert r.status_code == 400
+    assert client.post("/api/push/kinds", json={"endpoint": SUB["endpoint"], "minutes": {"x": 10}}).status_code == 400
+    assert push.minutes(SUB["endpoint"]) == {"lead": 30, "overdue": 15}
+
+
+def test_ingen_dobbelt_besked_efter_opdatering(client, world, sent, real_main):  # noqa: F811
+    """Fra før minutter pr. enhed huskede serveren kun én fælles «notified». Den tæller stadig."""
+    due_in(world, 25)
+    push.subscribe(SUB, "https://folke.test")
+    real_main()
+    state = folke.load_state()
+    [dev] = state.pop("push_sent").values()
+    state["notified"] = dev["sleep_soon"]  # som en gammel state.json
+    folke.save_state(state)
+    n = len(sent)
+    real_main()
+    assert len(sent) == n
+
+
 def test_valg_bevares_ved_ny_tilmelding(sent):  # noqa: F811
     push.subscribe(SUB, "https://folke.test")
     push.set_kinds(SUB["endpoint"], {"pump": True})

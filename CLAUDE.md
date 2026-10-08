@@ -33,7 +33,7 @@ forudsigelse af næste lur/sengetid, notifikation via web push og/eller Home Ass
 
 ## Push
 - `push.py`: web push med pywebpush. VAPID-nøgle i `vapid.pem` (laves første gang), abonnementer i `push.json`, begge ved STATE_FILE. 404/410 fra push-tjenesten fjerner abonnementet.
-- Beskedtyper (`folke.KINDS`): `sleep_soon`, `overdue`, `pump`. Hver enhed har til/fra i `push.json` (`kinds`, `push.DEFAULT_KINDS`: søvn til, udpumpning fra), sat via `POST /api/push/kinds`. HA får typerne i env `HA_KINDS` (standard kun søvn). Udpumpningens «efter X timer» er fælles (`prefs.pump_remind`, standard 3).
+- Beskedtyper (`folke.KINDS`): `sleep_soon`, `overdue`, `pump`. Hver enhed har til/fra i `push.json` (`kinds`, `push.DEFAULT_KINDS`: søvn til, udpumpning fra), sat via `POST /api/push/kinds`. Hver enhed vælger også minutter før/efter (`lead`/`overdue` i `push.json`, standard LEAD_MIN 30 og OVERDUE_MIN 15, valg 10-60 og 5-45, `{"minutes": {...}}` til samme endpoint); `folke.main()` regner tidspunktet pr. enhed og husker det sendte i `state["push_sent"]`. Home Assistant bruger stadig LEAD_MIN/OVERDUE_MIN. HA får typerne i env `HA_KINDS` (standard kun søvn). Udpumpningens «efter X timer» er fælles (`prefs.pump_remind`, standard 3).
 - `folke.notify(title, msg, kind)` sender via HA (hvis sat op) og push (`folke.push`, sat af app.py). `folke.can_notify()` styrer, om der overhovedet notificeres. `sw.js` (route `/sw.js`) viser notifikationen.
 
 ## Navn og forælder

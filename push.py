@@ -20,6 +20,10 @@ SUBS = os.path.join(DIR, "push.json")
 FALLBACK_SUB = "mailto:folke-app@users.noreply.github.com"
 # Beskedtyper pr. enhed: søvnbeskeder til, udpumpning fra, indtil man selv slår det til
 DEFAULT_KINDS = {"sleep_soon": True, "overdue": True, "pump": False}
+# Minutter før næste søvn («Tid til at slappe af») og efter («… virker meget frisk»), valgt pr. enhed.
+# Standarden er serverens LEAD_MIN og OVERDUE_MIN (30 og 15).
+LEAD_OPTIONS = [10, 15, 20, 30, 45, 60]
+OVERDUE_OPTIONS = [5, 10, 15, 20, 30, 45]
 _lock = threading.Lock()
 
 
@@ -91,6 +95,35 @@ def set_kinds(endpoint, changes):
         _save(subs)
 
 
+def timing(s):
+    """(minutter før, minutter efter) for én enhed."""
+    return s.get("lead", folke.LEAD_MIN), s.get("overdue", folke.OVERDUE_MIN)
+
+
+def minutes(endpoint):
+    """Minutter for én enhed. KeyError, hvis enheden ikke er tilmeldt."""
+    s = next((s for s in load() if s["endpoint"] == endpoint), None)
+    if s is None:
+        raise KeyError(endpoint)
+    lead, overdue = timing(s)
+    return {"lead": lead, "overdue": overdue}
+
+
+def set_minutes(endpoint, changes):
+    """Sæt {"lead": 20} og/eller {"overdue": 30}. ValueError ved et tal uden for valgmulighederne."""
+    allowed = {"lead": LEAD_OPTIONS + [folke.LEAD_MIN], "overdue": OVERDUE_OPTIONS + [folke.OVERDUE_MIN]}
+    for k, v in changes.items():
+        if k not in allowed or v not in allowed[k]:
+            raise ValueError("Ugyldigt antal minutter")
+    with _lock:
+        subs = load()
+        s = next((s for s in subs if s["endpoint"] == endpoint), None)
+        if s is None:
+            raise KeyError(endpoint)
+        s.update({k: int(v) for k, v in changes.items()})
+        _save(subs)
+
+
 def wants(s, kind):
     return kind is None or {**DEFAULT_KINDS, **s.get("kinds", {})}.get(kind, True)
 
@@ -106,12 +139,12 @@ def active(kind=None):
     return any(wants(s, kind) for s in load())
 
 
-def send(title, body, url="/", kind=None):
-    """Send til alle enheder, der vil have beskedtypen `kind` (None = alle, fx testbeskeden).
+def send(title, body, url="/", kind=None, endpoints=None):
+    """Send til alle enheder, der vil have beskedtypen `kind` (None = alle, fx testbeskeden), evt. kun `endpoints`.
     Abonnementer, som push-tjenesten siger er udløbet (404/410), fjernes. Returnerer antal modtagere."""
     from pywebpush import WebPushException, webpush
 
-    subs = [s for s in load() if wants(s, kind)]
+    subs = [s for s in load() if wants(s, kind) and (endpoints is None or s["endpoint"] in endpoints)]
     if not subs:
         return 0
     key, data, ok, gone = _vapid(), json.dumps({"title": title, "body": body, "url": url}), 0, []

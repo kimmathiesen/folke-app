@@ -5,6 +5,8 @@ import SwiftUI
 struct FoodPage: View {
     @Environment(AppModel.self) private var model
     @Environment(\.muted) private var muted
+    /// Kolonnen med klokkeslæt vokser med tekststørrelsen
+    @ScaledMetric(relativeTo: .subheadline) private var timeWidth: CGFloat = 52
 
     var body: some View {
         TimelineView(.periodic(from: .now, by: 60)) { tl in
@@ -38,7 +40,8 @@ struct FoodPage: View {
                 .padding(.bottom, 4)
                 ForEach(items) { x in
                     HStack(alignment: .firstTextBaseline) {
-                        Text(Format.time(x.time)).monospacedDigit().foregroundStyle(Color.fg).frame(width: 52, alignment: .leading)
+                        Text(Format.time(x.time)).monospacedDigit().foregroundStyle(Color.fg).lineLimit(1)
+                            .frame(width: timeWidth, alignment: .leading)
                         Text(describe(x)).foregroundStyle(muted)
                         Spacer(minLength: 0)
                     }

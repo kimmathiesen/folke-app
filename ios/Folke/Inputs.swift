@@ -38,7 +38,8 @@ struct OptionalTimeField: View {
         } else {
             Button { time = .now } label: {
                 Text("--.--").monospacedDigit().foregroundStyle(muted)
-                    .frame(width: 64)
+                    .lineLimit(1)
+                    .frame(minWidth: 64)
                     .inputFrame()
             }
             .buttonStyle(.plain)

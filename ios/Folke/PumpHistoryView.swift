@@ -123,6 +123,7 @@ struct PumpChart: View {
             label("ml", L - 6, 6, .trailing)
         }
         .aspectRatio(340 / 200, contentMode: .fit)
+        .dynamicTypeSize(...DynamicTypeSize.large) // tegning med fast plads til aksetallene
         .accessibilityElement(children: .ignore)
         .accessibilityLabel("Udpumpning de seneste 14 dage")
         .accessibilityValue("I dag \(history.days.last?.ml ?? 0) ml"

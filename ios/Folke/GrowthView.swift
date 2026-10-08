@@ -167,6 +167,7 @@ struct GrowthChart: View {
             }
         }
         .aspectRatio(340 / 262, contentMode: .fit)
+        .dynamicTypeSize(...DynamicTypeSize.large) // tegning med fast plads til aksetallene
         .accessibilityElement(children: .ignore)
         .accessibilityLabel("Vækstkurve, \(kind.tab.lowercased())")
         .accessibilityValue(points.last.flatMap { p in p.values[kind].map { v in

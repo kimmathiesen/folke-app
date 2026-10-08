@@ -70,8 +70,8 @@ struct ActionRow: View {
 }
 
 extension Text {
-    func segLabel(on: Bool, size: CGFloat = 16) -> some View {
-        font(.system(size: size))
+    func segLabel(on: Bool) -> some View {
+        font(.callout)
             .lineLimit(1)
             .minimumScaleFactor(0.7)
             .padding(.vertical, 12)

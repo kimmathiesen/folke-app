@@ -7,16 +7,12 @@
   <Network>bridge</Network>
   <Privileged>false</Privileged>
   <Support>https://github.com/kimmathiesen/folke-app</Support>
-  <Overview>Folke-App: babysøvn, mad, udpumpning og vækst. Data i en SQLite-fil under /data (dagligt backup i /data/backup). Home Assistant er valgfrit.</Overview>
+  <Overview>Folke-App: babysøvn, mad, udpumpning og vækst. Data i en SQLite-fil under /data (dagligt backup i /data/backup).</Overview>
   <Category>HomeAutomation:</Category>
   <WebUI>http://[IP]:[PORT:6661]/</WebUI>
   <Config Name="WebUI port" Target="8080" Default="6661" Mode="tcp" Description="" Type="Port" Display="always" Required="true" Mask="false">6661</Config>
   <Config Name="Data" Target="/data" Default="/mnt/user/appdata/folke-standalone/data" Mode="rw" Description="" Type="Path" Display="always" Required="true" Mask="false">/mnt/user/appdata/folke-standalone/data</Config>
-  <Config Name="HA_URL" Target="HA_URL" Default="" Mode="" Description="Home Assistant adresse (valgfri)" Type="Variable" Display="always" Required="false" Mask="false"></Config>
-  <Config Name="HA_TOKEN" Target="HA_TOKEN" Default="" Mode="" Description="Home Assistant long-lived token" Type="Variable" Display="always" Required="false" Mask="true"></Config>
-  <Config Name="HA_NOTIFY" Target="HA_NOTIFY" Default="" Mode="" Description="HA notify-tjeneste. Tom = ingen notifikationer" Type="Variable" Display="always" Required="false" Mask="false"></Config>
   <Config Name="TZ" Target="TZ" Default="Europe/Copenhagen" Mode="" Description="" Type="Variable" Display="advanced" Required="true" Mask="false">Europe/Copenhagen</Config>
   <Config Name="STATE_FILE" Target="STATE_FILE" Default="/data/state.json" Mode="" Description="" Type="Variable" Display="advanced" Required="true" Mask="false">/data/state.json</Config>
-  <Config Name="HA_SENSOR" Target="HA_SENSOR" Default="sensor.baby_next_sleep" Mode="" Description="Sensornavn i Home Assistant" Type="Variable" Display="advanced" Required="true" Mask="false">sensor.baby_next_sleep</Config>
   <Config Name="CHILD_BIRTH" Target="CHILD_BIRTH" Default="" Mode="" Description="Valgfri: fødselsdato (ÅÅÅÅ-MM-DD). Ellers spørger appen ved første opstart" Type="Variable" Display="advanced" Required="false" Mask="false"></Config>
 </Container>

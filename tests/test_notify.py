@@ -129,17 +129,6 @@ def test_valg_bevares_ved_ny_tilmelding(sent):  # noqa: F811
     assert push.kinds(SUB["endpoint"])["pump"] is True and len(push.load()) == 1
 
 
-def test_home_assistant_faar_ikke_udpumpning_som_standard(monkeypatch, sent):  # noqa: F811
-    calls = []
-    monkeypatch.setattr(folke, "HA_URL", "http://ha.test")
-    monkeypatch.setattr(folke, "HA_NOTIFY", "notify.mobile_app_x")
-    monkeypatch.setattr(folke, "call", lambda url, *a, **k: calls.append(url))
-    folke.notify("Udpumpning", "…", kind="pump")
-    assert calls == [] and folke.can_notify("pump") is False
-    folke.notify("Søvn", "…", kind="overdue")
-    assert calls == ["http://ha.test/api/services/notify/mobile_app_x"]
-
-
 # ---------- navn og opsætning ----------
 def test_barnets_navn(client, world):
     assert client.post("/api/profile", json={"name": "  "}).status_code == 400

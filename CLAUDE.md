@@ -1,11 +1,11 @@
 # Folke (selfhostet)
 Baby-søvntracker med egen SQLite-database (startede oven på Baby Buddy, men kører nu helt uden). Mål: start/stop søvn fra telefonen (PWA),
-forudsigelse af næste lur/sengetid, notifikation via web push og/eller Home Assistant.
+forudsigelse af næste lur/sengetid, notifikation via web push (Home Assistant er fjernet 8/10 2026).
 
 ## Arkitektur
 - `folke.py`: motor. `plan_day()` laver dagsplanen (lure og sengetid resten af dagen), og `predict()` er dens første punkt (vågenvinduer pr. position på dagen, median, aldersbaseret fallback),
-  HA-sensor `sensor.baby_next_sleep`, besked LEAD_MIN (30) min før og OVERDUE_MIN (15) min efter, hvis ingen søvn er startet. Kan køre alene (cron) eller importeres.
-- `app.py`: Flask. `/api/status`, `/api/start`, `/api/stop`, `/api/pump` (JSON {amount}, kan kaldes fra HA). Start = en timer "Søvn" i databasen;
+  besked (web push) LEAD_MIN (30) min før og OVERDUE_MIN (15) min efter, hvis ingen søvn er startet (minutterne kan vælges pr. enhed).
+- `app.py`: Flask. `/api/status`, `/api/start`, `/api/stop`, `/api/pump` (JSON {amount}). Start = en timer "Søvn" i databasen;
   stop = en søvn + timeren slettes. Baggrundstråd (`tick()`) kalder `folke.main()` hvert 60. sek. og tager daglig backup.
 - `store.py`: datalag. `store.get()` giver `Sqlite` (fil `DB_FILE`, standard `folke.db` ved STATE_FILE). app.py og `folke.main()` går altid gennem det. Tider gemmes som UTC-tekst (`iso()`), så de kan sammenlignes som tekst. Skemaændringer: tilføj et trin til `MIGRATIONS` (PRAGMA user_version). Kolonnen `bb_id` er en rest fra den gamle import fra Baby Buddy (fjernet 8/10 2026).
 - `index.html`: enkeltfil-UI (ingen build). Kør gunicorn med 1 worker (tråden).
@@ -33,8 +33,8 @@ forudsigelse af næste lur/sengetid, notifikation via web push og/eller Home Ass
 
 ## Push
 - `push.py`: web push med pywebpush. VAPID-nøgle i `vapid.pem` (laves første gang), abonnementer i `push.json`, begge ved STATE_FILE. 404/410 fra push-tjenesten fjerner abonnementet.
-- Beskedtyper (`folke.KINDS`): `sleep_soon`, `overdue`, `pump`. Hver enhed har til/fra i `push.json` (`kinds`, `push.DEFAULT_KINDS`: søvn til, udpumpning fra), sat via `POST /api/push/kinds`. Hver enhed vælger også minutter før/efter (`lead`/`overdue` i `push.json`, standard LEAD_MIN 30 og OVERDUE_MIN 15, valg 10-60 og 5-45, `{"minutes": {...}}` til samme endpoint); `folke.main()` regner tidspunktet pr. enhed og husker det sendte i `state["push_sent"]`. Home Assistant bruger stadig LEAD_MIN/OVERDUE_MIN. HA får typerne i env `HA_KINDS` (standard kun søvn). Udpumpningens «efter X timer» er fælles (`prefs.pump_remind`, standard 3).
-- `folke.notify(title, msg, kind)` sender via HA (hvis sat op) og push (`folke.push`, sat af app.py). `folke.can_notify()` styrer, om der overhovedet notificeres. `sw.js` (route `/sw.js`) viser notifikationen.
+- Beskedtyper (`folke.KINDS`): `sleep_soon`, `overdue`, `pump`. Hver enhed har til/fra i `push.json` (`kinds`, `push.DEFAULT_KINDS`: søvn til, udpumpning fra), sat via `POST /api/push/kinds`. Hver enhed vælger også minutter før/efter (`lead`/`overdue` i `push.json`, standard LEAD_MIN 30 og OVERDUE_MIN 15, valg 10-60 og 5-45, `{"minutes": {...}}` til samme endpoint); `folke.main()` regner tidspunktet pr. enhed og husker det sendte i `state["push_sent"]`. Udpumpningens «efter X timer» er fælles (`prefs.pump_remind`, standard 3).
+- `folke.notify(title, msg, kind)` sender via push (`folke.push`, sat af app.py). `folke.can_notify()` styrer, om der overhovedet notificeres. `sw.js` (route `/sw.js`) viser notifikationen.
 
 ## Navn og forælder
 - Barnets navn er fælles: `prefs.child_name` (sat ved første opstart eller under Indstillinger), ellers `first_name` fra databasen. `folke.display_name` bruges i beskeden «… virker meget frisk».

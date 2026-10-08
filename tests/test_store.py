@@ -90,15 +90,3 @@ def test_eksport(db, app_client):
     d = json.loads(r.data)
     assert len(d["sleep"]) == 1 and len(d["pumping"]) == 2 and d["growth"][0]["w"] == 6.0
     assert d["child"][0]["first_name"] == "Folke"
-
-
-# ---------- folke.main() ----------
-def test_main_opdaterer_valgt_sensor(db, real_main, monkeypatch):
-    db._exec("INSERT INTO child (birth_date) VALUES (?)", ((now() - timedelta(days=100)).date().isoformat(),))
-    db.add_sleep(1, now() - timedelta(hours=2), now() - timedelta(hours=1), True)
-    sent = []
-    monkeypatch.setattr(folke, "HA_URL", "http://ha.test")
-    monkeypatch.setattr(folke, "HA_SENSOR", "sensor.folke_test")
-    monkeypatch.setattr(folke, "call", lambda url, *a, **k: sent.append(url))
-    real_main()
-    assert sent == ["http://ha.test/api/states/sensor.folke_test"]

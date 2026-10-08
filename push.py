@@ -1,4 +1,4 @@
-"""Web push: notifikationer direkte til telefonen uden Home Assistant.
+"""Web push: notifikationer direkte til telefonen.
 
 Virker på iPhone/iPad fra iOS 16.4, når appen er føjet til hjemmeskærmen og åbnet derfra, og i de
 fleste andre browsere. Kræver https (fx via cloudflared). VAPID-nøglen laves første gang og ligger i

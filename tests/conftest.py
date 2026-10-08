@@ -7,8 +7,6 @@ ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, ROOT)
 
 os.environ.update({
-    "HA_URL": "",
-    "HA_NOTIFY": "",
     "CHILD_ID": "",
     "TZ": "Europe/Copenhagen",
     "STATE_FILE": os.path.join(tempfile.mkdtemp(), "state.json"),
@@ -51,10 +49,12 @@ def real_main():
 
 @pytest.fixture(autouse=True)
 def no_network(monkeypatch):
-    """Intet går på netværket i tests (Home Assistant m.m.). Tests, der vil se kaldene, sætter selv folke.call."""
-    def call(url, *a, **k):
-        raise AssertionError(f"uventet netværkskald: {url}")
-    monkeypatch.setattr(folke, "call", call)
+    """Intet går på netværket i tests (web push erstattes i `sent`-fixturen i test_push)."""
+    import urllib.request
+
+    def urlopen(req, *a, **k):
+        raise AssertionError(f"uventet netværkskald: {getattr(req, 'full_url', req)}")
+    monkeypatch.setattr(urllib.request, "urlopen", urlopen)
 
 
 class SqliteWorld:

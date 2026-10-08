@@ -1,4 +1,4 @@
-"""Web push: nøgle, abonnementer, afsendelse (pywebpush erstattes) og notifikationer uden Home Assistant."""
+"""Web push: nøgle, abonnementer, afsendelse (pywebpush erstattes) og notifikationer."""
 import json
 import os
 from datetime import datetime, timedelta
@@ -27,8 +27,6 @@ def sent(monkeypatch, tmp_path):
     monkeypatch.setattr(push, "KEY", str(tmp_path / "vapid.pem"))
     monkeypatch.setattr(push, "SUBS", str(tmp_path / "push.json"))
     monkeypatch.setattr(folke, "STATE_FILE", str(tmp_path / "state.json"))
-    monkeypatch.setattr(folke, "HA_URL", "")
-    monkeypatch.setattr(folke, "HA_NOTIFY", "")
     calls, fail = Calls(), {}
 
     def webpush(info, data, vapid_private_key=None, vapid_claims=None, **kw):

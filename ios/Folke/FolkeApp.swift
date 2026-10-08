@@ -29,10 +29,6 @@ struct RootView: View {
                     OnboardingView()
                 } else if model.page == .settings {
                     SettingsView()
-                } else if model.page == .growth {
-                    GrowthView()
-                } else if model.page == .pump {
-                    PumpHistoryView()
                 } else if model.page == .board {
                     BoardView()
                 } else {

@@ -24,15 +24,20 @@ public enum Format {
     }
 
     /// Linjen med sidste måltid: «Flaske 120 ml kl. 14.05 · for 1 t 10 min siden».
-    public static func lastFeed(kind: FeedKind, amountMl: Double, time: Date, now: Date,
-                                calendar: Calendar = .current) -> String {
-        let name = switch kind {
+    /// «Flaske», «Amning, venstre» … (som i Mad-kortet)
+    public static func feedName(_ kind: FeedKind) -> String {
+        switch kind {
         case .bottle: "Flaske"
         case .left: "Amning, venstre"
         case .right: "Amning, højre"
         case .both: "Amning"
         case .solid: "Fast føde"
         }
+    }
+
+    public static func lastFeed(kind: FeedKind, amountMl: Double, time: Date, now: Date,
+                                calendar: Calendar = .current) -> String {
+        let name = feedName(kind)
         let ml = amountMl > 0 ? " \(Int(amountMl.rounded())) ml" : ""
         return "\(name)\(ml) kl. \(Format.time(time, calendar: calendar)) · for \(ago(time, now: now)) siden"
     }

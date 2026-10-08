@@ -21,7 +21,7 @@ struct GrowthView: View {
         let points = s.growth.filter { $0.values[k] != nil }
         ScrollView {
             VStack(spacing: 0) {
-                BackHeader(title: "Vækst") { model.page = .home }
+                PageTitle(title: "Vækst")
                 if s.plus.unlocked {
                     Segmented(options: WHO.Measure.allCases.map { ($0, $0.tab) }, selection: $kind)
                 }
@@ -50,11 +50,12 @@ struct GrowthView: View {
                     .padding(.top, 16).padding(.horizontal, 4)
                 }
             }
-            .frame(maxWidth: 640)
+            .frame(maxWidth: 600)
             .frame(maxWidth: .infinity)
         }
         .contentMargins(.horizontal, 18, for: .scrollContent)
-        .contentMargins(.bottom, 28, for: .scrollContent)
+        .contentMargins(.bottom, 20, for: .scrollContent)
+        .scrollIndicators(.hidden)
         .sheet(item: $editing) { e in GrowthSheet(point: e.point) }
     }
 

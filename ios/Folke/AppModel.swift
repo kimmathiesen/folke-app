@@ -37,6 +37,16 @@ struct Snapshot {
     var strokes: [BoardStroke] = []
     var boardVersion = 0.0
     var plus = Plus.Status.trial(daysLeft: Plus.trialDays)
+    var feedItems: [FeedItem] = []
+
+    struct FeedItem: Identifiable {
+        var id: UUID
+        var time: Date
+        var kind: FeedKind
+        var amountMl: Double
+        var milk: Milk?
+        var note: String?
+    }
 
     struct PumpItem: Identifiable {
         var id: UUID
@@ -59,7 +69,25 @@ final class AppModel {
     /// Siden, der vises (som hash-ruterne i webappen)
     var page: Page = .home
 
-    enum Page { case home, settings, growth, pump, board }
+    enum Page { case home, settings, board }
+
+    /// Forsidens sider, man stryger mellem (som iPhones hjemmeskærm). Søvn er standard.
+    enum Tab: Hashable, CaseIterable {
+        case sleep, food, pump, growth
+
+        var title: String {
+            switch self {
+            case .sleep: "Søvn"
+            case .food: "Mad"
+            case .pump: "Udpumpning"
+            case .growth: "Vækst"
+            }
+        }
+    }
+
+    var tab: Tab = .sleep
+    /// Udpumpning vises kun, når funktionen er slået til
+    var tabs: [Tab] { Tab.allCases.filter { $0 != .pump || snapshot.featurePump } }
 
     var role: Role? {
         didSet { FolkeShared.role = role }
@@ -148,6 +176,10 @@ final class AppModel {
             s.lastFeed = (k, f.amountMl, t)
         }
         s.pump = store.pumpSummary(now: now)
+        s.feedItems = store.todayFeedings(now: now).compactMap { f in
+            guard let id = f.id, let t = f.time, let k = f.kind.flatMap(FeedKind.init(rawValue:)) else { return nil }
+            return .init(id: id, time: t, kind: k, amountMl: f.amountMl, milk: f.milk.flatMap(Milk.init(rawValue:)), note: f.note)
+        }
         s.suggestion = store.suggestions(now: now).first
         s.birthDate = child?.birthDate
         s.growth = store.growthPoints()
@@ -161,6 +193,7 @@ final class AppModel {
             return .init(id: id, time: t, amountMl: p.amountMl, side: p.side.flatMap(Side.init(rawValue:)), minutes: p.minutes)
         }
         snapshot = s
+        if tab == .pump && !s.featurePump { tab = .sleep }
         syncExtensions(s)
         notifier.reschedule(.init(now: now, prediction: s.prediction, sleeping: s.running != nil, childName: s.childName,
                                   enabled: [], pumpFeature: s.featurePump, pumpRemindHours: s.pumpRemindHours,
@@ -255,6 +288,11 @@ final class AppModel {
     @discardableResult
     func pump(amountMl: Double, side: Side?, minutes: Double?, at time: Date?) -> Bool {
         perform { try store.addPumping(amountMl: amountMl, side: side, minutes: minutes, at: Self.resolve(time)) }
+    }
+
+    func deleteFeeding(id: UUID) {
+        guard let f = store.feeding(id: id) else { return }
+        perform { try store.delete(f) }
     }
 
     func answer(_ answer: Suggestions.Answer) {

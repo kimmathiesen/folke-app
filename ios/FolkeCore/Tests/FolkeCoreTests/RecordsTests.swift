@@ -100,4 +100,15 @@ import Testing
         #expect(DayPart.of(start: at(d, 9, 0), nap: false, calendar: cph) == .night)
         #expect(Format.time(at(d, 9, 5), calendar: cph) == "09.05")
     }
+
+    @Test func dagensMaaltiderNyesteFoerst() throws {
+        let s = try store()
+        try s.addFeeding(.left, at: at(plusDays(d, -1), 22, 0), now: at(d, 12, 0))
+        try s.addFeeding(.bottle, amountMl: 90, at: at(d, 7, 0), now: at(d, 12, 0))
+        try s.addFeeding(.both, at: at(d, 10, 30), now: at(d, 12, 0))
+        let today = s.todayFeedings(now: at(d, 12, 0))
+        #expect(today.compactMap(\.kind) == ["both", "bottle"])
+        #expect(s.feeding(id: today[0].id!) == today[0])
+        #expect(Format.feedName(.left) == "Amning, venstre")
+    }
 }

@@ -72,7 +72,7 @@ struct FeedCard: View {
             HStack(spacing: 14) {
                 CardIcon(name: "waterbottle")
                 VStack(alignment: .leading, spacing: 0) {
-                    Text("Mad").font(.system(size: 16, weight: .medium)).foregroundStyle(Color.fg)
+                    Text("Nyt måltid").font(.system(size: 16, weight: .medium)).foregroundStyle(Color.fg)
                     Text(s.lastFeed.map { Format.lastFeed(kind: $0.kind, amountMl: $0.amountMl, time: $0.time, now: now) }
                          ?? "Ingen måltider endnu")
                         .font(.system(size: 14)).foregroundStyle(muted)
@@ -154,15 +154,10 @@ struct PumpCard: View {
             HStack(spacing: 14) {
                 CardIcon(name: "drop")
                 VStack(alignment: .leading, spacing: 0) {
-                    Text("Udpumpning").font(.system(size: 16, weight: .medium)).foregroundStyle(Color.fg)
+                    Text("Ny udpumpning").font(.system(size: 16, weight: .medium)).foregroundStyle(Color.fg)
                     Text(Format.pumpSummary(model.snapshot.pump, now: now)).font(.system(size: 14)).foregroundStyle(muted)
                 }
                 Spacer(minLength: 0)
-                Button { model.page = .pump } label: {
-                    Text("Historik ›").font(.system(size: 14)).foregroundStyle(Color.acc)
-                }
-                .buttonStyle(.plain)
-                .fixedSize()
             }
             Segmented(options: [(Side.left, "Venstre"), (.right, "Højre"), (.both, "Begge")], selection: $side, toggles: true)
                 .padding(.top, 12)

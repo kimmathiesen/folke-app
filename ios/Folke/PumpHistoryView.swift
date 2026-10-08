@@ -1,7 +1,7 @@
 import FolkeCore
 import SwiftUI
 
-/// «Udpumpning» (`#v-pump` i index.html): graf over 14 dage, liste over 7 dage, ret og slet.
+/// Udpumpning (siden på forsiden): registrér, plus `#v-pump` fra index.html (graf over 14 dage, liste over 7 dage, ret og slet).
 struct PumpHistoryView: View {
     @Environment(AppModel.self) private var model
     @Environment(\.muted) private var muted
@@ -10,9 +10,12 @@ struct PumpHistoryView: View {
     var body: some View {
         let s = model.snapshot
         let h = s.pumpHistory
+        TimelineView(.periodic(from: .now, by: 60)) { tl in
         ScrollView {
             VStack(spacing: 0) {
-                BackHeader(title: "Udpumpning") { model.page = .home }
+                PageTitle(title: "Udpumpning")
+                PumpCard(now: tl.date)
+                ErrorText().padding(.top, 8)
                 VStack(alignment: .leading, spacing: 8) {
                     PumpChart(history: h)
                     if let today = h.days.last {
@@ -24,6 +27,7 @@ struct PumpHistoryView: View {
                     }
                 }
                 .card()
+                .padding(.top, 16)
                 if !s.pumpItems.isEmpty {
                     list(s.pumpItems)
                 }
@@ -34,11 +38,14 @@ struct PumpHistoryView: View {
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .padding(.top, 16).padding(.horizontal, 4)
             }
-            .frame(maxWidth: 640)
+            .frame(maxWidth: 600)
             .frame(maxWidth: .infinity)
         }
         .contentMargins(.horizontal, 18, for: .scrollContent)
-        .contentMargins(.bottom, 28, for: .scrollContent)
+        .contentMargins(.bottom, 20, for: .scrollContent)
+        .scrollIndicators(.hidden)
+        .scrollDismissesKeyboard(.interactively)
+        }
         .sheet(item: $editing) { PumpSheet(item: $0) }
     }
 

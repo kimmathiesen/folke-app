@@ -1,8 +1,126 @@
 import FolkeCore
 import SwiftUI
 
-/// Forsiden (milepæl 2: overskrift, ring, start/stop og forudsigelse).
+/// Forsiden: sider, man stryger mellem som på iPhones hjemmeskærm (Søvn, Mad, Udpumpning, Vækst). Søvn er standard.
+/// Indstillinger og månen (tavlen) ligger fast i toppen, sidevælgeren i bunden.
 struct HomeView: View {
+    @Environment(AppModel.self) private var model
+
+    // Vandret ScrollView med sidevis rulning (ikke TabView(.page), der gav en uendelig layoutløkke med siderne her)
+    var body: some View {
+        VStack(spacing: 0) {
+            TopBar()
+            GeometryReader { g in
+                ScrollView(.horizontal) {
+                    HStack(spacing: 0) {
+                        ForEach(model.tabs, id: \.self) { t in
+                            page(t).frame(width: g.size.width, height: g.size.height)
+                        }
+                    }
+                    .scrollTargetLayout()
+                }
+                .scrollTargetBehavior(.paging)
+                .scrollPosition(id: Binding(get: { model.tab }, set: { if let t = $0 { model.tab = t } }))
+                .scrollIndicators(.hidden)
+                .scrollBounceBehavior(.basedOnSize, axes: .horizontal)
+            }
+            PageIndicator()
+        }
+    }
+
+    @ViewBuilder func page(_ t: AppModel.Tab) -> some View {
+        switch t {
+        case .sleep: SleepPage()
+        case .food: FoodPage()
+        case .pump: PumpHistoryView()
+        case .growth: GrowthView()
+        }
+    }
+}
+
+/// Fast top: «Indstillinger» til venstre og månen (tavlen) i midten (`#setbtn` og logoet i webappen).
+struct TopBar: View {
+    @Environment(AppModel.self) private var model
+
+    var body: some View {
+        Button { model.openBoard() } label: { MoonLogo(blink: model.boardHasNews) }
+            .buttonStyle(.plain)
+            .accessibilityLabel("Tavlen")
+            .frame(maxWidth: .infinity)
+            .overlay(alignment: .topLeading) {
+                Button { model.page = .settings } label: {
+                    HStack(spacing: 6) {
+                        Image(systemName: "slider.horizontal.3").font(.system(size: 14))
+                        Text("Indstillinger").font(.system(size: 14))
+                    }
+                    .foregroundStyle(Color.fg)
+                    .padding(.vertical, 8).padding(.horizontal, 14)
+                    .background(Color.card, in: Capsule())
+                    .overlay(Capsule().strokeBorder(Color.line))
+                }
+                .buttonStyle(.plain)
+                .padding(.top, 8)
+            }
+            .padding(.horizontal, 18)
+            .padding(.top, 14)
+    }
+}
+
+/// Sidevælgeren i bunden: navnene på siderne, den aktuelle fremhævet. Tryk eller stryg.
+struct PageIndicator: View {
+    @Environment(AppModel.self) private var model
+    @Environment(\.muted) private var muted
+
+    var body: some View {
+        HStack(spacing: 4) {
+            ForEach(model.tabs, id: \.self) { t in
+                let on = t == model.tab
+                Button { withAnimation(.easeInOut(duration: 0.25)) { model.tab = t } } label: {
+                    Text(t.title)
+                        .font(.system(size: 13, weight: on ? .semibold : .regular))
+                        .foregroundStyle(on ? Color.fg : muted)
+                        .padding(.vertical, 7).padding(.horizontal, 12)
+                        .background(on ? Color.white.opacity(0.12) : .clear, in: Capsule())
+                }
+                .buttonStyle(.plain)
+                .accessibilityAddTraits(on ? .isSelected : [])
+            }
+        }
+        .padding(4)
+        .background(Color.card, in: Capsule())
+        .overlay(Capsule().strokeBorder(Color.line))
+        .padding(.top, 6)
+        .padding(.bottom, 4)
+    }
+}
+
+/// Titel øverst på en side (Mad, Udpumpning, Vækst)
+struct PageTitle: View {
+    var title: String
+
+    var body: some View {
+        Text(title)
+            .font(.system(size: 30, weight: .semibold))
+            .foregroundStyle(Color.fg)
+            .frame(maxWidth: .infinity)
+            .padding(.top, 2)
+            .padding(.bottom, 14)
+    }
+}
+
+/// Fejltekst fra seneste handling (vises på den side, man står på)
+struct ErrorText: View {
+    @Environment(AppModel.self) private var model
+
+    var body: some View {
+        if let e = model.error {
+            Text(e).font(.system(size: 14)).foregroundStyle(Color.errorText)
+        }
+    }
+}
+
+/// Søvn: hilsen, ringen, start/stop, glemte tryk, næste lur og dagens søvn.
+struct SleepPage: View {
     @Environment(AppModel.self) private var model
     @Environment(\.muted) private var muted
 
@@ -13,7 +131,7 @@ struct HomeView: View {
                     // iPad på langs: ring til venstre, kort til højre (fra 900 pt)
                     if g.size.width >= 900 {
                         VStack(spacing: 0) {
-                            header
+                            greeting
                             suggestion.frame(maxWidth: 600)
                             HStack(alignment: .top, spacing: 40) {
                                 dialColumn(now: tl.date, maxDial: 420)
@@ -23,7 +141,7 @@ struct HomeView: View {
                         .frame(maxWidth: 1040)
                     } else {
                         VStack(spacing: 0) {
-                            header
+                            greeting
                             suggestion
                             dialColumn(now: tl.date, maxDial: g.size.width >= 600 ? 420 : 360)
                             cards(now: tl.date)
@@ -33,49 +151,15 @@ struct HomeView: View {
                 }
                 .frame(maxWidth: .infinity)
                 .contentMargins(.horizontal, 18, for: .scrollContent)
-                .contentMargins(.bottom, 28, for: .scrollContent)
+                .contentMargins(.bottom, 20, for: .scrollContent)
                 .scrollIndicators(.hidden)
                 .scrollDismissesKeyboard(.interactively)
             }
         }
     }
 
-    var header: some View {
+    var greeting: some View {
         VStack(spacing: 0) {
-            Button { model.openBoard() } label: { MoonLogo(blink: model.boardHasNews) }
-                .buttonStyle(.plain)
-                .accessibilityLabel("Tavlen")
-                .frame(maxWidth: .infinity)
-                .overlay(alignment: .topLeading) {
-                    // Som `#setbtn` i webappen
-                    Button { model.page = .settings } label: {
-                        HStack(spacing: 6) {
-                            Image(systemName: "slider.horizontal.3").font(.system(size: 14))
-                            Text("Indstillinger").font(.system(size: 14))
-                        }
-                        .foregroundStyle(Color.fg)
-                        .padding(.vertical, 8).padding(.horizontal, 14)
-                        .background(Color.card, in: Capsule())
-                        .overlay(Capsule().strokeBorder(Color.line))
-                    }
-                    .buttonStyle(.plain)
-                    .padding(.top, 8)
-                }
-                .overlay(alignment: .topTrailing) {
-                    // Som `#gobtn` i webappen
-                    Button { model.page = .growth } label: {
-                        HStack(spacing: 6) {
-                            Image(systemName: "chart.line.uptrend.xyaxis").font(.system(size: 14))
-                            Text("Vækst").font(.system(size: 14))
-                        }
-                        .foregroundStyle(Color.fg)
-                        .padding(.vertical, 8).padding(.horizontal, 14)
-                        .background(Color.card, in: Capsule())
-                        .overlay(Capsule().strokeBorder(Color.line))
-                    }
-                    .buttonStyle(.plain)
-                    .padding(.top, 8)
-                }
             Text(Format.greeting(name: model.snapshot.childName, role: model.role))
                 .font(.system(size: 30, weight: .semibold))
                 .foregroundStyle(Color.fg)
@@ -85,7 +169,6 @@ struct HomeView: View {
                 .font(.system(size: 15))
                 .foregroundStyle(muted)
         }
-        .padding(.top, 14)
     }
 
     func dialColumn(now: Date, maxDial: Double) -> some View {
@@ -160,13 +243,7 @@ struct HomeView: View {
         return VStack(spacing: 16) {
             ForgotCard(sleeping: s.running != nil)
             PlanCard(snapshot: s, now: now)
-            FeedCard(now: now)
-            if s.featurePump {
-                PumpCard(now: now)
-            }
-            if let e = model.error {
-                Text(e).font(.system(size: 14)).foregroundStyle(Color.errorText)
-            }
+            ErrorText()
             if !s.today.isEmpty {
                 DayCard(now: now)
             }

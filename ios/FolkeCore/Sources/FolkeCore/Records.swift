@@ -108,6 +108,17 @@ public extension FolkeStore {
               sort: [NSSortDescriptor(key: "time", ascending: false)], limit: 1).first
     }
 
+    /// Dagens måltider, nyeste først (Mad-siden).
+    func todayFeedings(now: Date = .now) -> [Feeding] {
+        let today = calendar.startOfDay(for: now)
+        return fetch(Feeding.self, NSPredicate(format: "time >= %@ AND time <= %@", today as NSDate, now as NSDate),
+                     sort: [NSSortDescriptor(key: "time", ascending: false)])
+    }
+
+    func feeding(id: UUID) -> Feeding? {
+        fetch(Feeding.self, NSPredicate(format: "id == %@", id as CVarArg), limit: 1).first
+    }
+
     /// Seneste amning de sidste 60 dage (til forslaget «Skjul Amning»).
     func lastBreastFeed(now: Date = .now) -> Date? {
         fetch(Feeding.self, NSPredicate(format: "time >= %@ AND kind IN %@", now.addingTimeInterval(-60 * 86400) as NSDate,

@@ -103,6 +103,7 @@ def world(tmp_path, monkeypatch):
     monkeypatch.setattr(app_module, "PREFS", str(tmp_path / "prefs.json"))
     monkeypatch.setattr(app_module, "GROWTH", str(tmp_path / "growth.json"))
     app_module._sc.update(t=0, v=[])
+    app_module._acc.update(t=0, v=None)
     w = SqliteWorld(str(tmp_path / "folke.db"), datetime.now(folke.TZ).date() - timedelta(days=120))
     yield w
     store._current.clear()

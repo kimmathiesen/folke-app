@@ -3,7 +3,7 @@ import json, math, os, struct, threading, time, zlib
 from datetime import datetime, timedelta, date
 from flask import Flask, Response, jsonify, request, send_from_directory
 from werkzeug.exceptions import HTTPException
-import folke, push, store, who
+import evaluate, folke, push, store, who
 
 app = Flask(__name__)
 TZ = folke.TZ
@@ -75,6 +75,7 @@ def status():
         prediction=pred,
         plan=plan,
         last_feed=last_feed,
+        accuracy=accuracy(c, now),
         feed_today=feed_today,
         pump=pump_summary(c["id"], now),
         pump_remind=prefs()["pump_remind"],
@@ -297,6 +298,25 @@ def pump_reminder(now):
 
 PREFS = os.path.join(os.path.dirname(folke.STATE_FILE) or ".", "prefs.json")
 _sc = {"t": 0, "v": []}
+_acc = {"t": 0, "v": None}
+
+
+def accuracy(c, now):
+    """Hvor godt forudsigelsen har ramt de seneste 14 dage (evaluate.backtest) og intervallet ud fra det.
+    Beregnes højst hvert 10. minut."""
+    if time.time() - _acc["t"] > 600:
+        try:
+            raw = db().sleeps(c["id"], now - timedelta(days=14 + folke.HISTORY_DAYS))
+            sleeps = [{"id": s["id"], "start": folke.parse(s["start"]), "end": folke.parse(s["end"]), "nap": s["nap"]}
+                      for s in raw]
+            res = [r for r in evaluate.backtest(sleeps, date.fromisoformat(c["birth_date"]))
+                   if r["at"] >= now - timedelta(days=14)]
+            _acc["v"] = {**evaluate.summary(res), "interval": evaluate.interval([r["error"] for r in res])}
+        except Exception as e:
+            print("accuracy:", e, flush=True)
+            _acc["v"] = None
+        _acc["t"] = time.time()
+    return _acc["v"]
 
 
 def prefs():

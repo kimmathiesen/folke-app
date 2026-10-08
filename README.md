@@ -13,17 +13,16 @@ Selfhostet baby-tracker. Start/stop søvn med ét tryk, få en forudsigelse af n
 - **Sider:** forsiden er sider, man stryger mellem som på iPhonens hjemmeskærm: Søvn (standard), Mad, Udpumpning og Vækst
 - **Mad:** amning (venstre/højre/begge), flaske (ml, modermælk/erstatning) og fastføde, og en liste over dagens måltider
 - **Vækst:** egen side med vægt, længde og hovedomfang på WHO's kurver (2006), 3.-97. percentil. Gemmes i `growth.json`, kurvedata ligger i `who.py`
-- **Udpumpning:** egen side med registrering (ml, side, minutter og tidspunkt), dagens total, graf over 14 dage og en liste, hvor man kan rette og slette. Påmindelse via Home Assistant efter et valgfrit antal timer (ikke mellem 22 og 7). Kan slås fra under Indstillinger. `POST /api/pump` virker stadig fra Home Assistant
+- **Udpumpning:** egen side med registrering (ml, side, minutter og tidspunkt), dagens total, graf over 14 dage og en liste, hvor man kan rette og slette. Påmindelse (web push) efter et valgfrit antal timer (ikke mellem 22 og 7). Kan slås fra under Indstillinger. `POST /api/pump` virker stadig fra Home Assistant
 - **Forslag:** appen foreslår at tilføje eller skjule funktioner efter alder og brug (fast føde ved 6 mdr., skjul amning efter 3 uger uden). Intet ændres uden svar. Alt kan ændres under *Indstillinger* (knap øverst til venstre)
 - **Notifikationer:** «Tid til at slappe af. Næste lur ca. kl. 13:40» 30 min før, «Folke virker meget frisk. Prøv alligevel en lur» hvis tiden er gået med 15 min uden søvn, og påmindelse om udpumpning. Hver enhed (fx mors og fars telefon) vælger selv, hvilke den vil have. Søvnbeskederne er slået til, udpumpning fra. Via web push direkte til telefonen (Indstillinger → *Notifikationer på denne enhed*) og/eller via Home Assistant
 - **Tavlen:** et lille easter egg. Tryk på månen øverst for at tegne eller skrive til din partner med fingeren. Tavlen er fælles: det, den ene tegner eller visker ud, ser den anden også. Ingen notifikation, men stjernerne ved månen blinker, når der er noget nyt
-- **Home Assistant:** opdaterer `sensor.baby_next_sleep` og kan sende notifikationer
 
 ## Opbygning
 
 | Fil | Rolle |
 |---|---|
-| `folke.py` | Forudsigelsesmotor, HA-sensor og notifikationer (kan også køre alene via cron) |
+| `folke.py` | Forudsigelsesmotor og notifikationer |
 | `app.py` | Flask-API og baggrundstråd (kalder `folke.main()` hvert minut) |
 | `store.py` | Datalag: SQLite-filen, migreringer, eksport og backup |
 | `who.py` | WHO's vækststandarder (LMS-tabeller) og percentilberegning |
@@ -37,18 +36,13 @@ Selfhostet baby-tracker. Start/stop søvn med ét tryk, få en forudsigelse af n
 
 | Variabel | Beskrivelse | Standard |
 |---|---|---|
-| `HA_URL` | Home Assistant-adresse (valgfri) | |
-| `HA_TOKEN` | HA long-lived access token | |
-| `HA_NOTIFY` | Notify-tjeneste, fx `notify.mobile_app_din_telefon` | |
 | `TZ` | Tidszone | `Europe/Copenhagen` |
 | `CHILD_ID` | Barnets id, hvis der er flere | første barn |
 | `LEAD_MIN` | Minutter før næste søvn, beskeden «Tid til at slappe af» sendes (standard; hver enhed med web push kan vælge sit eget under Indstillinger) | `30` |
 | `OVERDUE_MIN` | Minutter efter forventet søvn, beskeden «… virker meget frisk» sendes (standard, kan vælges pr. enhed) | `15` |
-| `HA_KINDS` | Beskedtyper, Home Assistant får (`sleep_soon`, `overdue`, `pump`) | `sleep_soon,overdue` |
 | `HISTORY_DAYS` | Dage søvnhistorik til forudsigelsen | `10` |
 | `STATE_FILE` | Stien til tilstandsfil (`prefs.json` ligger ved siden af) | `/data/state.json` |
 | `DB_FILE` | SQLite-fil | `folke.db` ved siden af `STATE_FILE` |
-| `HA_SENSOR` | Sensoren, forudsigelsen skrives til | `sensor.baby_next_sleep` |
 | `CHILD_BIRTH`, `CHILD_NAME` | Valgfrit: barnets fødselsdato (ÅÅÅÅ-MM-DD) og navn. Ellers spørger appen ved første opstart | |
 
 Gem aldrig nøgler i repoet. Brug `.env` (ignoreret af git) eller felterne i Unraid-skabelonen.
@@ -57,7 +51,6 @@ Gem aldrig nøgler i repoet. Brug `.env` (ignoreret af git) eller felterne i Unr
 
 ```bash
 docker run -d --name folke-app --restart unless-stopped \
-  -e HA_URL=http://HA:8123 -e HA_TOKEN=... -e HA_NOTIFY=notify.mobile_app_... \
   -e TZ=Europe/Copenhagen -e STATE_FILE=/data/state.json \
   -v /sti/til/data:/data -p 6660:8080 \
   ghcr.io/kimmathiesen/folke-app:latest
@@ -98,17 +91,13 @@ Alt ligger i `/data`: `folke.db` (SQLite), `growth.json`, `prefs.json`, `board.j
 
 ## Push-notifikationer
 
-Virker uden Home Assistant. Kræver https, fx via cloudflared eller Tailscale.
+Kræver https, fx via cloudflared eller Tailscale.
 
 1. Åbn appen i Safari på https-adressen, og vælg *Del → Føj til hjemmeskærm*. På iPhone virker push kun fra hjemmeskærmen (iOS 16.4+).
 2. Åbn appen fra hjemmeskærmen, gå til *Indstillinger → Notifikationer på denne enhed*, og tryk *Slå til*.
 3. Tryk *Send test*.
 
 Gentag på hver enhed. Nøglen (`vapid.pem`) og enhederne (`push.json`) ligger i `/data`. Mistes `vapid.pem`, skal hver enhed slå notifikationer til igen.
-
-## Home Assistant
-
-Appen sætter `sensor.baby_next_sleep` (tidsstempel). Pumpning og start/stop kan styres med `rest_command` mod endpoints ovenfor og en `rest`-sensor mod `/api/status`.
 
 ## Sikkerhed
 

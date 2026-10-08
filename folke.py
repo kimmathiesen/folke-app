@@ -1,27 +1,16 @@
 #!/usr/bin/env python3
 """folke.py - motoren: forudsigelse og dagsplan ud fra søvnloggen.
 
-Henter søvnloggen fra databasen (store.py), beregner næste lur/sengetid og
-- opdaterer sensor.baby_next_sleep i Home Assistant
-- sender en notifikation LEAD_MIN minutter før, og en til, hvis tiden er overskredet med OVERDUE_MIN
-  (Home Assistant; hver enhed med web push kan vælge sine egne minutter)
-  (hver kun én gang pr. forudsigelse)
-
-Kun standardbibliotek (Python 3.11+). Kør fx hvert 5. minut.
+Henter søvnloggen fra databasen (store.py), beregner næste lur/sengetid og sender web push (push.py)
+LEAD_MIN minutter før og en til, hvis tiden er overskredet med OVERDUE_MIN. Hver enhed kan vælge sine
+egne minutter, og hver besked sendes kun én gang pr. forudsigelse og enhed. Kaldes hvert minut af app.py.
 """
 import json
 import os
 import statistics
-import urllib.request
 from datetime import datetime, timedelta, date
 from zoneinfo import ZoneInfo
 
-HA_URL = os.environ.get("HA_URL", "").rstrip("/")
-HA_TOKEN = os.environ.get("HA_TOKEN", "")
-HA_NOTIFY = os.environ.get("HA_NOTIFY", "")  # fx notify.mobile_app_min_telefon
-HA_SENSOR = os.environ.get("HA_SENSOR", "sensor.baby_next_sleep")
-# Beskedtyper, Home Assistant får (udpumpning kun, hvis man selv tilføjer "pump")
-HA_KINDS = os.environ.get("HA_KINDS", "sleep_soon,overdue").replace(" ", "").split(",")
 CHILD_ID = os.environ.get("CHILD_ID")
 LEAD_MIN = int(os.environ.get("LEAD_MIN", "30"))
 OVERDUE_MIN = int(os.environ.get("OVERDUE_MIN", "15"))
@@ -29,19 +18,6 @@ HISTORY_DAYS = int(os.environ.get("HISTORY_DAYS", "10"))
 DEFAULT_BEDTIME = int(os.environ.get("DEFAULT_BEDTIME_MIN", str(19 * 60 + 30)))
 STATE_FILE = os.environ.get("STATE_FILE", "/data/state.json")
 TZ = ZoneInfo(os.environ.get("TZ", "Europe/Copenhagen"))
-
-
-# ---------- HTTP ----------
-def call(url, token, method="GET", body=None, scheme="Token"):
-    req = urllib.request.Request(
-        url,
-        method=method,
-        data=json.dumps(body).encode() if body is not None else None,
-        headers={"Authorization": f"{scheme} {token}", "Content-Type": "application/json"},
-    )
-    with urllib.request.urlopen(req, timeout=15) as r:
-        raw = r.read()
-        return json.loads(raw) if raw else None
 
 
 # ---------- Forudsigelse ----------
@@ -346,52 +322,22 @@ def predict(sleeps, birth_date, now):
     }
 
 
-# ---------- Home Assistant ----------
-def ha_update(pred):
-    body = {
-        "state": pred["time"].isoformat(),
-        "attributes": {
-            "device_class": "timestamp",
-            "friendly_name": "Næste søvn",
-            "kind": pred["kind"],
-            "window_min": pred["window_min"],
-            "source": pred["source"],
-        },
-    }
-    call(f"{HA_URL}/api/states/{HA_SENSOR}", HA_TOKEN, "POST", body, scheme="Bearer")
-
-
-# Ekstra notifikationskanal ud over Home Assistant (web push), sat af app.py: objekt med active() og send()
+# Notifikationer (web push), sat af app.py: modulet push med active(), send(), load(), wants() og timing()
 push = None
 # Barnets visningsnavn (sat af app.py fra prefs.json), ellers navnet fra databasen
 display_name = None
 
-# Beskedtyper, som hver enhed kan slå til og fra (push.json). Home Assistant får dem i HA_KINDS.
+# Beskedtyper, som hver enhed kan slå til og fra (push.json).
 KINDS = ("sleep_soon", "overdue", "pump")
 
 
-def _ha(kind):
-    return bool(HA_URL and HA_NOTIFY) and (kind is None or kind in HA_KINDS)
-
-
 def can_notify(kind=None):
-    """Er der nogen, der vil have denne beskedtype (eller nogen besked overhovedet)?"""
-    return _ha(kind) or bool(push and push.active(kind))
-
-
-def notify_ha(title, msg):
-    try:
-        path = HA_NOTIFY.replace(".", "/", 1)
-        call(f"{HA_URL}/api/services/{path}", HA_TOKEN, "POST",
-             {"title": title, "message": msg}, scheme="Bearer")
-    except Exception as e:
-        print("notify ha:", e, flush=True)
+    """Er der nogen enhed, der vil have denne beskedtype (eller nogen besked overhovedet)?"""
+    return bool(push and push.active(kind))
 
 
 def notify(title, msg, kind=None):
-    """Send via alle kanaler, der vil have beskedtypen. En fejl i den ene stopper ikke den anden."""
-    if _ha(kind):
-        notify_ha(title, msg)
+    """Send til alle enheder, der vil have beskedtypen."""
     if push and push.active(kind):
         try:
             push.send(title, msg, kind=kind)
@@ -451,12 +397,9 @@ def main():
     print(f"Næste {pred['kind']}: {pred['time']:%a %H:%M} "
           f"(vindue {pred['window_min']} min, {pred['source']})")
 
-    if HA_URL:
-        ha_update(pred)
-
-    # Notifikationer: «slap af» før og «virker frisk» efter, hver kun én gang pr. forudsigelse og kanal,
-    # og ikke hvis søvnen allerede er startet. Home Assistant bruger LEAD_MIN/OVERDUE_MIN; hver enhed med web push
-    # har sine egne minutter (push.json), og det, der er sendt, huskes pr. enhed (state["push_sent"]).
+    # Notifikationer: «slap af» før og «virker frisk» efter, hver kun én gang pr. forudsigelse og enhed,
+    # og ikke hvis søvnen allerede er startet. Hver enhed har sine egne minutter (push.json, standard
+    # LEAD_MIN/OVERDUE_MIN), og det, der er sendt, huskes pr. enhed (state["push_sent"]).
     until = (pred["time"] - now).total_seconds() / 60
 
     def due(lead, overdue):
@@ -466,12 +409,10 @@ def main():
             return "overdue"
         return None
 
-    ha_kind = due(LEAD_MIN, OVERDUE_MIN)
-    ha_kind = ha_kind if ha_kind and _ha(ha_kind) else None
     devices = []
     if push:
         devices = [(s, k) for s in push.load() for k in [due(*push.timing(s))] if k and push.wants(s, k)]
-    if not ha_kind and not devices:
+    if not devices:
         return
     try:
         if db.timer(child["id"]):
@@ -483,10 +424,6 @@ def main():
     text = {"sleep_soon": soon_text(pred), "overdue": overdue_text(pred, name)}
     old = {"sleep_soon": "notified", "overdue": "overdue"}  # nøglerne fra før minutter pr. enhed
     changed = False
-    if ha_kind and state.get(old[ha_kind]) != pred["last_id"]:
-        notify_ha("Søvn", text[ha_kind])
-        state[old[ha_kind]] = pred["last_id"]
-        changed = True
     sent = state.setdefault("push_sent", {})
     for s, k in devices:
         dev = sent.setdefault(device_key(s["endpoint"]), {})

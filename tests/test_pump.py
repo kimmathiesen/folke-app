@@ -91,33 +91,31 @@ def test_paamindelse_indstilling(client):
 
 
 @pytest.fixture
-def ha(monkeypatch, tmp_path):
+def beskeder(monkeypatch, tmp_path):
+    """Beskederne, der sendes (en enhed vil have udpumpning)."""
     sent = []
-    monkeypatch.setattr(folke, "HA_URL", "http://ha.test")
-    monkeypatch.setattr(folke, "HA_NOTIFY", "notify.mobile_app_test")
     monkeypatch.setattr(folke, "STATE_FILE", str(tmp_path / "state.json"))
+    monkeypatch.setattr(folke, "can_notify", lambda kind=None: True)
     monkeypatch.setattr(folke, "notify", lambda title, msg, kind=None: sent.append((title, msg)))
     return sent
 
 
-def test_paamindelse(client, world, ha, monkeypatch):
+def test_paamindelse(client, world, beskeder, monkeypatch):
     import app as app_module
 
     noon = now().replace(hour=12, minute=0)
     t = noon - timedelta(hours=4)
     world.store.add_pumping(world.cid, start=t, end=t, amount=100)
-    assert app_module.pump_reminder(noon) is False  # Home Assistant får ikke udpumpning som standard
-    monkeypatch.setattr(folke, "HA_KINDS", ["sleep_soon", "overdue", "pump"])
     client.post("/api/pump/remind", json={"hours": 5})
     assert app_module.pump_reminder(noon) is False  # kun 4 timer siden
     client.post("/api/pump/remind", json={"hours": 3})
     assert app_module.pump_reminder(noon) is True
-    assert ha == [("Udpumpning", "Det er 4 timer siden sidste udpumpning (kl. 08:00)")]
+    assert beskeder == [("Udpumpning", "Det er 4 timer siden sidste udpumpning (kl. 08:00)")]
     assert app_module.pump_reminder(noon + timedelta(minutes=1)) is False  # kun én gang
-    assert len(ha) == 1
+    assert len(beskeder) == 1
 
 
-def test_paamindelse_ikke_om_natten_eller_naar_slaaet_fra(client, world, ha):
+def test_paamindelse_ikke_om_natten_eller_naar_slaaet_fra(client, world, beskeder):
     import app as app_module
 
     night = now().replace(hour=23, minute=0)
@@ -127,4 +125,4 @@ def test_paamindelse_ikke_om_natten_eller_naar_slaaet_fra(client, world, ha):
     assert app_module.pump_reminder(night) is False
     client.post("/api/feature", json={"name": "pump", "on": False})
     assert app_module.pump_reminder(night.replace(hour=21)) is False
-    assert ha == []
+    assert beskeder == []

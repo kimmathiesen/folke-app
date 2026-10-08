@@ -179,7 +179,7 @@ def clean_pump(d):
 
 @app.post("/api/pump")
 def pump():
-    """Log en udpumpning. Fra appen eller Home Assistant (rest_command): {"amount": ml}.
+    """Log en udpumpning fra appen: {"amount": ml}.
     Valgfrit: "at": "HH:MM", "side": left|right|both, "minutes", "notes"."""
     data = request.get_json(silent=True) or {}
     now = datetime.now(TZ)
@@ -270,7 +270,7 @@ QUIET = (22, 7)  # ingen påmindelser om udpumpning mellem 22 og 7
 
 
 def pump_reminder(now):
-    """Notifikation (Home Assistant og/eller push), når der er gået `pump_remind` timer siden sidste udpumpning.
+    """Notifikation (web push), når der er gået `pump_remind` timer siden sidste udpumpning.
     Én gang pr. udpumpning, og ikke om natten."""
     p = prefs()
     h = p["pump_remind"]
@@ -780,7 +780,7 @@ def err(e):
     if isinstance(e, HTTPException):  # fx 404 og 405: behold Flasks statuskode
         return jsonify(ok=False, error=e.description), e.code
     msg = str(e)
-    if hasattr(e, "read"):  # HTTP-fejl (fx Home Assistant): vis begrundelsen
+    if hasattr(e, "read"):  # HTTP-fejl: vis begrundelsen
         try:
             msg += " " + e.read().decode()[:200]
         except Exception:

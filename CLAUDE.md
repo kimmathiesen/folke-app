@@ -54,6 +54,7 @@ forudsigelse af næste lur/sengetid, notifikation via web push (Home Assistant e
 - **Kort lur:** under 30 min (`SHORT_NAP`), fx i barnevognen. Den tæller ikke som en af dagens lure, og næste vindue er 75 % (`SHORT_FACTOR`).
 - **For lidt dagsøvn:** sengetiden rykkes halvdelen af underskuddet frem. Kan en lur ikke nås med hans normale vindue bagefter (+30 min), droppes den, og sengetiden rykkes. Begge dele højst 60 min (`MAX_BED_SHIFT`).
 - **Misset lur:** vågen 15 min efter planlagt lur. Kun skærmen viser «nu» og flytter resten. `predict()` (`replan=False`) holder fast i det oprindelige tidspunkt, så «virker meget frisk» kommer til tiden.
+- **Aftenlur:** en lur, der starter kl. 17 eller senere, er aftenluren, også under 30 min (reglen om korte lure gælder kun om dagen). Når den er sovet, kommer kun sengetid: slutningen + hans typiske tid vågen efter en aftenlur (`evening_gap`, 75 % efter en kort aftenlur), uden at vente på hans normale sengetid (`after_catnap`).
 - **Hans tal beskyttes:** vinduer lige før og efter korte lure bruges ikke, og afvigere uden for 60–160 % af medianen sorteres fra (`_robust`).
 - Facit: `tests/test_dayplan.py`. Specifikationen til iOS står i `ios/PLAN.md` afsnit 3.
 

@@ -246,7 +246,7 @@ const FM={'bottle':'Flaske','left breast':'Amning, venstre','right breast':'Amni
 const ago=d=>{const m=Math.max(0,(Date.now()-new Date(d))/60000|0);return m<60?`${m} min`:`${m/60|0} t ${m%60} min`};
 const cap=s=>s.charAt(0).toUpperCase()+s.slice(1);
 // Forklaring under «Næste lur» i almindeligt dansk (pos 0 = efter natten, 1 = efter 1. lur ...)
-const why=p=>p.kind==='sengetid'?(p.bed_shift?`Rykket ${p.bed_shift} min frem efter en dag med mindre søvn end normalt`
+const why=p=>p.kind==='sengetid'?(p.after_catnap?`Vågen ca. ${dur(p.window_min)} efter aftenluren`:p.bed_shift?`Rykket ${p.bed_shift} min frem efter en dag med mindre søvn end normalt`
 :p.bed_basis==='own'?'Sengetid ud fra de seneste aftener':'Typisk sengetid (for lidt data endnu)')
 :p.short?`Vågen ca. ${dur(p.window_min)} efter en kort lur på ${p.short} min (kortere end normalt)`
 :`Vågen ca. ${dur(p.window_min)}${p.basis==='own'?(p.pos?` efter ${p.pos}. lur`:' efter natten'):''} · `

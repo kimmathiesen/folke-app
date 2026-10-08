@@ -15,6 +15,7 @@ forudsigelse af næste lur/sengetid, notifikation via web push (Home Assistant e
 ## Idéer / TODO
 - Ret/slet seneste registrering i UI, tilføj glemt søvn bagud
 - Ikon + splash til hjemmeskærm, evt. HTTPS via Tailscale/NPM
+- Fælles testdata: `tests/fixtures/` (dagsplaner og en måling som JSON, lavet af `tests/fixtures/make_dayplan.py` med folke.py som facit). Køres af `tests/test_fixtures.py` og af Swift (`FixtureTests` i ios/FolkeCore). Ændres reglerne bevidst: kør scriptet igen og commit filerne.
 - Tests: `tests/` (pytest). `world`-fixturen i conftest giver en frisk SQLite-fil, og `no_network` stopper alle netværkskald. Kør: `.venv/Scripts/python -m pytest -q`. CI kører dem før build.
 - Flere børn, vækstvindue-justering (fx efter dårlig nat), enkelt login
 

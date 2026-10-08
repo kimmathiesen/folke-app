@@ -194,4 +194,27 @@ import Testing
         let s = catnapHistory().filter { !(!$0.nap && cph.isDate($0.start, inSameDayAs: day(2026, 6, 4))) }
         #expect(model(s).days.allSatisfy { $0.slept < 8 * 60 })
     }
+
+    // MARK: Kort aftenlur (Folke 8/10 2026: to korte lure kl. 16.32 og 18.06)
+
+    func todayNaps(_ spans: [((Int, Int), (Int, Int))], on d: Date) -> [SleepSample] {
+        spans.enumerated().map { nap(900 + $0.offset, $0.element.0, $0.element.1, on: d) }
+    }
+
+    @Test func kortAftenlurErAftenlurenOgSengetidFoelger() throws {
+        let d = day(2026, 6, 11)
+        let s = catnapHistory() + todayNaps([((9, 0), (10, 0)), ((12, 30), (14, 0)), ((16, 32), (16, 53)), ((18, 6), (18, 26))], on: d)
+        let p = plan(s, at(d, 18, 35))
+        #expect(times(p) == ["sengetid 19:33"]) // 18:26 + 75 % af 90 min, ingen lur mere
+        #expect(p.afterCatnap && p.bedShift == 0 && p.short == nil)
+        let pr = try #require(Predictor.predict(s, birthDate: birth, now: at(d, 18, 35), calendar: cph))
+        #expect(pr.windowMin == 68 && Format.why(pr) == "Vågen ca. 1 t 8 min efter aftenluren")
+    }
+
+    @Test func tidligAftenlurGiverTidligereSengetid() {
+        let d = day(2026, 6, 11)
+        let s = catnapHistory() + todayNaps([((9, 0), (10, 0)), ((12, 30), (14, 0)), ((16, 0), (17, 0)), ((17, 40), (18, 25))], on: d)
+        #expect(times(plan(s, at(d, 18, 30))) == ["sengetid 19:55"])
+        #expect(times(plan(s, at(d, 20, 10))) == ["sengetid 20:10"]) // tiden er gået: sengetid nu, ikke en ny lur
+    }
 }

@@ -34,6 +34,8 @@ public struct DayPlan: Equatable, Sendable {
     public var naps: Int
     /// Han plejer at tage en aftenlur
     public var catnap: Bool
+    /// Aftenluren er sovet: sengetiden er regnet fra den
+    public var afterCatnap: Bool = false
     public var lastID: UUID
 }
 
@@ -61,7 +63,11 @@ public enum DayPlanner {
 
     static func mins(_ a: Date, _ b: Date) -> Double { b.timeIntervalSince(a) / 60 }
 
-    static func isShort(_ s: S) -> Bool { s.nap && mins(s.start, s.end) < shortNap }
+    /// En kort lur om dagen (fx i barnevognen). Efter kl. 17 er en kort lur ikke «kort», men aftenluren.
+    static func isShort(_ s: S, _ cal: Calendar) -> Bool {
+        let c = cal.dateComponents([.hour, .minute], from: s.start)
+        return s.nap && mins(s.start, s.end) < shortNap && (c.hour ?? 0) * 60 + (c.minute ?? 0) < catnapFrom
+    }
 
     /// Typisk antal lure om dagen efter alder, til der er data nok.
     public static func defaultNaps(ageDays: Int) -> Int {
@@ -126,7 +132,7 @@ public enum DayPlanner {
                 if !s.nap {
                     if let n = night, mins(n.end, s.start) < maxDayHours * 60 {
                         napsPerDay.append(k)
-                        let lastNap = day.last { !isShort($0) }
+                        let lastNap = day.last { !isShort($0, calendar) }
                         let catnap = lastNap.flatMap { clock($0.start) >= catnapFrom ? $0 : nil }
                         days.append((day.reduce(0) { $0 + mins($1.start, $1.end) }, s.start, day.last?.end ?? n.end, catnap))
                     }
@@ -140,7 +146,7 @@ public enum DayPlanner {
                 } else {
                     day.append(s)
                 }
-                if s.nap && !isShort(s) {
+                if s.nap && !isShort(s, calendar) {
                     k += 1
                     let d = mins(s.start, s.end)
                     lengths[k, default: []].append(d)
@@ -148,8 +154,8 @@ public enum DayPlanner {
                 }
                 if i + 1 < sleeps.count {
                     let next = sleeps[i + 1]
-                    if s.nap && !isShort(s) { pos += 1 }
-                    if isShort(s) || isShort(next) { continue }
+                    if s.nap && !isShort(s, calendar) { pos += 1 }
+                    if isShort(s, calendar) || isShort(next, calendar) { continue }
                     let gap = mins(s.end, next.start)
                     if gap > 20 && gap < 480 {
                         windows[pos, default: []].append(gap)
@@ -233,16 +239,20 @@ public enum DayPlanner {
             if !s.nap { break }
             today.insert(s, at: 0)
         }
-        var k = today.filter { !isShort($0) }.count
+        var k = today.filter { !isShort($0, cal) }.count
         var slept = today.reduce(0) { $0 + mins($1.start, $1.end) }
         var pos = k
 
         var (win, source) = m.window(pos)
-        let short = isShort(last) ? Int(mins(last.start, last.end).rounded(.toNearestOrEven)) : nil
+        let short = isShort(last, cal) ? Int(mins(last.start, last.end).rounded(.toNearestOrEven)) : nil
+        // Aftenluren er sovet (en lur efter kl. 17, også en kort): kun sengetid bagefter
+        let afterCatnap = running == nil && last.nap && m.clock(last.start) >= catnapFrom && m.catnapHabit()
+            && m.eveningGap() != nil
         if short != nil {
             win *= shortFactor
-        } else if last.nap, m.clock(last.start) >= catnapFrom, m.catnapHabit(), let gap = m.eveningGap() {
+        } else if afterCatnap, let gap = m.eveningGap() {
             win = gap // efter aftenluren: hans typiske tid vågen før natten
+            if mins(last.start, last.end) < shortNap { win *= shortFactor } // kort aftenlur: kortere tid vågen
         }
         var wake = last.end
         var t = add(last.end, win)
@@ -268,7 +278,7 @@ public enum DayPlanner {
         }
 
         var missedAt: Date?
-        if replan, running == nil, now > add(t, overdueMin), t < add(bedOn(t), -60) {
+        if replan, running == nil, !afterCatnap, now > add(t, overdueMin), t < add(bedOn(t), -60) {
             missedAt = t
             t = now
         }
@@ -276,7 +286,7 @@ public enum DayPlanner {
         var items: [PlanItem] = []
         var dropped = false
         var catnapEnd: Date?
-        for _ in 0..<6 {
+        for _ in 0..<(afterCatnap ? 0 : 6) {
             if t >= add(bedOn(t), -60) { break }
             var length = m.napLength(k + 1)
             let end = add(t, length)
@@ -314,13 +324,17 @@ public enum DayPlanner {
             floor = t
         }
         if missedAt != nil { floor = max(floor, now) }
-        let bedtime = max(add(bedOn(t), -shift), floor)
-        let bedShift = max(0, Int(mins(bedtime, bedOn(t)).rounded(.toNearestOrEven)))
+        var bedtime = max(add(bedOn(t), -shift), floor)
+        var bedShift = max(0, Int(mins(bedtime, bedOn(t)).rounded(.toNearestOrEven)))
+        if afterCatnap { // sengetid efter hans tid vågen efter aftenluren, ikke hans normale klokkeslæt
+            bedtime = replan ? max(t, now) : t
+            bedShift = 0
+        }
         items.append(PlanItem(kind: .bedtime, start: bedtime))
 
         return DayPlan(items: items, wake: wakeAt, missedAt: missedAt, short: short, bedShift: bedShift,
                        firstWindow: Int(firstWin.rounded(.toNearestOrEven)), source: source, pos: firstPos,
                        bedBasis: m.evenings.count >= 3 ? .own : .default, naps: m.naps(), catnap: m.catnapHabit(),
-                       lastID: last.id)
+                       afterCatnap: afterCatnap, lastID: last.id)
     }
 }

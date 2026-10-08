@@ -10,6 +10,12 @@ Format: `- [ ] dato · commit på main · hvad · hvor i PLAN.md · facit`
 
 ## Åbne
 
+- [x] 2026-10-08 · (se main, «Dagsplan: en kort lur efter kl. 17 er aftenluren») · En lur efter kl. 17 er altid aftenluren,
+      også under 30 min. Når den er sovet, kommer kun sengetid: slutningen + `evening_gap` (75 % efter en kort aftenlur),
+      uden at vente på hans normale sengetid. PLAN.md afsnit 3. Facit: `tests/test_dayplan.py`
+      (`test_kort_aftenlur_er_aftenluren_og_sengetid_foelger`, `test_tidlig_aftenlur_giver_tidligere_sengetid`).
+      Lavet samtidig i Swift (`DayPlanTests`).
+
 - [x] 2026-10-06 · `08a003d` · Ringens midte viser næste lur/sengetid i stedet for klokkeslættet
       («Næste lur kl. 13.40», «Sengetid kl. 19.30»), og «Faldt i søvn kl. 09.25», mens han sover.
       PLAN.md afsnit 5, Forside → Ringen. Facit: `index.html`, `render()`. (ios: 81b26f3)

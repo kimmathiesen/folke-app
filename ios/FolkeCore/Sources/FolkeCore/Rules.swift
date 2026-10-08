@@ -60,6 +60,7 @@ public enum Format {
     /// Forklaringen under «Næste lur» på almindeligt dansk (som `why` i index.html).
     public static func why(_ p: Prediction) -> String {
         if p.kind == .bedtime {
+            if p.afterCatnap { return "Vågen ca. \(duration(minutes: p.windowMin)) efter aftenluren" }
             if p.bedShift > 0 { return "Rykket \(p.bedShift) min frem efter en dag med mindre søvn end normalt" }
             return p.bedBasis == .own ? "Sengetid ud fra de seneste aftener" : "Typisk sengetid (for lidt data endnu)"
         }

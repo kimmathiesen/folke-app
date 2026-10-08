@@ -158,6 +158,11 @@ Facit: `tests/test_predict.py` (uændret adfærd på normale dage) og `tests/tes
 **Når den stoppes** uden at brugeren har valgt Lur/Nat (`nap_at_stop`): som ved start, men en «nat» under 2 t, der slutter
 samme dag, er en lur (aftenlur). Webappen sender kun `nap`, hvis brugeren har trykket Lur eller Nat.
 
+
+**Kort aftenlur (8/10 2026):** en lur, der starter kl. 17 eller senere, er altid aftenluren, også under 30 min. Når den
+er sovet, kommer kun sengetid: slutningen + hans typiske tid vågen efter en aftenlur (75 % efter en kort), uden at vente
+på hans normale sengetid. Folkes dag 8/10 (lure 16.32-16.53 og 18.06-18.26) gav før en lur kl. 19.29 og sengetid 22.07;
+nu sengetid ca. 19.53.
 ## 4. Notifikationer (lokale)
 
 Tidspunktet er `predict()` (afsnit 3): første punkt i dagsplanen uden genberegning ved misset lur.

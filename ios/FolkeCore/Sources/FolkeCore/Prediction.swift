@@ -52,9 +52,12 @@ public struct Prediction: Equatable, Sendable {
     public var short: Int?
     /// Minutter sengetiden er rykket frem
     public var bedShift: Int = 0
+    /// Sengetiden er regnet fra aftenluren, der er sovet
+    public var afterCatnap = false
 
     public init(kind: Kind, time: Date, windowMin: Int, source: Source, lastID: UUID, pos: Int = 0,
-                bedBasis: BedBasis = .default, short: Int? = nil, bedShift: Int = 0) {
+                bedBasis: BedBasis = .default, short: Int? = nil, bedShift: Int = 0, afterCatnap: Bool = false) {
+        self.afterCatnap = afterCatnap
         self.short = short
         self.bedShift = bedShift
         self.kind = kind
@@ -90,7 +93,8 @@ public enum Predictor {
         guard let p = DayPlanner.plan(sleeps, birthDate: birthDate, now: now, replan: false, calendar: calendar),
               let first = p.items.first else { return nil }
         return Prediction(kind: first.kind, time: first.start, windowMin: p.firstWindow, source: p.source,
-                          lastID: p.lastID, pos: p.pos, bedBasis: p.bedBasis, short: p.short, bedShift: p.bedShift)
+                          lastID: p.lastID, pos: p.pos, bedBasis: p.bedBasis, short: p.short, bedShift: p.bedShift,
+                          afterCatnap: p.afterCatnap)
     }
 
     /// Som Pythons `statistics.median`: ved et lige antal gennemsnittet af de to midterste.

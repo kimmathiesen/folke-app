@@ -313,7 +313,8 @@ så prisen kan holdes lav.
 |---|---|
 | Start/stop søvn, ringen, dagens søvn, glemte tryk, ret/slet | Dagsplanen: resten af dagen og løbende tilpasning (misset/kort lur, aftenlur, rykket sengetid, forventet opvågning) |
 | Næste lur eller sengetid (den oprindelige forudsigelse fra den selfhostede server, `Predictor.basic`) | |
-| Mad og udpumpning, udpumpningshistorik | Notifikationer: `sleep_soon`, `overdue` og `pump` |
+| Mad og udpumpning, udpumpningshistorik | |
+| Notifikationer: `sleep_soon`, `overdue` og `pump` (ud fra den enkle forudsigelse) | |
 | **Deling med partner** (iCloud) og tavlen | Widgets, Live Activity og Siri/Genveje |
 | Import fra Folke-server | Vækstkurver med percentiler (målinger kan altid indtastes og ses som liste) |
 
@@ -376,7 +377,8 @@ Folke Plus (milepæl 9) er lavet, så langt det kan uden konto:
   Status gemmes i App Group (`folke.plusPurchased`, `folke.trialStart`), så widgets og intents kan se den.
 - Gratis forudsigelse (beslutning 8/10 2026): den oprindelige `predict()` fra før dagsplanen (commit `eeaa016^`), porteret
   som `Predictor.basic` med tests i `BasicPredictTests`. Kortet viser næste lur/sengetid og en diskret linje om Plus.
-- Låst uden Plus: dagsplanen («Resten af dagen», genberegning, forventet opvågning og de planlagte lure i ringen), notifikationer (intet planlægges), Live Activity,
+- Notifikationer er gratis (beslutning 8/10 2026) og regnes uden Plus ud fra `Predictor.basic`, som på den selfhostede server.
+- Låst uden Plus: dagsplanen («Resten af dagen», genberegning, forventet opvågning og de planlagte lure i ringen), Live Activity,
   widgets (viser en henvisning), intents/Siri, vækstkurver med percentil og tøjstørrelse. Målinger kan stadig skrives ind.
 - Testkøb: `ios/Folke.storekit` (produkt `dk.folkeapp.folke.plus`, 149 kr., familiedeling) bruges af den delte scheme, når
   appen køres fra Xcode (⌘R). Debug: `-plus locked|trial|purchased`.

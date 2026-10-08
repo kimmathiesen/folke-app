@@ -52,7 +52,7 @@ struct SettingsView: View {
                         row("Påmind om udpumpning") {
                             menu(s.pumpRemindHours, Self.remindOptions) { model.setPumpRemind($0) }
                         }
-                        if s.plus.unlocked { note("Påmindelsen sendes kun til enheder, der har slået «Påmindelse om udpumpning» til under notifikationer herunder. Ingen påmindelser mellem 22 og 7.") }
+                        note("Påmindelsen sendes kun til enheder, der har slået «Påmindelse om udpumpning» til under notifikationer herunder. Ingen påmindelser mellem 22 og 7.")
                     }
 
                     notifications
@@ -83,15 +83,6 @@ struct SettingsView: View {
 
     /// Notifikationer på denne enhed: status, slå til, send test og beskedtyper.
     @ViewBuilder var notifications: some View {
-        if model.snapshot.plus.unlocked {
-            notificationSettings
-        } else {
-            row("Notifikationer") { Image(systemName: "lock").foregroundStyle(muted) }
-            note(Plus.Feature.notifications.lockedText)
-        }
-    }
-
-    @ViewBuilder var notificationSettings: some View {
         let n = model.notifier
         row("Notifikationer på denne enhed") {
             Text(n.status == .allowed ? "Slået til" : n.status == .denied ? "Blokeret" : "Slået fra")
@@ -262,9 +253,9 @@ struct PlusCard: View {
             }
             Text(status.text).font(.system(size: 15)).foregroundStyle(Color.fg).padding(.top, 6)
             if status != .purchased {
-                Text("Resten af dagen med en plan, der tilpasser sig korte og oversprungne lure, notifikationer, widgets, "
-                     + "Live Activity, Siri og vækstkurver. Ét køb, intet abonnement, og det deles med familien. Søvn, mad, "
-                     + "udpumpning, næste lur og sengetid, deling med partneren og alt, du har registreret, er altid gratis.")
+                Text("Resten af dagen med en plan, der tilpasser sig korte og oversprungne lure, widgets, Live Activity, "
+                     + "Siri og vækstkurver. Ét køb, intet abonnement, og det deles med familien. Søvn, mad, udpumpning, "
+                     + "næste lur og sengetid, notifikationer, deling med partneren og alt, du har registreret, er altid gratis.")
                     .font(.system(size: 13)).foregroundStyle(muted).padding(.top, 6)
                     .fixedSize(horizontal: false, vertical: true)
                 Button { Task { await shop.buy() } } label: {

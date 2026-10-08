@@ -43,7 +43,7 @@ DINE DATA ER DINE
 • Eksportér alt som CSV, fx til sundhedsplejersken
 
 FOLKE PLUS
-Alt er åbent de første 14 dage. Derefter er søvn, mad, udpumpning, deling og tavlen stadig gratis. Folke Plus giver forudsigelse, notifikationer, widgets, Live Activity, Siri og vækstkurver. Ét køb, intet abonnement, og det deles med familien.
+Alt er åbent de første 14 dage. Derefter er søvn, mad, udpumpning, deling og tavlen stadig gratis. Næste lur, sengetid og notifikationer er også gratis. Folke Plus giver resten af dagen med en plan, der tilpasser sig, widgets, Live Activity, Siri og vækstkurver. Ét køb, intet abonnement, og det deles med familien.
 
 **Søgeord (højst 100 tegn, komma uden mellemrum):**
 baby,søvn,lur,sengetid,spædbarn,amning,udpumpning,vækstkurve,døgnrytme,sovetider,vågenvindue
@@ -65,7 +65,7 @@ baby,søvn,lur,sengetid,spædbarn,amning,udpumpning,vækstkurve,døgnrytme,sovet
 
 - Type: Non-Consumable. Produkt-id: `dk.folkeapp.folke.plus`. Referencenavn: Folke Plus.
 - Pris: 149 kr. (prøv evt. 199 kr. efter TestFlight). **Familiedeling: til.**
-- Visningsnavn: Folke Plus. Beskrivelse: «Forudsigelse, notifikationer, widgets og vækstkurver. Ét køb.»
+- Visningsnavn: Folke Plus. Beskrivelse: «Dagsplan der tilpasser sig, widgets og vækstkurver. Ét køb.»
 - Skærmbillede til gennemgang: Indstillinger med kortet «Folke Plus».
 
 ## English

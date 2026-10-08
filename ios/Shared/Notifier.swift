@@ -78,7 +78,7 @@ final class Notifier: NSObject, UNUserNotificationCenterDelegate {
         guard status == .allowed else { return }
         var input = input
         input.enabled = enabled
-        let plan = FolkeShared.plus(now: input.now).unlocked ? Self.plan(input) : []
+        let plan = Self.plan(input)
         if plan == lastPlan { return }
         lastPlan = plan
         Self.apply(plan)
@@ -88,12 +88,14 @@ final class Notifier: NSObject, UNUserNotificationCenterDelegate {
     static func reschedule(store: FolkeStore, now: Date = .now) async {
         guard await UNUserNotificationCenter.current().notificationSettings().authorizationStatus == .authorized else { return }
         let s = store.settings()
-        var input = NotificationPlanner.Input(now: now, prediction: store.prediction(now: now),
+        // Uden Folke Plus regnes beskederne ud fra den enkle forudsigelse (som appens forside)
+        let prediction = FolkeShared.plus(now: now).unlocked ? store.prediction(now: now) : store.basicPrediction(now: now)
+        var input = NotificationPlanner.Input(now: now, prediction: prediction,
                                               sleeping: store.runningSleep() != nil, childName: store.child()?.name ?? "",
                                               enabled: enabledKinds, pumpFeature: s?.featurePump ?? false,
                                               pumpRemindHours: s?.pumpRemindHours ?? 3, lastPump: store.lastPumping(now: now))
         input.enabled = enabledKinds
-        apply(FolkeShared.plus(now: now).unlocked ? plan(input) : [])
+        apply(plan(input))
     }
 
     private static func plan(_ input: NotificationPlanner.Input) -> [PlannedNotification] {

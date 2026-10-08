@@ -509,7 +509,7 @@ addEventListener('resize',()=>{if(bpoll)bsize()});
 // Interval ud fra hvor meget forudsigelsen har ramt ved siden af de seneste 14 dage (status.accuracy), afrundet til 5 min
 const r5=(ms,up)=>Math[up?'ceil':'floor'](ms/3e5)*3e5;
 const span=t=>{const A=S.accuracy,i=A&&A.interval||[-20,20],x=new Date(t).getTime();return`kl. ${hm(r5(x+i[0]*6e4))}–${hm(r5(x+i[1]*6e4,1))}`};
-const hit=()=>{const A=S.accuracy;return A&&A.n>=8?` · typisk ±${Math.round(A.median_abs)} min`:''};
+const hit=()=>{const A=S.accuracy;const m=A&&Math.round(A.median_abs);return A&&A.n>=8?(m<5?' · typisk inden for 5 min':` · typisk ±${m} min`):''};
 function planUI(p,n){const P=S.plan;let k='',big='',sub='';
 if(P&&P.wake){k='Forventet vågen';big='ca. kl. '+hm(P.wake);sub='Ud fra hvor længe hans lure plejer at vare'}
 else if(n&&n.now){k='Næste lur';big='Nu';sub=`Luren kl. ${hm(P.missed_at)} blev ikke til noget. Prøv at putte nu, så er resten af dagen flyttet.`}

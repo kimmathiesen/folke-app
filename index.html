@@ -266,7 +266,7 @@ const napBody=()=>napSel===null?{}:{nap:napSel};
 async function load(){try{S=await api('/api/status');$('err').textContent='';if(S.setup||!S.child_name||!role())onb();if(S.setup)return;hello();$('logo').classList.toggle('new',S.board>seen()&&location.hash!=='#tavle');if(document.activeElement!==$('sname'))$('sname').value=S.child_name;$('srole').value=role()||'mor';const F=S.features||{};$('cb').checked=!!F.breast;$('cs').checked=!!F.solids;$('sx').value=S.sex||'boy';$('cp').checked=!!F.pump;$('prem').value=String(S.pump_remind||3);$('premrow').hidden=$('premnote').hidden=$('kpump').hidden=!F.pump;
 if(S.sleeping){$('st').value='';$('lb').hidden=true}else{napSel=null;$('wt').value='';$('wb').hidden=true}}
 catch(e){$('err').textContent=e.message}render()}
-function render(){if(!S||S.setup)return;const sl=S.sleeping,p=S.prediction,b=sl?S.since:S.awake_since;let secs=0;
+function render(){if(!S||S.setup)return;const sl=S.sleeping,p=S.prediction,ow=sl&&wakeOpen(),b=ow?ow.start:sl?S.since:S.awake_since;let secs=0;
 $('state').textContent=sl?'Sover':'Vågen';
 if(b){secs=Math.max(0,(Date.now()-new Date(b))/1000|0);const z=n=>String(n).padStart(2,'0');
 $('clock').textContent=`${z(secs/3600|0)}:${z(secs/60%60|0)}:${z(secs%60)}`}else $('clock').textContent='--';

@@ -9,7 +9,8 @@ import Testing
         #expect(Clothing.size(forLength: 61.4) == 62)
         #expect(Clothing.size(forLength: 62) == 62)
         #expect(Clothing.size(forLength: 62.1) == 68)
-        #expect(Clothing.size(forLength: 99) == nil)
+        #expect(Clothing.size(forLength: 99) == 104)
+        #expect(Clothing.size(forLength: 117) == nil)
     }
 
     @Test func fremskrivesLangsSinPercentil() throws {
@@ -33,7 +34,7 @@ import Testing
         #expect(e.size == 68)
     }
 
-    @Test func udenLaengdeEllerEfter24MdrIntetSkoen() throws {
+    @Test func udenLaengdeEllerEfter5AarIntetSkoen() throws {
         let s = try FolkeStore(inMemory: true)
         s.calendar = cph
         try s.createChild(name: "Folke", birthDate: birthDay)
@@ -41,7 +42,8 @@ import Testing
         #expect(s.clothingEstimate(now: day(2026, 3, 1)) == nil)
         try s.saveGrowth(date: day(2026, 2, 1), values: [.length: 55], now: day(2026, 3, 1))
         #expect(s.clothingEstimate(now: day(2026, 3, 1)) != nil)
-        #expect(s.clothingEstimate(now: day(2028, 2, 1)) == nil)
+        #expect(s.clothingEstimate(now: day(2028, 2, 1)) != nil) // 2 år: stadig skøn (str. 86-92)
+        #expect(s.clothingEstimate(now: day(2031, 2, 1)) == nil)
     }
 
     @Test func tekst() {

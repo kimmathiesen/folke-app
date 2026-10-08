@@ -49,6 +49,7 @@ struct SleepProvider: TimelineProvider {
 
     @MainActor static func entry(now: Date) -> SleepEntry {
         let store = FolkeShared.store
+        store.currentChildID = FolkeShared.childID // valgt i appen; widgetten lever længe
         store.context.refreshAllObjects()
         guard let child = store.child() else { return SleepEntry(date: now) }
         guard FolkeShared.plus(now: now).unlocked else { return SleepEntry(date: now, hasChild: true, locked: true) }

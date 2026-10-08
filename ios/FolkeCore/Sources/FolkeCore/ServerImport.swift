@@ -72,18 +72,21 @@ public extension FolkeStore {
         if child() == nil {
             let name = [e.prefs?.child_name, sc.first_name].compactMap { $0 }.first { !$0.isEmpty } ?? "Barnet"
             try createChild(name: name, birthDate: birth, sex: Sex(rawValue: e.prefs?.sex ?? "") ?? .boy)
-            if let s = settings(), let p = e.prefs {
+            if let s = settings(), let f = family(), let p = e.prefs {
                 s.featureBreast = p.features?.breast ?? s.featureBreast
                 s.featureSolids = p.features?.solids ?? s.featureSolids
-                s.featurePump = p.features?.pump ?? s.featurePump
-                s.pumpRemindHours = p.pump_remind ?? s.pumpRemindHours
+                f.featurePump = p.features?.pump ?? f.featurePump
+                f.pumpRemindHours = p.pump_remind ?? f.pumpRemindHours
             }
             r.createdChild = true
         }
         let c = child()
+        let fam = family()
 
+        // Serverens id er nøglen: pr. barn for søvn, mad og vækst, pr. familie for udpumpning
         func existing<T: NSManagedObject>(_ type: T.Type, _ id: Int) -> T? {
-            fetch(type, NSPredicate(format: "serverID == %lld", Int64(id)), limit: 1).first
+            let p = NSPredicate(format: "serverID == %lld", Int64(id))
+            return fetch(type, type == Pumping.self ? forFamily(p) : forChild(p), limit: 1).first
         }
 
         for s in e.sleep ?? [] {
@@ -145,7 +148,7 @@ public extension FolkeStore {
                 let n = insert(Pumping.self, child: c)
                 n.id = UUID()
                 n.serverID = Int64(p.id)
-                n.child = c
+                n.family = fam
                 return n
             }()
             o.time = t

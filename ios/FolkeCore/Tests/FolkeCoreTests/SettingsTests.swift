@@ -17,10 +17,10 @@ import Testing
         try s.setFeature(.pump, false)
         try s.setFeature(.solids, true)
         try s.setFeature(.breast, false)
-        let set = try #require(s.settings())
-        #expect(!set.featurePump && set.featureSolids && !set.featureBreast)
+        let set = try #require(s.settings()), fam = try #require(s.family())
+        #expect(!fam.featurePump && set.featureSolids && !set.featureBreast)
         try s.setPumpRemind(hours: 2.5)
-        #expect(set.pumpRemindHours == 2.5)
+        #expect(fam.pumpRemindHours == 2.5)
         #expect(throws: SettingsError.invalidHours) { try s.setPumpRemind(hours: 13) }
         #expect(throws: SettingsError.invalidHours) { try s.setPumpRemind(hours: -1) }
     }

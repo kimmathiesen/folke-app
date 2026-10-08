@@ -389,6 +389,24 @@ Folke Plus (milepæl 9) er lavet, så langt det kan uden konto:
 `folke.welcomeSeen`) og samme tekst nederst i Indstillinger. Folke er en hjælp, ikke en regel, og ikke medicinsk rådgivning.
 Vigtigt over for App Review (sundhedsapp til børn) og bør med i App Store-beskrivelsen.
 
+**Flere børn og alder (8/10 2026, kun iPhone-appen; webappen har ét barn):**
+- Datamodel version 2: `Family` over børnene. Søvn, mad, vækst og indstillinger (amning, fast føde, forudsigelse, forslag)
+  hænger på barnet; udpumpning, tavlen og valgene for udpumpning på familien. Ved milepæl 6 deles familien med én invitation,
+  og Plus-markeringen (afsnit 9) lægges på familien.
+- Opgradering fra version 1: modellen er bygget i kode, så den gamle model bygges også i kode (`FolkeModel.build(version: 1)`),
+  og `FolkeStore.migrateIfNeeded` flytter databasen med en udledt mapping. `ensureFamily` opretter familien og flytter
+  udpumpning og tavlen. Testet med en rigtig version 1-fil (`FamilyTests`) og på simulatorens database.
+- Valgt barn pr. enhed (`folke.childID`, også for widgets og intents). Vælgeren i toppen vises kun ved flere børn.
+  «Børn» under Indstillinger: tilføj (startvalg efter alder: fast føde fra 6 mdr., amning under 12 mdr.) og slet.
+- Notifikationer pr. barn (id og log pr. barn, navnet som titel ved flere børn); udpumpning én gang for familien.
+  Én Live Activity pr. sovende barn (tvillinger), og «Stop» i den stopper netop det barns søvn.
+- Alder: appen følger barnet aktivt til ca. 3 år. Fra 2½ år, når der ikke er sovet lur i 2 uger, foreslås det at skjule
+  forudsigelsen (`featurePrediction`, kan slås til igen under Indstillinger). Vækstkurver og percentiler til 5 år
+  (WHO 0-60 mdr. fra pygrowup; længde liggende til 24 mdr., derefter stående højde), tøjstørrelser til str. 116.
+  Alle data bliver altid.
+- Mangler: «start søvn for begge» (tvillinger), og når familien deles (milepæl 6), skal to telefoner, der hver har
+  oprettet en familie, flettes (`family()` tager den ældste).
+
 Ud over milepælene (lavet uden udviklerkonto): app-ikon, baggrundsopdatering af notifikationer (`BGAppRefreshTask`,
 skal afprøves på telefon), tavlen lokalt (deling kommer med milepæl 6) og tøjstørrelse (afsnit 5, Vækst).
 Tavlen i appen viser «Sidst ændret» ud fra seneste streg (fortryd og «Visk ud» registreres ikke som ændring).

@@ -40,7 +40,8 @@ public enum FKLabels {
 }
 
 public extension FolkeStore {
-    /// Fire filer: søvn, mad, udpumpning og vækst (ældste først). Filnavnene får dagens dato.
+    /// Fire filer: søvn, mad, udpumpning og vækst (ældste først) for hele familien. Søvn, mad og vækst
+    /// har barnets navn i første kolonne. Filnavnene får dagens dato.
     func csvExport(now: Date = .now) -> [CSVFile] {
         let cal = calendar
         func stamp(_ d: Date?) -> String {
@@ -51,38 +52,41 @@ public extension FolkeStore {
         func date(_ d: Date?) -> String { String(stamp(d).prefix(10)) }
         func num(_ v: Double) -> String { v > 0 ? Format.number(v) : "" }
         let today = date(now)
+        let fam = forFamily()
+        let kids = NSPredicate(format: "child.family == %@", family() ?? NSNull())
+        func name(_ c: Child?) -> String { c?.name ?? "" }
 
-        let sleeps = fetch(Sleep.self, sort: [NSSortDescriptor(key: "start", ascending: true)])
+        let sleeps = fetch(Sleep.self, kids, sort: [NSSortDescriptor(key: "start", ascending: true)])
         let sleepRows = sleeps.map { s in
-            [stamp(s.start), stamp(s.end),
+            [name(s.child), stamp(s.start), stamp(s.end),
              s.start.flatMap { a in s.end.map { String(Int($0.timeIntervalSince(a) / 60)) } } ?? "",
              s.nap ? "Lur" : "Nat"]
         }
 
-        let feeds = fetch(Feeding.self, sort: [NSSortDescriptor(key: "time", ascending: true)])
+        let feeds = fetch(Feeding.self, kids, sort: [NSSortDescriptor(key: "time", ascending: true)])
         let feedRows = feeds.map { f in
             let kind = FeedKind(rawValue: f.kind ?? "")
-            return [stamp(f.time), kind.map(FKLabels.feeding) ?? (f.kind ?? ""), num(f.amountMl),
+            return [name(f.child), stamp(f.time), kind.map(FKLabels.feeding) ?? (f.kind ?? ""), num(f.amountMl),
                     kind == .bottle ? FKLabels.milk(Milk(rawValue: f.milk ?? "") ?? .breast) : "", f.note ?? ""]
         }
 
-        let pumps = fetch(Pumping.self, sort: [NSSortDescriptor(key: "time", ascending: true)])
+        let pumps = fetch(Pumping.self, fam, sort: [NSSortDescriptor(key: "time", ascending: true)])
         let pumpRows = pumps.map { p in
             [stamp(p.time), num(p.amountMl), p.side.flatMap { Side(rawValue: $0)?.label } ?? "", num(p.minutes)]
         }
 
-        let growth = fetch(Growth.self, sort: [NSSortDescriptor(key: "date", ascending: true)])
-        let growthRows = growth.map { g in [date(g.date), num(g.weightKg), num(g.lengthCm), num(g.headCm)] }
+        let growth = fetch(Growth.self, kids, sort: [NSSortDescriptor(key: "date", ascending: true)])
+        let growthRows = growth.map { g in [name(g.child), date(g.date), num(g.weightKg), num(g.lengthCm), num(g.headCm)] }
 
         return [
             CSVFile(name: "folke-soevn-\(today).csv",
-                    text: CSV.table(["Start", "Slut", "Minutter", "Type"], sleepRows), rows: sleepRows.count),
+                    text: CSV.table(["Barn", "Start", "Slut", "Minutter", "Type"], sleepRows), rows: sleepRows.count),
             CSVFile(name: "folke-mad-\(today).csv",
-                    text: CSV.table(["Tidspunkt", "Type", "Mængde (ml)", "Mælk", "Note"], feedRows), rows: feedRows.count),
+                    text: CSV.table(["Barn", "Tidspunkt", "Type", "Mængde (ml)", "Mælk", "Note"], feedRows), rows: feedRows.count),
             CSVFile(name: "folke-udpumpning-\(today).csv",
                     text: CSV.table(["Tidspunkt", "Mængde (ml)", "Side", "Minutter"], pumpRows), rows: pumpRows.count),
             CSVFile(name: "folke-vaekst-\(today).csv",
-                    text: CSV.table(["Dato", "Vægt (kg)", "Længde (cm)", "Hovedomfang (cm)"], growthRows),
+                    text: CSV.table(["Barn", "Dato", "Vægt (kg)", "Længde (cm)", "Hovedomfang (cm)"], growthRows),
                     rows: growthRows.count),
         ]
     }

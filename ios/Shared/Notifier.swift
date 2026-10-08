@@ -74,40 +74,60 @@ final class Notifier: NSObject, UNUserNotificationCenterDelegate {
     }
 
     /// Planlæg forfra (fra appens skærm). Gentages kun, hvis planen har ændret sig.
-    func reschedule(_ input: NotificationPlanner.Input) {
+    func reschedule(store: FolkeStore, now: Date = .now) {
         guard status == .allowed else { return }
-        var input = input
-        input.enabled = enabled
-        let plan = Self.plan(input)
+        let (plan, scopes) = Self.plan(store: store, now: now, enabled: enabled)
         if plan == lastPlan { return }
         lastPlan = plan
-        Self.apply(plan)
+        Self.apply(plan, scopes: scopes)
     }
 
     /// Planlæg forfra uden appens skærm (App Intents fra Siri, widgets og Live Activity).
     static func reschedule(store: FolkeStore, now: Date = .now) async {
         guard await UNUserNotificationCenter.current().notificationSettings().authorizationStatus == .authorized else { return }
-        let s = store.settings()
-        // Uden Folke Plus regnes beskederne ud fra den enkle forudsigelse (som appens forside)
-        let prediction = FolkeShared.plus(now: now).unlocked ? store.prediction(now: now) : store.basicPrediction(now: now)
-        var input = NotificationPlanner.Input(now: now, prediction: prediction,
-                                              sleeping: store.runningSleep() != nil, childName: store.child()?.name ?? "",
-                                              enabled: enabledKinds, pumpFeature: s?.featurePump ?? false,
-                                              pumpRemindHours: s?.pumpRemindHours ?? 3, lastPump: store.lastPumping(now: now))
-        input.enabled = enabledKinds
-        apply(plan(input))
+        let (plan, scopes) = plan(store: store, now: now, enabled: enabledKinds)
+        apply(plan, scopes: scopes)
     }
 
-    private static func plan(_ input: NotificationPlanner.Input) -> [PlannedNotification] {
-        let (plan, newLog) = NotificationPlanner().plan(input, log: log)
-        log = newLog
-        return plan
+    /// Søvnbeskeder for hvert barn og én påmindelse om udpumpning for familien. Uden Folke Plus regnes søvnbeskederne
+    /// ud fra den enkle forudsigelse. Ved flere børn får hvert barn sin egen besked (id og log pr. barn, navnet som titel).
+    private static func plan(store: FolkeStore, now: Date, enabled: Set<NotificationKind>)
+        -> (plan: [PlannedNotification], scopes: [String]) {
+        let plus = FolkeShared.plus(now: now).unlocked
+        let kids = store.children()
+        let saved = store.currentChildID
+        defer { store.currentChildID = saved }
+        let planner = NotificationPlanner()
+        var log = log
+        var out: [PlannedNotification] = []
+        var scopes = [""]
+        for c in kids {
+            store.currentChildID = c.id
+            let many = kids.count > 1
+            let scope = many ? (c.id?.uuidString ?? "") : ""
+            scopes.append(scope)
+            let input = NotificationPlanner.Input(
+                now: now, prediction: plus ? store.prediction(now: now) : store.basicPrediction(now: now),
+                sleeping: store.runningSleep() != nil, childName: c.name ?? "", enabled: enabled.subtracting([.pump]),
+                scope: scope, title: many ? (c.name ?? "Søvn") : "Søvn")
+            let r = planner.plan(input, log: log)
+            out += r.notifications
+            log = r.log
+        }
+        let f = store.family()
+        let pump = NotificationPlanner.Input(
+            now: now, prediction: nil, sleeping: false, childName: "", enabled: enabled.intersection([.pump]),
+            pumpFeature: f?.featurePump ?? false, pumpRemindHours: f?.pumpRemindHours ?? 3, lastPump: store.lastPumping(now: now))
+        let r = planner.plan(pump, log: log)
+        out += r.notifications
+        Self.log = r.log
+        return (out, scopes)
     }
 
-    /// Fast id pr. type, så en ny plan erstatter den gamle. Typer uden plan fjernes.
-    private static func apply(_ plan: [PlannedNotification]) {
+    /// Fast id pr. type (og barn), så en ny plan erstatter den gamle. Typer uden plan fjernes.
+    private static func apply(_ plan: [PlannedNotification], scopes: [String]) {
         let center = UNUserNotificationCenter.current()
-        let ids = NotificationKind.allCases.map(\.rawValue)
+        let ids = NotificationKind.allCases.flatMap { k in scopes.map { PlannedNotification.id(k, scope: $0) } }
         let removed = ids.filter { id in !plan.contains { $0.id == id } }
         center.removePendingNotificationRequests(withIdentifiers: removed)
         logger.info("Fjernet: \(removed.joined(separator: ", "), privacy: .public)")
@@ -116,7 +136,7 @@ final class Notifier: NSObject, UNUserNotificationCenterDelegate {
             c.title = n.title
             c.body = n.body
             c.sound = .default
-            c.threadIdentifier = n.kind == .pump ? "pump" : "sleep"
+            c.threadIdentifier = n.kind == .pump ? "pump" : "sleep" + n.scope
             let delay = max(1, n.fireDate.timeIntervalSinceNow)
             logger.info("Planlagt \(n.id, privacy: .public) kl. \(Format.clock(n.fireDate), privacy: .public): \(n.body, privacy: .public)")
             center.add(UNNotificationRequest(identifier: n.id, content: c,

@@ -4,7 +4,7 @@ import Foundation
 
 extension FolkeStore {
     /// Barn på `months` måneder. Søvn som historikken i tests/test_predict.py: nat 19:30-6:30 og lure 8:30-9:30, 12:00-13:30 og 16:30-17:00.
-    func seedDemo(months: Int = 4, now: Date = .now) throws {
+    func seedDemo(months: Int = 4, sibling: Bool = false, now: Date = .now) throws {
         let cal = calendar
         let today = cal.startOfDay(for: now)
         let child = try createChild(name: "Folke", birthDate: cal.date(byAdding: .month, value: -months, to: today)!)
@@ -39,12 +39,39 @@ extension FolkeStore {
                 try addPumping(amountMl: Double(90 + (i * 37 + j * 23) % 70), side: .both, minutes: 15, at: at(d, h, 0), now: now)
             }
         }
+        if sibling { try seedSibling(now: now) }
         // Vækst ved fødslen og hver måned
         for (mo, w, l, hc) in [(0, 3.5, 50.5, 35.0), (1, 4.6, 54.5, 37.4), (2, 5.7, 58.2, 39.1), (3, 6.4, 61.0, 40.5),
                                (5, 7.6, 65.5, 42.4), (6, 8.0, 67.4, 43.2)] {
             let d = cal.date(byAdding: .month, value: mo - months, to: today)!
             if d <= now { try saveGrowth(date: d, values: [.weight: w, .length: l, .head: hc], now: now) }
         }
+    }
+}
+
+extension FolkeStore {
+    /// Storesøster Ida (2 år 7 mdr.): nat 19:45-06:45 og én lur 12:30-14:00. Barnet før bliver valgt igen.
+    func seedSibling(now: Date = .now) throws {
+        let first = currentChildID ?? child()?.id
+        let cal = calendar
+        let today = cal.startOfDay(for: now)
+        let ida = try createChild(name: "Ida", birthDate: cal.date(byAdding: .month, value: -31, to: today)!, sex: .girl)
+        func at(_ d: Date, _ h: Int, _ m: Int) -> Date { cal.date(bySettingHour: h, minute: m, second: 0, of: d)! }
+        for i in (0..<10).reversed() {
+            let d = cal.date(byAdding: .day, value: -i, to: today)!
+            let y = cal.date(byAdding: .day, value: -1, to: d)!
+            for (start, end, nap) in [(at(y, 19, 45), at(d, 6, 45), false), (at(d, 12, 30), at(d, 14, 0), true)] where end <= now {
+                let s = Sleep(context: context)
+                s.id = UUID()
+                s.start = start
+                s.end = end
+                s.nap = nap
+                s.child = ida
+            }
+        }
+        try saveGrowth(date: cal.date(byAdding: .month, value: -1, to: today)!, values: [.weight: 13.1, .length: 92.5], now: now)
+        currentChildID = first
+        try save()
     }
 }
 #endif

@@ -25,18 +25,19 @@ import Testing
             }
         }
         #expect(Set(FolkeModel.shared.entities.compactMap(\.name)) ==
-                ["Child", "Sleep", "Feeding", "Pumping", "Growth", "Stroke", "Settings"])
+                ["Family", "Child", "Sleep", "Feeding", "Pumping", "Growth", "Stroke", "Settings"])
     }
 
     @Test func barnOgIndstillinger() throws {
         let s = try store()
         #expect(s.child() == nil)
-        let c = try s.createChild(name: "Folke", birthDate: day(2026, 2, 1), sex: .boy)
+        let c = try s.createChild(name: "Folke", birthDate: day(2026, 2, 1), sex: .boy, now: day(2026, 2, 10))
         #expect(s.child() == c)
         let set = try #require(s.settings())
         #expect(set.child == c)
-        #expect(set.featureBreast && !set.featureSolids && set.featurePump)
-        #expect(set.pumpRemindHours == 3)
+        let fam = try #require(s.family())
+        #expect(set.featureBreast && !set.featureSolids && set.featurePrediction && fam.featurePump)
+        #expect(fam.pumpRemindHours == 3 && c.family == fam)
         set.answers = [.solids: .snoozed(until: day(2026, 7, 1)), .hideBreast: .never]
         #expect(set.answers[.solids] == .snoozed(until: day(2026, 7, 1)))
         #expect(set.answers[.hideBreast] == .never)

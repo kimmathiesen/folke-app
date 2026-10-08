@@ -61,6 +61,10 @@ struct TopBar: View {
                 .buttonStyle(.plain)
                 .padding(.top, 8)
             }
+            .overlay(alignment: .topTrailing) {
+                // Kun ved flere børn
+                if model.snapshot.children.count > 1 { ChildPicker().padding(.top, 8) }
+            }
             .padding(.horizontal, 18)
             .padding(.top, 14)
     }

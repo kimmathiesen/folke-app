@@ -104,14 +104,14 @@ public extension FolkeStore {
 
     /// Seneste måltid de sidste 2 døgn.
     func lastFeeding(now: Date = .now) -> Feeding? {
-        fetch(Feeding.self, NSPredicate(format: "time >= %@", now.addingTimeInterval(-2 * 86400) as NSDate),
+        fetch(Feeding.self, forChild(NSPredicate(format: "time >= %@", now.addingTimeInterval(-2 * 86400) as NSDate)),
               sort: [NSSortDescriptor(key: "time", ascending: false)], limit: 1).first
     }
 
     /// Dagens måltider, nyeste først (Mad-siden).
     func todayFeedings(now: Date = .now) -> [Feeding] {
         let today = calendar.startOfDay(for: now)
-        return fetch(Feeding.self, NSPredicate(format: "time >= %@ AND time <= %@", today as NSDate, now as NSDate),
+        return fetch(Feeding.self, forChild(NSPredicate(format: "time >= %@ AND time <= %@", today as NSDate, now as NSDate)),
                      sort: [NSSortDescriptor(key: "time", ascending: false)])
     }
 
@@ -121,8 +121,8 @@ public extension FolkeStore {
 
     /// Seneste amning de sidste 60 dage (til forslaget «Skjul Amning»).
     func lastBreastFeed(now: Date = .now) -> Date? {
-        fetch(Feeding.self, NSPredicate(format: "time >= %@ AND kind IN %@", now.addingTimeInterval(-60 * 86400) as NSDate,
-                                        ["left", "right", "both"]),
+        fetch(Feeding.self, forChild(NSPredicate(format: "time >= %@ AND kind IN %@", now.addingTimeInterval(-60 * 86400) as NSDate,
+                                                  ["left", "right", "both"])),
               sort: [NSSortDescriptor(key: "time", ascending: false)], limit: 1).first?.time
     }
 
@@ -138,14 +138,15 @@ public extension FolkeStore {
     func addPumping(amountMl: Double, side: Side? = nil, minutes: Double? = nil, at time: Date? = nil,
                     now: Date = .now) throws -> Pumping {
         try Self.checkPump(amountMl: amountMl, minutes: minutes)
-        let c = child()
-        let p = insert(Pumping.self, child: c)
+        let fam = family()
+        let p = insert(Pumping.self, child: nil)
+        if let store = fam?.objectID.persistentStore { context.assign(p, to: store) }
         p.id = UUID()
         p.time = time ?? now
         p.amountMl = amountMl
         p.side = side?.rawValue
         p.minutes = minutes ?? 0
-        p.child = c
+        p.family = fam
         try save()
         return p
     }
@@ -160,9 +161,9 @@ public extension FolkeStore {
         try save()
     }
 
-    /// Udpumpninger efter `since`, ældste først.
+    /// Familiens udpumpninger efter `since`, ældste først.
     func pumpings(since: Date) -> [Pumping] {
-        fetch(Pumping.self, NSPredicate(format: "time >= %@", since as NSDate),
+        fetch(Pumping.self, forFamily(NSPredicate(format: "time >= %@", since as NSDate)),
               sort: [NSSortDescriptor(key: "time", ascending: true)])
     }
 
@@ -179,10 +180,14 @@ public extension FolkeStore {
 
     func suggestions(now: Date = .now) -> [Suggestions.Suggestion] {
         guard let c = child(), let birth = c.birthDate, let s = settings() else { return [] }
+        let recent = sleeps(since: now.addingTimeInterval(-Double(Suggestions.napIdleDays) * 86400))
+        let lastNap = fetch(Sleep.self, forChild(NSPredicate(format: "nap == YES AND end != nil")),
+                            sort: [NSSortDescriptor(key: "end", ascending: false)], limit: 1).first?.end
         return Suggestions.compute(now: now, birthDate: birth, sex: Sex(rawValue: c.sex ?? "") ?? .boy,
                                    solids: s.featureSolids, breast: s.featureBreast,
                                    lastBreastFeed: s.featureBreast ? lastBreastFeed(now: now) : nil,
-                                   answers: s.answers, calendar: calendar)
+                                   answers: s.answers, prediction: s.featurePrediction, lastNap: lastNap,
+                                   sleptRecently: !recent.isEmpty, calendar: calendar)
     }
 
     /// Ja slår fast føde til eller skjuler amning. Ikke nu = 30 dage. Aldrig = aldrig igen.
@@ -192,6 +197,7 @@ public extension FolkeStore {
             switch id {
             case .solids: s.featureSolids = true
             case .hideBreast: s.featureBreast = false
+            case .hidePrediction: s.featurePrediction = false
             }
         }
         var a = s.answers
@@ -201,10 +207,10 @@ public extension FolkeStore {
     }
 }
 
-// MARK: Indstillinger (fælles for familien)
+// MARK: Indstillinger (amning, fast føde og forudsigelse pr. barn; udpumpning for familien)
 
 public enum Feature: String, CaseIterable, Sendable {
-    case breast, solids, pump
+    case breast, solids, pump, prediction
 }
 
 public enum SettingsError: Error, Equatable, LocalizedError {
@@ -221,11 +227,16 @@ public enum SettingsError: Error, Equatable, LocalizedError {
 
 public extension FolkeStore {
     func setFeature(_ f: Feature, _ on: Bool) throws {
+        if f == .pump {
+            family()?.featurePump = on
+            return try save()
+        }
         guard let s = settings() else { return }
         switch f {
         case .breast: s.featureBreast = on
         case .solids: s.featureSolids = on
-        case .pump: s.featurePump = on
+        case .prediction: s.featurePrediction = on
+        case .pump: break
         }
         try save()
     }
@@ -233,7 +244,7 @@ public extension FolkeStore {
     /// Påmindelse om udpumpning efter så mange timer (0 = fra), som `/api/pump/remind`.
     func setPumpRemind(hours: Double) throws {
         guard (0...12).contains(hours) else { throw SettingsError.invalidHours }
-        settings()?.pumpRemindHours = hours
+        family()?.pumpRemindHours = hours
         try save()
     }
 

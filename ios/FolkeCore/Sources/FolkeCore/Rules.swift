@@ -169,6 +169,7 @@ public enum Suggestions {
     public enum ID: String, CaseIterable, Codable, Sendable {
         case solids
         case hideBreast = "hide_breast"
+        case hidePrediction = "hide_prediction"
     }
 
     public enum Answer: String, Codable, Sendable {
@@ -188,6 +189,9 @@ public enum Suggestions {
 
     public static let snoozeDays = 30
     public static let breastIdleDays = 21
+    /// Forslaget om at skjule forudsigelsen: fra 2½ år, når der ikke er sovet lur i 2 uger (men søvn er registreret)
+    public static let predictionMinMonths = 30.0
+    public static let napIdleDays = 14
 
     public static func open(_ s: Stored?, now: Date) -> Bool {
         switch s {
@@ -206,7 +210,8 @@ public enum Suggestions {
     }
 
     public static func compute(now: Date, birthDate: Date, sex: Sex, solids: Bool, breast: Bool,
-                               lastBreastFeed: Date?, answers: [ID: Stored],
+                               lastBreastFeed: Date?, answers: [ID: Stored], prediction: Bool = false,
+                               lastNap: Date? = nil, sleptRecently: Bool = false,
                                calendar: Calendar = .current) -> [Suggestion] {
         var out: [Suggestion] = []
         let days = calendar.dateComponents([.day], from: calendar.startOfDay(for: birthDate),
@@ -223,6 +228,13 @@ public enum Suggestions {
                 out.append(.init(id: .hideBreast,
                                  text: "Du har ikke registreret amning i \(idle / 7) uger. Skal Amning-knappen skjules?"))
             }
+        }
+        if prediction, sleptRecently, months >= predictionMinMonths, open(answers[.hidePrediction], now: now),
+           lastNap.map({ now.timeIntervalSince($0) >= Double(napIdleDays) * 86400 }) ?? true {
+            let pronoun = sex == .girl ? "Hun" : "Han"
+            out.append(.init(id: .hidePrediction,
+                             text: "\(pronoun) har ikke sovet lur i \(napIdleDays / 7) uger. Skal forudsigelsen af lure skjules? "
+                                 + "Søvnloggen og resten bliver."))
         }
         return out
     }

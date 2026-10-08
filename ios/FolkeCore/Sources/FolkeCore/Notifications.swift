@@ -9,14 +9,20 @@ public enum NotificationKind: String, CaseIterable, Codable, Sendable {
     public static let defaultsOn: Set<NotificationKind> = [.sleepSoon, .overdue]
 }
 
-/// En lokal notifikation, der skal planlægges. `id` er fast pr. type, så en ny plan erstatter den gamle.
+/// En lokal notifikation, der skal planlægges. `id` er fast pr. type (og barn), så en ny plan erstatter den gamle.
 public struct PlannedNotification: Equatable, Sendable {
     public var kind: NotificationKind
     public var fireDate: Date
     public var title: String
     public var body: String
+    /// Barnets id ved flere børn ("" for udpumpning og ved ét barn)
+    public var scope: String = ""
 
-    public var id: String { kind.rawValue }
+    public var id: String { Self.id(kind, scope: scope) }
+
+    public static func id(_ kind: NotificationKind, scope: String) -> String {
+        scope.isEmpty ? kind.rawValue : "\(kind.rawValue).\(scope)"
+    }
 }
 
 /// Hvad der allerede er planlagt (eller sendt), så hver besked højst kommer én gang
@@ -51,10 +57,15 @@ public struct NotificationPlanner: Sendable {
         public var pumpFeature: Bool
         public var pumpRemindHours: Double
         public var lastPump: (id: UUID, time: Date)?
+        /// Ved flere børn: barnets id (adskiller beskeder og log pr. barn), og titlen bliver barnets navn
+        public var scope: String
+        public var title: String
 
         public init(now: Date, prediction: Prediction?, sleeping: Bool, childName: String,
                     enabled: Set<NotificationKind>, pumpFeature: Bool = false, pumpRemindHours: Double = 3,
-                    lastPump: (id: UUID, time: Date)? = nil) {
+                    lastPump: (id: UUID, time: Date)? = nil, scope: String = "", title: String = "Søvn") {
+            self.scope = scope
+            self.title = title
             self.now = now
             self.prediction = prediction
             self.sleeping = sleeping
@@ -82,21 +93,23 @@ public struct NotificationPlanner: Sendable {
 
         func add(_ kind: NotificationKind, key: String, at fire: Date, latest: Date, title: String, body: String) {
             guard input.enabled.contains(kind), latest >= now else { return }
-            if let e = log.entries[kind.rawValue], e.key == key, e.fireDate <= now {
+            let scope = kind == .pump ? "" : input.scope
+            let id = PlannedNotification.id(kind, scope: scope)
+            if let e = log.entries[id], e.key == key, e.fireDate <= now {
                 return // allerede sendt
             }
             let when = max(fire, now)
-            log.entries[kind.rawValue] = .init(key: key, fireDate: when)
-            out.append(PlannedNotification(kind: kind, fireDate: when, title: title, body: body))
+            log.entries[id] = .init(key: key, fireDate: when)
+            out.append(PlannedNotification(kind: kind, fireDate: when, title: title, body: body, scope: scope))
         }
 
         if let p = input.prediction, !input.sleeping {
             let key = p.lastID.uuidString
             add(.sleepSoon, key: key, at: p.time.addingTimeInterval(-Double(Self.leadMin) * 60), latest: p.time,
-                title: "Søvn", body: soonText(p))
+                title: input.title, body: soonText(p))
             add(.overdue, key: key, at: p.time.addingTimeInterval(Double(Self.overdueMin) * 60),
                 latest: p.time.addingTimeInterval(Double(Self.overdueMaxMin) * 60),
-                title: "Søvn", body: overdueText(p, name: input.childName))
+                title: input.title, body: overdueText(p, name: input.childName))
         }
 
         if input.pumpFeature, input.pumpRemindHours > 0, let last = input.lastPump {

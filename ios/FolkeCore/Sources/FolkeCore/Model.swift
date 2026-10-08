@@ -4,9 +4,21 @@ import Foundation
 // Core Data-modellen (ios/PLAN.md afsnit 2), bygget i kode, så den kan deles med widgets og App Intents.
 // Krav fra CloudKit: alle attributter valgfri eller med standardværdi, ingen unikke constraints,
 // alle relationer valgfri og med inverse. `id` (UUID) er det stabile id.
-// Alle poster hænger på barnet, så de ligger i samme CloudKit-zone, når familien deles.
+// Version 2: en familie over børnene. Familien deles (milepæl 6), så alt under den ligger i samme CloudKit-zone.
+// Søvn, mad, vækst og forslag hænger på barnet; udpumpning og tavlen på familien (de er forældrenes, ikke barnets).
 // Tal, der kan mangle (ml, minutter, mål), gemmes som 0 = ikke angivet.
 // `serverID` er id'et fra Folke-serveren ved import (0 = oprettet i appen), så gentaget import ikke giver dubletter.
+
+/// Familien: børnene, udpumpning, tavlen og de fælles valg for udpumpning.
+@objc(FKFamily) public final class Family: NSManagedObject {
+    @NSManaged public var id: UUID?
+    @NSManaged public var createdAt: Date?
+    @NSManaged public var featurePump: Bool
+    @NSManaged public var pumpRemindHours: Double
+    @NSManaged public var children: Set<Child>?
+    @NSManaged public var pumpings: Set<Pumping>?
+    @NSManaged public var strokes: Set<Stroke>?
+}
 
 @objc(FKChild) public final class Child: NSManagedObject {
     @NSManaged public var id: UUID?
@@ -21,6 +33,7 @@ import Foundation
     @NSManaged public var growths: Set<Growth>?
     @NSManaged public var strokes: Set<Stroke>?
     @NSManaged public var settings: Set<Settings>?
+    @NSManaged public var family: Family?
 }
 
 @objc(FKSleep) public final class Sleep: NSManagedObject {
@@ -56,7 +69,9 @@ import Foundation
     @NSManaged public var side: String?
     @NSManaged public var minutes: Double
     @NSManaged public var serverID: Int64
+    /// Kun version 1 (før familien); flyttes til `family` ved opgraderingen
     @NSManaged public var child: Child?
+    @NSManaged public var family: Family?
 }
 
 @objc(FKGrowth) public final class Growth: NSManagedObject {
@@ -78,10 +93,13 @@ import Foundation
     @NSManaged public var points: Data?
     @NSManaged public var createdAt: Date?
     @NSManaged public var createdBy: String?
+    /// Kun version 1 (før familien); flyttes til `family` ved opgraderingen
     @NSManaged public var child: Child?
+    @NSManaged public var family: Family?
 }
 
-/// Fælles indstillinger for familien. Findes der flere (fx oprettet på to telefoner), bruges den ældste.
+/// Indstillinger for ét barn (amning, fast føde, forudsigelse, svar på forslag).
+/// Udpumpning ligger på familien; `featurePump` og `pumpRemindHours` her er kun version 1.
 @objc(FKSettings) public final class Settings: NSManagedObject {
     @NSManaged public var id: UUID?
     @NSManaged public var createdAt: Date?
@@ -91,14 +109,20 @@ import Foundation
     @NSManaged public var pumpRemindHours: Double
     /// JSON: [Suggestions.ID: Suggestions.Stored]
     @NSManaged public var suggestionAnswers: Data?
+    /// Forudsigelsen kan skjules, når barnet er holdt op med at sove lur (ca. 3 år)
+    @NSManaged public var featurePrediction: Bool
     @NSManaged public var child: Child?
 }
 
 public enum FolkeModel {
     /// Én fælles instans: flere modeller med de samme klasser giver advarsler fra Core Data.
-    nonisolated(unsafe) public static let shared: NSManagedObjectModel = build()
+    nonisolated(unsafe) public static let shared: NSManagedObjectModel = build(version: current)
+    public static let current = 2
 
-    static func build() -> NSManagedObjectModel {
+    /// `version` 1 er modellen før familien (bruges kun til at opgradere gamle databaser). Den bygges uden
+    /// klasser, så kun den aktuelle model gør krav på FK-klasserne.
+    static func build(version: Int) -> NSManagedObjectModel {
+        let v2 = version >= 2
         func attr(_ name: String, _ type: NSAttributeType, default value: Any? = nil) -> NSAttributeDescription {
             let a = NSAttributeDescription()
             a.name = name
@@ -110,7 +134,7 @@ public enum FolkeModel {
         func entity<T: NSManagedObject>(_ cls: T.Type, _ attrs: [NSAttributeDescription]) -> NSEntityDescription {
             let e = NSEntityDescription()
             e.name = String(describing: cls)
-            e.managedObjectClassName = NSStringFromClass(cls)
+            e.managedObjectClassName = v2 ? NSStringFromClass(cls) : "NSManagedObject"
             e.properties = attrs
             return e
         }
@@ -151,35 +175,49 @@ public enum FolkeModel {
             attr("featurePump", .booleanAttributeType, default: true),
             attr("pumpRemindHours", .doubleAttributeType, default: 3.0),
             attr("suggestionAnswers", .binaryDataAttributeType),
-        ])
+        ] + (v2 ? [attr("featurePrediction", .booleanAttributeType, default: true)] : []))
 
-        // Barnet har mange af hver. Alle relationer er valgfrie og har en invers.
+        // En-til-mange med invers. Alle relationer er valgfrie (CloudKit).
+        func relate(_ owner: NSEntityDescription, _ many: String, _ target: NSEntityDescription, _ one: String) {
+            let m = NSRelationshipDescription()
+            m.name = many
+            m.destinationEntity = target
+            m.minCount = 0
+            m.maxCount = 0
+            m.isOptional = true
+            m.deleteRule = .cascadeDeleteRule
+
+            let o = NSRelationshipDescription()
+            o.name = one
+            o.destinationEntity = owner
+            o.minCount = 0
+            o.maxCount = 1
+            o.isOptional = true
+            o.deleteRule = .nullifyDeleteRule
+
+            m.inverseRelationship = o
+            o.inverseRelationship = m
+            owner.properties.append(m)
+            target.properties.append(o)
+        }
         for (target, name) in [(sleep, "sleeps"), (feeding, "feedings"), (pumping, "pumpings"),
                                (growth, "growths"), (stroke, "strokes"), (settings, "settings")] {
-            let many = NSRelationshipDescription()
-            many.name = name
-            many.destinationEntity = target
-            many.minCount = 0
-            many.maxCount = 0
-            many.isOptional = true
-            many.deleteRule = .cascadeDeleteRule
-
-            let one = NSRelationshipDescription()
-            one.name = "child"
-            one.destinationEntity = child
-            one.minCount = 0
-            one.maxCount = 1
-            one.isOptional = true
-            one.deleteRule = .nullifyDeleteRule
-
-            many.inverseRelationship = one
-            one.inverseRelationship = many
-            child.properties.append(many)
-            target.properties.append(one)
+            relate(child, name, target, "child")
         }
 
         let model = NSManagedObjectModel()
         model.entities = [child, sleep, feeding, pumping, growth, stroke, settings]
+        if v2 {
+            let family = entity(Family.self, [
+                id(), attr("createdAt", .dateAttributeType),
+                attr("featurePump", .booleanAttributeType, default: true),
+                attr("pumpRemindHours", .doubleAttributeType, default: 3.0),
+            ])
+            relate(family, "children", child, "family")
+            relate(family, "pumpings", pumping, "family")
+            relate(family, "strokes", stroke, "family")
+            model.entities.append(family)
+        }
         return model
     }
 }

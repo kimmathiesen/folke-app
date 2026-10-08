@@ -13,13 +13,22 @@ enum FolkeShared {
 
     /// Databasen i App Group-mappen. Appen synkroniserer med iCloud (milepæl 6); widgets læser kun.
     @MainActor static var store: FolkeStore = {
+        let store: FolkeStore
         do {
-            return try FolkeStore(cloudKitContainer: cloudKitContainer, appGroup: appGroup)
+            store = try FolkeStore(cloudKitContainer: cloudKitContainer, appGroup: appGroup)
         } catch {
             print("Core Data:", error)
-            return try! FolkeStore(inMemory: true)
+            store = try! FolkeStore(inMemory: true)
         }
+        store.currentChildID = childID
+        return store
     }()
+
+    /// Det valgte barn på denne enhed (ved flere børn). Delt med widgets og intents.
+    static var childID: UUID? {
+        get { defaults.string(forKey: "folke.childID").flatMap(UUID.init(uuidString:)) }
+        set { defaults.set(newValue?.uuidString, forKey: "folke.childID") }
+    }
 
     /// Mor/far på denne enhed. Læser den gamle placering (før App Group), hvis den nye er tom.
     static var role: Role? {

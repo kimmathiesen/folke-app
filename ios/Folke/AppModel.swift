@@ -38,6 +38,16 @@ struct Snapshot {
     var boardVersion = 0.0
     var plus = Plus.Status.trial(daysLeft: Plus.trialDays)
     var feedItems: [FeedItem] = []
+    var featurePrediction = true
+    /// Alle børn (ældste først) og det valgte
+    var children: [ChildItem] = []
+    var childID: UUID?
+
+    struct ChildItem: Identifiable, Hashable {
+        var id: UUID
+        var name: String
+        var birthDate: Date
+    }
 
     struct FeedItem: Identifiable {
         var id: UUID
@@ -134,7 +144,8 @@ final class AppModel {
                     try store.importServerExport(Data(contentsOf: URL(fileURLWithPath: path)))
                 } else {
                     let months = d.integer(forKey: "demoMonths")
-                    try store.seedDemo(months: months > 0 ? months : 4)
+                    try store.seedDemo(months: months > 0 ? months : 4, sibling: d.bool(forKey: "demoSibling"))
+                    FolkeShared.childID = store.currentChildID
                 }
             } catch {
                 print("Demo:", error)
@@ -168,8 +179,16 @@ final class AppModel {
         if let set = store.settings() {
             s.featureBreast = set.featureBreast
             s.featureSolids = set.featureSolids
-            s.featurePump = set.featurePump
-            s.pumpRemindHours = set.pumpRemindHours
+            s.featurePrediction = set.featurePrediction
+        }
+        if let f = store.family() {
+            s.featurePump = f.featurePump
+            s.pumpRemindHours = f.pumpRemindHours
+        }
+        s.childID = child?.id
+        s.children = store.children().compactMap { c in
+            guard let id = c.id else { return nil }
+            return .init(id: id, name: c.name ?? "", birthDate: c.birthDate ?? .now)
         }
         s.sex = child?.sex.flatMap(Sex.init(rawValue:)) ?? .boy
         if let f = store.lastFeeding(now: now), let t = f.time, let k = f.kind.flatMap(FeedKind.init(rawValue:)) {
@@ -195,19 +214,18 @@ final class AppModel {
         snapshot = s
         if tab == .pump && !s.featurePump { tab = .sleep }
         syncExtensions(s)
-        notifier.reschedule(.init(now: now, prediction: s.prediction, sleeping: s.running != nil, childName: s.childName,
-                                  enabled: [], pumpFeature: s.featurePump, pumpRemindHours: s.pumpRemindHours,
-                                  lastPump: store.lastPumping(now: now)))
+        notifier.reschedule(store: store, now: now)
     }
 
     private var widgetKey = ""
 
     /// Live Activity og widgets følger appen. Widgets genindlæses kun, når noget, de viser, har ændret sig.
     private func syncExtensions(_ s: Snapshot) {
-        let running = s.running.map { ($0.start, $0.nap) }, name = s.childName, wake = s.plan?.wake
-        Task { await SleepLiveActivity.sync(running: running, name: name, expectedWake: wake) }
+        let entries = SleepLiveActivity.entries(store: store)
+        Task { await SleepLiveActivity.sync(entries) }
         let key = [s.running?.start.description, s.awakeSince?.description,
-                   s.plan?.items.map { $0.start.description }.joined(), s.childName, "\(s.plus.unlocked)"].map { $0 ?? "-" }.joined(separator: "|")
+                   s.plan?.items.map { $0.start.description }.joined(), s.childName, "\(s.plus.unlocked)",
+                   s.childID?.uuidString].map { $0 ?? "-" }.joined(separator: "|")
         if key != widgetKey {
             widgetKey = key
             WidgetCenter.shared.reloadAllTimelines()
@@ -388,9 +406,42 @@ final class AppModel {
                 child.name = name
                 try store.save()
             } else {
-                try store.createChild(name: name, birthDate: birthDate ?? .now, sex: sex)
+                let c = try store.createChild(name: name, birthDate: birthDate ?? .now, sex: sex)
+                FolkeShared.childID = c.id
             }
             self.role = role
+        }
+    }
+
+    // MARK: Flere børn
+
+    /// Skift barn på denne enhed. Siden (Søvn, Mad …) bliver, hvor den er.
+    func selectChild(_ id: UUID) {
+        guard id != snapshot.childID else { return }
+        store.currentChildID = id
+        FolkeShared.childID = id
+        napSelection = nil
+        refresh()
+        WidgetCenter.shared.reloadAllTimelines()
+    }
+
+    /// Tilføj et barn (navn, fødselsdato og køn). Det nye barn bliver valgt. Giver en fejltekst eller nil.
+    func addChild(name: String, birthDate: Date, sex: Sex) -> String? {
+        guard let clean = Format.cleanName(name) else { return "Skriv barnets navn (højst 40 tegn)" }
+        guard birthDate <= .now else { return "Fødselsdatoen ligger i fremtiden" }
+        return attempt {
+            let c = try store.createChild(name: clean, birthDate: birthDate, sex: sex)
+            FolkeShared.childID = c.id
+        }
+    }
+
+    /// Slet det valgte barn med alle dets data (kun når der er flere børn).
+    func deleteCurrentChild() {
+        guard snapshot.children.count > 1, let c = store.child() else { return }
+        perform {
+            try store.deleteChild(c)
+            FolkeShared.childID = store.child()?.id
+            store.currentChildID = FolkeShared.childID
         }
     }
 

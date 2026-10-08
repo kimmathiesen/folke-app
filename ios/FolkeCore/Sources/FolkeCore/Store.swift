@@ -9,6 +9,8 @@ public final class FolkeStore: @unchecked Sendable {
     public private(set) var privateStore: NSPersistentStore?
     public private(set) var sharedStore: NSPersistentStore?
     public var calendar: Calendar = .current
+    /// Barnet, der vises på denne enhed (gemmes af appen pr. enhed). nil = det ældste.
+    public var currentChildID: UUID?
 
     public var context: NSManagedObjectContext { container.viewContext }
 
@@ -16,12 +18,16 @@ public final class FolkeStore: @unchecked Sendable {
     ///   - inMemory: kun i hukommelsen (tests og forhåndsvisninger)
     ///   - cloudKitContainer: fx "iCloud.dk.folkeapp.folke". nil = ingen iCloud
     ///   - appGroup: deles med widgets og App Intents
-    public init(inMemory: Bool = false, cloudKitContainer: String? = nil, appGroup: String? = nil) throws {
+    ///   - directory: en bestemt mappe til databasen (tests af opgradering)
+    public init(inMemory: Bool = false, cloudKitContainer: String? = nil, appGroup: String? = nil,
+                directory: URL? = nil) throws {
         container = NSPersistentCloudKitContainer(name: "Folke", managedObjectModel: FolkeModel.shared)
 
         let dir: URL
         if inMemory {
             dir = URL(fileURLWithPath: "/dev/null")
+        } else if let directory {
+            dir = directory
         } else if let appGroup, let url = FileManager.default.containerURL(forSecurityApplicationGroupIdentifier: appGroup) {
             dir = url
         } else {
@@ -44,6 +50,9 @@ public final class FolkeStore: @unchecked Sendable {
             descriptions.append(shared)
         }
         container.persistentStoreDescriptions = descriptions
+        if !inMemory {
+            for d in descriptions { if let url = d.url { try Self.migrateIfNeeded(url) } }
+        }
 
         var failure: Error?
         container.loadPersistentStores { _, error in
@@ -56,6 +65,54 @@ public final class FolkeStore: @unchecked Sendable {
 
         context.automaticallyMergesChangesFromParent = true
         context.mergePolicy = NSMergePolicy.mergeByPropertyObjectTrump
+        try ensureFamily()
+    }
+
+    /// Version 1 -> 2 (familien). Modellen er bygget i kode, så Core Data kan ikke selv finde den gamle model:
+    /// den gamle bygges her, og flytningen udledes (kun nye felter og relationer). Data rykkes til familien i `ensureFamily`.
+    static func migrateIfNeeded(_ url: URL) throws {
+        guard FileManager.default.fileExists(atPath: url.path) else { return }
+        let options: [String: Any] = [NSPersistentHistoryTrackingKey: true]
+        let meta = try NSPersistentStoreCoordinator.metadataForPersistentStore(type: .sqlite, at: url, options: options)
+        let new = FolkeModel.shared
+        if new.isConfiguration(withName: nil, compatibleWithStoreMetadata: meta) { return }
+        let old = FolkeModel.build(version: 1)
+        guard old.isConfiguration(withName: nil, compatibleWithStoreMetadata: meta) else { return }
+        let mapping = try NSMappingModel.inferredMappingModel(forSourceModel: old, destinationModel: new)
+        let tmp = url.deletingLastPathComponent().appendingPathComponent("Folke-opgradering.sqlite")
+        let psc = NSPersistentStoreCoordinator(managedObjectModel: new)
+        func removeTmp() {
+            for suffix in ["", "-wal", "-shm"] {
+                try? FileManager.default.removeItem(at: URL(fileURLWithPath: tmp.path + suffix))
+            }
+        }
+        removeTmp()
+        defer { removeTmp() }
+        try NSMigrationManager(sourceModel: old, destinationModel: new)
+            .migrateStore(from: url, type: .sqlite, options: options, mapping: mapping, to: tmp, type: .sqlite, options: options)
+        try psc.replacePersistentStore(at: url, destinationOptions: options, withPersistentStoreFrom: tmp,
+                                       sourceOptions: options, type: .sqlite)
+    }
+
+    /// Alle børn hører til én familie, og udpumpning og tavlen ligger på familien. Retter data fra version 1
+    /// (og børn uden familie) ved opstart. Udpumpningsvalgene tages fra barnets gamle indstillinger.
+    func ensureFamily(now: Date = .now) throws {
+        let children = fetch(Child.self, sort: [NSSortDescriptor(key: "createdAt", ascending: true)])
+        guard !children.isEmpty else { return }
+        let fam = family() ?? {
+            let f = insert(Family.self, child: children[0])
+            f.id = UUID()
+            f.createdAt = children[0].createdAt ?? now
+            if let old = fetch(Settings.self, sort: [NSSortDescriptor(key: "createdAt", ascending: true)], limit: 1).first {
+                f.featurePump = old.featurePump
+                f.pumpRemindHours = old.pumpRemindHours
+            }
+            return f
+        }()
+        for c in children where c.family == nil { c.family = fam }
+        for p in fetch(Pumping.self, NSPredicate(format: "family == nil")) { p.family = fam; p.child = nil }
+        for s in fetch(Stroke.self, NSPredicate(format: "family == nil")) { s.family = fam; s.child = nil }
+        try save()
     }
 
     public func save() throws {
@@ -89,16 +146,54 @@ public final class FolkeStore: @unchecked Sendable {
         try save()
     }
 
-    // MARK: Barn og indstillinger
+    // MARK: Familie, børn og indstillinger
 
-    /// Barnet (version 1 har ét). Er der flere, fx efter deling, bruges det ældste.
-    public func child() -> Child? {
-        fetch(Child.self, sort: [NSSortDescriptor(key: "createdAt", ascending: true)], limit: 1).first
+    /// Familien (den ældste, hvis to telefoner har oprettet hver sin).
+    public func family() -> Family? {
+        fetch(Family.self, sort: [NSSortDescriptor(key: "createdAt", ascending: true)], limit: 1).first
     }
 
+    /// Alle børn, ældste først (efter fødselsdato).
+    public func children() -> [Child] {
+        fetch(Child.self, sort: [NSSortDescriptor(key: "birthDate", ascending: true),
+                                 NSSortDescriptor(key: "createdAt", ascending: true)])
+    }
+
+    /// Barnet, der vises: det valgte på denne enhed, ellers det først oprettede.
+    public func child() -> Child? {
+        if let currentChildID,
+           let c = fetch(Child.self, NSPredicate(format: "id == %@", currentChildID as CVarArg), limit: 1).first {
+            return c
+        }
+        return fetch(Child.self, sort: [NSSortDescriptor(key: "createdAt", ascending: true)], limit: 1).first
+    }
+
+    /// Kun det valgte barns poster (søvn, mad, vækst, indstillinger). Uden barn: ingen.
+    func forChild(_ p: NSPredicate? = nil) -> NSPredicate {
+        guard let c = child() else { return NSPredicate(value: false) }
+        let mine = NSPredicate(format: "child == %@", c)
+        return p.map { NSCompoundPredicate(andPredicateWithSubpredicates: [mine, $0]) } ?? mine
+    }
+
+    /// Kun familiens poster (udpumpning, tavlen).
+    func forFamily(_ p: NSPredicate? = nil) -> NSPredicate {
+        guard let f = family() else { return NSPredicate(value: false) }
+        let mine = NSPredicate(format: "family == %@", f)
+        return p.map { NSCompoundPredicate(andPredicateWithSubpredicates: [mine, $0]) } ?? mine
+    }
+
+    /// Opret et barn i familien (og familien, hvis det er det første). Det nye barn bliver det valgte.
     @discardableResult
     public func createChild(name: String, birthDate: Date, sex: Sex = .boy, now: Date = .now) throws -> Child {
+        let fam = family() ?? {
+            let f = insert(Family.self, child: nil)
+            f.id = UUID()
+            f.createdAt = now
+            return f
+        }()
         let c = insert(Child.self, child: nil)
+        if let store = fam.objectID.persistentStore { context.assign(c, to: store) }
+        c.family = fam
         c.id = UUID()
         c.name = name
         c.birthDate = calendar.startOfDay(for: birthDate)
@@ -107,27 +202,39 @@ public final class FolkeStore: @unchecked Sendable {
         let s = insert(Settings.self, child: c)
         s.id = UUID()
         s.createdAt = now
+        // Startvalg efter alder (fx en storesøster): fast føde fra 6 mdr., amning under 12 mdr.
+        let months = WHO.ageMonths(birthDate: birthDate, at: now, calendar: calendar)
+        s.featureSolids = months >= 6
+        s.featureBreast = months < 12
         s.child = c
         try save()
+        currentChildID = c.id
         return c
     }
 
-    /// De fælles indstillinger (den ældste, hvis to telefoner har oprettet hver sin).
+    /// Slet et barn med alle dets data. Udpumpning og tavlen (familiens) bliver.
+    public func deleteChild(_ c: Child) throws {
+        if c.id == currentChildID { currentChildID = nil }
+        context.delete(c)
+        try save()
+    }
+
+    /// Det valgte barns indstillinger (den ældste, hvis to telefoner har oprettet hver sin).
     public func settings() -> Settings? {
-        fetch(Settings.self, sort: [NSSortDescriptor(key: "createdAt", ascending: true)], limit: 1).first
+        fetch(Settings.self, forChild(), sort: [NSSortDescriptor(key: "createdAt", ascending: true)], limit: 1).first
     }
 
     // MARK: Søvn
 
     /// Den kørende søvn (uden slut), hvis der er en.
     public func runningSleep() -> Sleep? {
-        fetch(Sleep.self, NSPredicate(format: "end == nil"),
+        fetch(Sleep.self, forChild(NSPredicate(format: "end == nil")),
               sort: [NSSortDescriptor(key: "start", ascending: false)], limit: 1).first
     }
 
     /// Afsluttede søvn, der sluttede efter `since`, sorteret efter start.
     public func sleeps(since: Date) -> [Sleep] {
-        fetch(Sleep.self, NSPredicate(format: "end != nil AND end >= %@", since as NSDate),
+        fetch(Sleep.self, forChild(NSPredicate(format: "end != nil AND end >= %@", since as NSDate)),
               sort: [NSSortDescriptor(key: "start", ascending: true)])
     }
 
@@ -167,22 +274,25 @@ public final class FolkeStore: @unchecked Sendable {
         try save()
     }
 
+    /// Forudsigelsen er slået til for barnet (kan skjules, når barnet er holdt op med at sove lur)
+    var predictionOn: Bool { settings()?.featurePrediction ?? true }
+
     public func prediction(now: Date = .now) -> Prediction? {
-        guard runningSleep() == nil, let birth = child()?.birthDate else { return nil }
+        guard predictionOn, runningSleep() == nil, let birth = child()?.birthDate else { return nil }
         let samples = sleeps(since: now.addingTimeInterval(-Double(Predictor.historyDays) * 86400)).compactMap(\.sample)
         return Predictor.predict(samples, birthDate: birth, now: now, calendar: calendar)
     }
 
     /// Gratisudgaven: kun næste lur eller sengetid (`Predictor.basic`, den oprindelige forudsigelse).
     public func basicPrediction(now: Date = .now) -> Prediction? {
-        guard runningSleep() == nil, let birth = child()?.birthDate else { return nil }
+        guard predictionOn, runningSleep() == nil, let birth = child()?.birthDate else { return nil }
         let samples = sleeps(since: now.addingTimeInterval(-Double(Predictor.historyDays) * 86400)).compactMap(\.sample)
         return Predictor.basic(samples, birthDate: birth, now: now, calendar: calendar)
     }
 
     /// Resten af dagen (afsnit 3). Under en lur regnes planen fra forventet opvågning; om natten er der ingen plan.
     public func dayPlan(now: Date = .now) -> DayPlan? {
-        guard let birth = child()?.birthDate else { return nil }
+        guard predictionOn, let birth = child()?.birthDate else { return nil }
         let running = runningSleep()?.start
         if let running, !Predictor.napGuess(running, calendar: calendar) { return nil }
         let samples = sleeps(since: now.addingTimeInterval(-Double(Predictor.historyDays) * 86400)).compactMap(\.sample)

@@ -9,10 +9,8 @@ import WidgetKit
     static func afterChange(_ store: FolkeStore) async {
         store.context.refreshAllObjects()
         await Notifier.reschedule(store: store)
-        let running = store.runningSleep()
-        let plan = store.dayPlan()
-        await SleepLiveActivity.sync(running: running.flatMap { r in r.start.map { ($0, r.nap) } },
-                               name: store.child()?.name ?? "", expectedWake: plan?.wake)
+        store.currentChildID = FolkeShared.childID
+        await SleepLiveActivity.sync(SleepLiveActivity.entries(store: store))
         WidgetCenter.shared.reloadAllTimelines()
         NotificationCenter.default.post(name: FolkeShared.changed, object: nil)
     }
@@ -55,10 +53,21 @@ struct StopSleepIntent: LiveActivityIntent {
     static let title: LocalizedStringResource = "Stop søvn"
     static let description = IntentDescription("Stopper den søvn, der er i gang.")
 
+    /// Barnet, hvis søvn skal stoppes (fra en Live Activity). nil = det valgte barn.
+    @Parameter(title: "Barn") var childID: String?
+
+    init() {}
+
+    init(childID: String) {
+        self.childID = childID
+    }
+
     @MainActor
     func perform() async throws -> some IntentResult & ProvidesDialog {
         try FolkeShared.requirePlus()
         let store = FolkeShared.store
+        store.currentChildID = childID.flatMap(UUID.init(uuidString:)) ?? FolkeShared.childID
+        defer { store.currentChildID = FolkeShared.childID }
         guard let running = store.runningSleep(), let start = running.start else {
             return .result(dialog: "Der er ingen søvn i gang")
         }

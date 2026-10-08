@@ -132,7 +132,7 @@ struct GrowthChart: View {
                 label(Format.number(v), L - 6, sy(v), .trailing)
                 v += st
             }
-            for m in stride(from: 0, through: Int(X), by: X > 12 ? 2 : 1) {
+            for m in stride(from: 0, through: Int(X), by: X > 36 ? 6 : X > 24 ? 3 : X > 12 ? 2 : 1) {
                 label("\(m)", sx(Double(m)), H - 24, .center)
             }
             label(kind.unit, L - 6, 8, .trailing)

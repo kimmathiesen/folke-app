@@ -20,11 +20,11 @@ import Testing
         let files = s.csvExport(now: at(d, 15, 0))
         #expect(files.map(\.name) == ["folke-soevn-2026-06-10.csv", "folke-mad-2026-06-10.csv",
                                       "folke-udpumpning-2026-06-10.csv", "folke-vaekst-2026-06-10.csv"])
-        #expect(files[0].text == "Start;Slut;Minutter;Type\r\n2026-06-10 12:00;2026-06-10 13:30;90;Lur\r\n")
-        #expect(files[1].text.contains("2026-06-10 14:05;Flaske;120;Modermælkserstatning;\r\n"))
-        #expect(files[1].text.contains("2026-06-10 14:30;Fast føde;;;\"grød; med \"\"æble\"\"\"\r\n"))
+        #expect(files[0].text == "Barn;Start;Slut;Minutter;Type\r\nFolke;2026-06-10 12:00;2026-06-10 13:30;90;Lur\r\n")
+        #expect(files[1].text.contains("Folke;2026-06-10 14:05;Flaske;120;Modermælkserstatning;\r\n"))
+        #expect(files[1].text.contains("Folke;2026-06-10 14:30;Fast føde;;;\"grød; med \"\"æble\"\"\"\r\n"))
         #expect(files[2].text.hasSuffix("2026-06-10 09:00;95,5;venstre;15\r\n"))
-        #expect(files[3].text.hasSuffix("2026-06-10;6,25;62;\r\n"))
+        #expect(files[3].text.hasSuffix("Folke;2026-06-10;6,25;62;\r\n"))
         #expect(files.map(\.rows) == [1, 2, 1, 1])
         #expect(files[0].data.prefix(3) == Data([0xEF, 0xBB, 0xBF]))
     }
@@ -34,6 +34,6 @@ import Testing
         s.calendar = cph
         try s.createChild(name: "Folke", birthDate: day(2026, 2, 1))
         try s.startSleep(by: .far, now: at(d, 19, 30))
-        #expect(s.csvExport(now: at(d, 20, 0))[0].text.hasSuffix("2026-06-10 19:30;;;Nat\r\n"))
+        #expect(s.csvExport(now: at(d, 20, 0))[0].text.hasSuffix("Folke;2026-06-10 19:30;;;Nat\r\n"))
     }
 }

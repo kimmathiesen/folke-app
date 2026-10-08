@@ -49,7 +49,10 @@ let cases: [MedianCase] = medianBoys.flatMap { k, ms in ms.map { MedianCase(kind
         #expect(WHO.percentile(.weight, .boy, month: 6, value: 3) == 1)
         #expect(WHO.percentile(.weight, .boy, month: 6, value: nil) == nil)
         #expect(WHO.percentile(.weight, .boy, month: -1, value: 5) == nil)
-        #expect(WHO.percentile(.weight, .boy, month: 25, value: 12) == nil)
+        #expect(WHO.percentile(.weight, .boy, month: 61, value: 18) == nil)
+        // Til 5 år: medianen ved 3 år (WHO, drenge 14,3429 kg) og stående højde efter 2 år
+        #expect(WHO.percentile(.weight, .boy, month: 36, value: 14.3429) == 50)
+        #expect(abs(WHO.lms(.length, .boy, month: 25).m - 87.972) < 0.001)
     }
 
     @Test func pigerHarEgneKurver() {
@@ -61,7 +64,7 @@ let cases: [MedianCase] = medianBoys.flatMap { k, ms in ms.map { MedianCase(kind
     @Test func tabellerneErKomplette() {
         for sex in Sex.allCases {
             for k in WHO.Measure.allCases {
-                #expect(WHO.lms[sex]![k]!.count == 25)
+                #expect(WHO.lms[sex]![k]!.count == WHO.maxMonths + 1)
             }
         }
     }
@@ -69,6 +72,7 @@ let cases: [MedianCase] = medianBoys.flatMap { k, ms in ms.map { MedianCase(kind
     @Test func kurvelaengdeFoelgerAlder() {
         #expect(WHO.chartMonths(ageMonths: 8.9) == 12)
         #expect(WHO.chartMonths(ageMonths: 9) == 24)
+        #expect(WHO.chartMonths(ageMonths: 21) == 36 && WHO.chartMonths(ageMonths: 33) == 60)
         #expect(WHO.curves(.length, .girl, upto: 24).count == 25)
     }
 }

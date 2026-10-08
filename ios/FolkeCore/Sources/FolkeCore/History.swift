@@ -81,7 +81,7 @@ public extension FolkeStore {
     func growthPoints() -> [GrowthPoint] {
         guard let c = child(), let birth = c.birthDate else { return [] }
         let sex = Sex(rawValue: c.sex ?? "") ?? .boy
-        return fetch(Growth.self, sort: [NSSortDescriptor(key: "date", ascending: true)]).compactMap { g in
+        return fetch(Growth.self, forChild(), sort: [NSSortDescriptor(key: "date", ascending: true)]).compactMap { g in
             guard let id = g.id, let date = g.date else { return nil }
             let m = (WHO.ageMonths(birthDate: birth, at: date, calendar: calendar) * 100).rounded(.toNearestOrEven) / 100
             var values: [WHO.Measure: Double] = [:]

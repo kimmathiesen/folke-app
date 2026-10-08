@@ -47,6 +47,7 @@ struct SettingsView: View {
                     }
                     toggle("Amning i Mad-kortet", s.featureBreast) { model.setFeature(.breast, $0) }
                     toggle("Fast føde i Mad-kortet", s.featureSolids) { model.setFeature(.solids, $0) }
+                    toggle("Forudsigelse af lure", s.featurePrediction) { model.setFeature(.prediction, $0) }
                     toggle("Udpumpning", s.featurePump) { model.setFeature(.pump, $0) }
                     if s.featurePump {
                         row("Påmind om udpumpning") {
@@ -64,6 +65,7 @@ struct SettingsView: View {
                     note("Skøn ud fra sidste længdemåling på vækstsiden. Gælder kun denne enhed.")
                 }
                 .card()
+                ChildrenCard().padding(.top, 14)
                 yourData
                 if model.importAvailable { serverImport }
                 about
@@ -78,6 +80,7 @@ struct SettingsView: View {
         .contentMargins(.bottom, 28, for: .scrollContent)
         .scrollDismissesKeyboard(.interactively)
         .onAppear { name = s.childName }
+        .onChange(of: s.childID) { name = model.snapshot.childName } // skiftet barn: vis det nye navn
         .onChange(of: nameFocused) { if !nameFocused { save() } }
         .onChange(of: scenePhase) { if scenePhase == .active { Task { await model.notifier.refreshStatus() } } }
     }

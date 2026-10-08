@@ -16,8 +16,8 @@ public struct ClothingEstimate: Equatable, Sendable {
 }
 
 public enum Clothing {
-    /// Danske babystørrelser (cm)
-    public static let sizes = [44, 50, 56, 62, 68, 74, 80, 86, 92, 98]
+    /// Danske størrelser (cm), fra baby til ca. 5 år
+    public static let sizes = [44, 50, 56, 62, 68, 74, 80, 86, 92, 98, 104, 110, 116]
 
     public static func size(forLength cm: Double) -> Int? {
         sizes.first { Double($0) >= cm }
@@ -27,17 +27,17 @@ public enum Clothing {
                                 calendar: Calendar = .current) -> ClothingEstimate? {
         let m0 = WHO.ageMonths(birthDate: birthDate, at: measuredAt, calendar: calendar)
         let mNow = WHO.ageMonths(birthDate: birthDate, at: now, calendar: calendar)
-        guard mNow <= 24, let z = WHO.zScore(.length, sex, month: m0, value: length) else { return nil }
+        guard mNow <= Double(WHO.maxMonths), let z = WHO.zScore(.length, sex, month: m0, value: length) else { return nil }
         let today = WHO.value(.length, sex, month: max(mNow, m0), z: z)
         guard let size = size(forLength: today) else { return nil }
         var next: Int?, from: Date?
         if let i = sizes.firstIndex(of: size), i + 1 < sizes.count {
             // Første dag, hvor den fremskrevne længde er over den nuværende størrelse
             let start = calendar.startOfDay(for: now)
-            for d in 1...800 {
+            for d in 1...1900 {
                 guard let day = calendar.date(byAdding: .day, value: d, to: start) else { break }
                 let m = WHO.ageMonths(birthDate: birthDate, at: day, calendar: calendar)
-                if m > 24 { break }
+                if m > Double(WHO.maxMonths) { break }
                 if WHO.value(.length, sex, month: m, z: z) > Double(size) {
                     next = sizes[i + 1]
                     from = day
@@ -51,7 +51,7 @@ public enum Clothing {
 }
 
 public extension FolkeStore {
-    /// Skøn ud fra den seneste længdemåling (nil uden måling eller efter 24 mdr.).
+    /// Skøn ud fra den seneste længdemåling (nil uden måling eller efter 5 år).
     func clothingEstimate(now: Date = .now) -> ClothingEstimate? {
         guard let c = child(), let birth = c.birthDate,
               let last = growthPoints().last(where: { $0.values[.length] != nil }), let l = last.values[.length] else { return nil }

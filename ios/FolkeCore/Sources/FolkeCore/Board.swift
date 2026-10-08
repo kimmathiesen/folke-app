@@ -60,9 +60,9 @@ public enum Board {
 }
 
 public extension FolkeStore {
-    /// Alle streger, ældste først.
+    /// Familiens streger, ældste først.
     func strokes() -> [BoardStroke] {
-        fetch(Stroke.self, sort: [NSSortDescriptor(key: "createdAt", ascending: true)]).compactMap { s in
+        fetch(Stroke.self, forFamily(), sort: [NSSortDescriptor(key: "createdAt", ascending: true)]).compactMap { s in
             guard let id = s.id, let color = s.color, let at = s.createdAt else { return nil }
             return BoardStroke(id: id, color: color, width: s.width, points: Board.decode(s.points ?? Data()),
                                createdAt: at, createdBy: s.createdBy.flatMap(Role.init(rawValue:)))
@@ -77,37 +77,38 @@ public extension FolkeStore {
         guard (0.003...0.05).contains(width) else { throw BoardError.invalidWidth }
         guard (1...Board.maxPoints).contains(points.count),
               points.allSatisfy({ (0...1).contains($0.x) && (0...1).contains($0.y) }) else { throw BoardError.invalidStroke }
-        let total = fetch(Stroke.self).reduce(0) { $0 + ($1.points?.count ?? 0) / 8 }
+        let total = fetch(Stroke.self, forFamily()).reduce(0) { $0 + ($1.points?.count ?? 0) / 8 }
         guard total + points.count <= Board.maxTotal else { throw BoardError.full }
-        let c = child()
-        let s = insert(Stroke.self, child: c)
+        let fam = family()
+        let s = insert(Stroke.self, child: nil)
+        if let store = fam?.objectID.persistentStore { context.assign(s, to: store) }
         s.id = UUID()
         s.color = color
         s.width = width
         s.points = Board.encode(points.map { SIMD2((($0.x * 1e4).rounded() / 1e4), (($0.y * 1e4).rounded() / 1e4)) })
         s.createdAt = now
         s.createdBy = role?.rawValue
-        s.child = c
+        s.family = fam
         try save()
         return BoardStroke(id: s.id!, color: color, width: width, points: points, createdAt: now, createdBy: role)
     }
 
     /// Fortryd seneste streg (uanset hvem der tegnede den).
     func undoStroke() throws {
-        if let last = fetch(Stroke.self, sort: [NSSortDescriptor(key: "createdAt", ascending: false)], limit: 1).first {
+        if let last = fetch(Stroke.self, forFamily(), sort: [NSSortDescriptor(key: "createdAt", ascending: false)], limit: 1).first {
             try delete(last)
         }
     }
 
     /// Visk tavlen ud.
     func clearBoard() throws {
-        for s in fetch(Stroke.self) { context.delete(s) }
+        for s in fetch(Stroke.self, forFamily()) { context.delete(s) }
         try save()
     }
 
     /// Version til «nyt på tavlen»: tidspunktet for seneste streg (0, når tavlen er tom).
     func boardVersion() -> Double {
-        fetch(Stroke.self, sort: [NSSortDescriptor(key: "createdAt", ascending: false)], limit: 1).first?
+        fetch(Stroke.self, forFamily(), sort: [NSSortDescriptor(key: "createdAt", ascending: false)], limit: 1).first?
             .createdAt?.timeIntervalSince1970 ?? 0
     }
 }

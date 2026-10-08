@@ -9,7 +9,7 @@ import Testing
     func store(birth: Date = day(2026, 2, 1)) throws -> FolkeStore {
         let s = try FolkeStore(inMemory: true)
         s.calendar = cph
-        try s.createChild(name: "Folke", birthDate: birth)
+        try s.createChild(name: "Folke", birthDate: birth, now: birth)
         return s
     }
 
@@ -48,7 +48,7 @@ import Testing
     @Test func koenVedOprettelseGiverKurverne() throws {
         let s = try FolkeStore(inMemory: true)
         s.calendar = cph
-        try s.createChild(name: "Ida", birthDate: day(2026, 1, 1), sex: .girl)
+        try s.createChild(name: "Ida", birthDate: day(2026, 1, 1), sex: .girl, now: day(2026, 1, 2))
         try s.saveGrowth(date: day(2026, 1, 1), values: [.weight: 3.2322], now: d)
         // Pigernes median ved fødslen er 50. percentil, drengenes ville give en lavere
         #expect(s.growthPoints()[0].percentiles[.weight] == 50)

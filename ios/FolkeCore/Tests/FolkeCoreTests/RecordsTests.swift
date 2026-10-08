@@ -10,7 +10,7 @@ import Testing
     func store(birth: Date = day(2026, 2, 1)) throws -> FolkeStore {
         let s = try FolkeStore(inMemory: true)
         s.calendar = cph
-        try s.createChild(name: "Folke", birthDate: birth)
+        try s.createChild(name: "Folke", birthDate: birth, now: birth) // oprettet ved fødslen
         return s
     }
 

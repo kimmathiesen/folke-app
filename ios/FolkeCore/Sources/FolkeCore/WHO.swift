@@ -4,7 +4,8 @@ public enum Sex: String, CaseIterable, Sendable {
     case boy, girl
 }
 
-/// Port af `who.py`: WHO-vækstkurver (2006) 0-24 mdr. med LMS-metoden.
+/// WHO-vækstkurver (2006) 0-60 mdr. med LMS-metoden (som Sundhedsstyrelsen anbefaler til 0-5 år).
+/// `who.py` på main har kun 0-24 mdr.; de første 24 måneder er de samme tal.
 public enum WHO {
     public enum Measure: String, CaseIterable, Sendable {
         case weight = "w", length = "l", head = "h"
@@ -40,32 +41,35 @@ public enum WHO {
         public subscript(_ p: Percentile) -> Double { values[p] ?? .nan }
     }
 
-    /// L, M og S lineært interpoleret mellem hele måneder (klemt til 0-24).
+    /// L, M og S lineært interpoleret mellem hele måneder (klemt til 0-60).
     public static func lms(_ kind: Measure, _ sex: Sex, month m: Double) -> (l: Double, m: Double, s: Double) {
         let rows = lms[sex]![kind]!
-        let m = min(max(m, 0), 24)
-        let i = min(Int(m), 23)
+        let m = min(max(m, 0), Double(maxMonths))
+        let i = min(Int(m), maxMonths - 1)
         let f = m - Double(i)
         let a = rows[i], b = rows[i + 1]
         let v = (0..<3).map { a[$0] + (b[$0] - a[$0]) * f }
         return (v[0], v[1], v[2])
     }
 
+    /// Kurverne går til 5 år
+    public static let maxMonths = 60
+
     public static func value(_ kind: Measure, _ sex: Sex, month: Double, z: Double) -> Double {
         let (L, M, S) = lms(kind, sex, month: month)
         return L == 0 ? M * exp(S * z) : M * pow(1 + L * S * z, 1 / L)
     }
 
-    /// z-værdien for en måling (hvor mange standardafvigelser fra medianen), eller nil uden for 0-24 mdr.
+    /// z-værdien for en måling (hvor mange standardafvigelser fra medianen), eller nil uden for 0-60 mdr.
     public static func zScore(_ kind: Measure, _ sex: Sex, month: Double, value v: Double) -> Double? {
-        guard month >= 0, month <= 24, v > 0 else { return nil }
+        guard month >= 0, month <= Double(maxMonths), v > 0 else { return nil }
         let (L, M, S) = lms(kind, sex, month: month)
         return L == 0 ? log(v / M) / S : (pow(v / M, L) - 1) / (L * S)
     }
 
-    /// Omtrentlig percentil (1-99) for en måling, eller nil uden for 0-24 mdr.
+    /// Omtrentlig percentil (1-99) for en måling, eller nil uden for 0-60 mdr.
     public static func percentile(_ kind: Measure, _ sex: Sex, month: Double, value v: Double?) -> Int? {
-        guard let v, month >= 0, month <= 24 else { return nil }
+        guard let v, month >= 0, month <= Double(maxMonths) else { return nil }
         let (L, M, S) = lms(kind, sex, month: month)
         let z = L == 0 ? log(v / M) / S : (pow(v / M, L) - 1) / (L * S)
         let p = Int((50 * (1 + erf(z / 2.0.squareRoot()))).rounded(.toNearestOrEven))
@@ -90,8 +94,8 @@ public enum WHO {
         return Double(days) / 30.4375
     }
 
-    /// Kurverne vises op til 12 mdr., til barnet er 9 mdr., derefter op til 24.
+    /// Kurverne vises op til 12 mdr., til barnet er 9 mdr., så 24 (til 21 mdr.), 36 (til 33 mdr.) og til sidst 60.
     public static func chartMonths(ageMonths: Double) -> Int {
-        ageMonths < 9 ? 12 : 24
+        ageMonths < 9 ? 12 : ageMonths < 21 ? 24 : ageMonths < 33 ? 36 : 60
     }
 }

@@ -8,7 +8,7 @@ import WidgetKit
 struct SleepLiveActivityWidget: Widget {
     var body: some WidgetConfiguration {
         ActivityConfiguration(for: SleepActivityAttributes.self) { ctx in
-            LockScreenSleepView(name: ctx.attributes.childName, state: ctx.state)
+            LockScreenSleepView(name: ctx.attributes.childName, childID: ctx.attributes.childID, state: ctx.state)
                 .activityBackgroundTint(Color(.sRGB, red: 15 / 255, green: 24 / 255, blue: 48 / 255, opacity: 0.92))
                 .activitySystemActionForegroundColor(.white)
         } dynamicIsland: { ctx in
@@ -30,7 +30,7 @@ struct SleepLiveActivityWidget: Widget {
                     HStack {
                         Text(subtitle(ctx.state)).font(.system(size: 13)).foregroundStyle(.secondary)
                         Spacer()
-                        Button(intent: StopSleepIntent()) { Label("Stop søvn", systemImage: "stop.fill") }
+                        Button(intent: StopSleepIntent(childID: ctx.attributes.childID)) { Label("Stop søvn", systemImage: "stop.fill") }
                             .buttonStyle(.borderedProminent)
                             .buttonBorderShape(.capsule)
                             .tint(Color(.sRGB, red: 224 / 255, green: 104 / 255, blue: 90 / 255))
@@ -57,6 +57,7 @@ func subtitle(_ s: SleepActivityAttributes.ContentState) -> String {
 
 struct LockScreenSleepView: View {
     var name: String
+    var childID: String
     var state: SleepActivityAttributes.ContentState
 
     var body: some View {
@@ -73,7 +74,7 @@ struct LockScreenSleepView: View {
             }
             .foregroundStyle(Color.fgW)
             Spacer()
-            Button(intent: StopSleepIntent()) {
+            Button(intent: StopSleepIntent(childID: childID)) {
                 Image(systemName: "stop.fill").font(.system(size: 18))
             }
             .buttonStyle(.borderedProminent)

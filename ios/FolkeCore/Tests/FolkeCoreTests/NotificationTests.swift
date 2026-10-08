@@ -128,4 +128,17 @@ import Testing
         #expect(planner.outsideQuiet(at(d, 3, 0)) == at(d, 7, 0))
         #expect(planner.outsideQuiet(at(d, 7, 0)) == at(d, 7, 0))
     }
+
+    @Test func toBoernFaarHverSinBeskedOgLog() {
+        let birthNow = at(d, 12, 0)
+        let p = pred(at: 13, 0, last: 1), q = pred(at: 13, 10, last: 2)
+        var log = NotificationLog()
+        let a = planner.plan(.init(now: birthNow, prediction: p, sleeping: false, childName: "Folke", enabled: [.sleepSoon],
+                                   scope: "A", title: "Folke"), log: log)
+        log = a.log
+        let b = planner.plan(.init(now: birthNow, prediction: q, sleeping: false, childName: "Ida", enabled: [.sleepSoon],
+                                   scope: "B", title: "Ida"), log: log)
+        #expect(a.notifications.map(\.id) == ["sleep_soon.A"] && b.notifications.map(\.id) == ["sleep_soon.B"])
+        #expect(b.notifications[0].title == "Ida" && b.log.entries.count == 2)
+    }
 }

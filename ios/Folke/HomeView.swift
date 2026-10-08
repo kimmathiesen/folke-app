@@ -360,13 +360,24 @@ struct PlanCard: View {
         }
         if let n, n.kind == .bedtime, let missed = P?.missedAt {
             let moved = P?.bedShift ?? 0
-            return ("Sengetid", "ca. kl. \(Format.time(n.time))", "Luren kl. \(Format.time(missed)) blev ikke til noget"
+            return ("Sengetid", span(n.time), "Luren kl. \(Format.time(missed)) blev ikke til noget"
                     + (moved > 0 ? ", så sengetid er rykket \(moved) min frem." : "."))
         }
         if let p = snapshot.prediction {
-            return (p.kind == .nap ? "Næste lur" : "Sengetid", "ca. kl. \(Format.time(n?.time ?? p.time))", Format.why(p))
+            return (p.kind == .nap ? "Næste lur" : "Sengetid", span(n?.time ?? p.time), Format.why(p) + hit)
         }
         return nil
+    }
+
+    /// Interval ud fra hvor meget forudsigelsen har ramt ved siden af de seneste 14 dage, afrundet til 5 min
+    func span(_ t: Date) -> String {
+        Format.span(t, snapshot.accuracy?.interval ?? (-20, 20))
+    }
+
+    var hit: String {
+        guard let a = snapshot.accuracy, a.n >= 8 else { return "" }
+        let m = Int(a.medianAbs.rounded())
+        return m < 5 ? " · typisk inden for 5 min" : " · typisk ±\(m) min"
     }
 
     /// Aftenlur: planlagt som aftenlur, eller en lur efter kl. 17, når han plejer at tage en

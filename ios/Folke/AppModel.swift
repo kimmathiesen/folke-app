@@ -39,6 +39,8 @@ struct Snapshot {
     var plus = Plus.Status.trial(daysLeft: Plus.trialDays)
     var feedItems: [FeedItem] = []
     var featurePrediction = true
+    /// Hvor godt forudsigelsen har ramt de seneste 14 dage (interval på kortet)
+    var accuracy: Backtest.Summary?
     /// Alle børn (ældste først) og det valgte
     var children: [ChildItem] = []
     var childID: UUID?
@@ -178,6 +180,13 @@ final class AppModel {
         }
         s.awakeSince = store.awakeSince(now: now)
         s.plus = FolkeShared.plus(now: now)
+        // Målingen regnes højst hvert 10. minut (og forfra ved skift af barn)
+        if now.timeIntervalSince(accuracyAt) > 600 || accuracyChild != child?.id {
+            accuracyCache = store.accuracy(plus: s.plus.unlocked, now: now)
+            accuracyAt = now
+            accuracyChild = child?.id
+        }
+        s.accuracy = accuracyCache
         // Gratis: den oprindelige forudsigelse (kun næste lur/sengetid). Plus: dagsplanen med løbende tilpasning.
         s.prediction = s.plus.unlocked ? store.prediction(now: now) : store.basicPrediction(now: now)
         s.plan = s.plus.unlocked ? store.dayPlan(now: now) : nil
@@ -230,6 +239,9 @@ final class AppModel {
     }
 
     private var widgetKey = ""
+    private var accuracyCache: Backtest.Summary?
+    private var accuracyAt = Date.distantPast
+    private var accuracyChild: UUID?
 
     /// Live Activity og widgets følger appen. Widgets genindlæses kun, når noget, de viser, har ændret sig.
     private func syncExtensions(_ s: Snapshot) {

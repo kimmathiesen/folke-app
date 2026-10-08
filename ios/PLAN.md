@@ -398,6 +398,7 @@ Vigtigt over for App Review (sundhedsapp til børn) og bør med i App Store-besk
   udpumpning og tavlen. Testet med en rigtig version 1-fil (`FamilyTests`) og på simulatorens database.
 - Valgt barn pr. enhed (`folke.childID`, også for widgets og intents). Vælgeren i toppen vises kun ved flere børn.
   «Børn» under Indstillinger: tilføj (startvalg efter alder: fast føde fra 6 mdr., amning under 12 mdr.) og slet.
+  Første opstart kan oprette flere børn («+ Tilføj endnu et barn», med «Tvilling (samme fødselsdato)»); det første bliver valgt.
 - Notifikationer pr. barn (id og log pr. barn, navnet som titel ved flere børn); udpumpning én gang for familien.
   Én Live Activity pr. sovende barn (tvillinger), og «Stop» i den stopper netop det barns søvn.
 - Alder: appen følger barnet aktivt til ca. 3 år. Fra 2½ år, når der ikke er sovet lur i 2 uger, foreslås det at skjule

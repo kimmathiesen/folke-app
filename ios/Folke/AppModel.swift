@@ -422,13 +422,17 @@ final class AppModel {
         refresh()
     }
 
-    func finishOnboarding(name: String, birthDate: Date?, sex: Sex, role: Role) {
+    /// Første opstart: barnet (og evt. flere, fx tvillinger). Det første barn bliver valgt.
+    func finishOnboarding(name: String, birthDate: Date?, sex: Sex, role: Role,
+                          more: [(name: String, birthDate: Date, sex: Sex)] = []) {
         perform {
             if let child = store.child() {
                 child.name = name
                 try store.save()
             } else {
                 let c = try store.createChild(name: name, birthDate: birthDate ?? .now, sex: sex)
+                for m in more { try store.createChild(name: m.name, birthDate: m.birthDate, sex: m.sex) }
+                store.currentChildID = c.id
                 FolkeShared.childID = c.id
             }
             self.role = role

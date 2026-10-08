@@ -4,7 +4,7 @@ import Foundation
 
 extension FolkeStore {
     /// Barn på `months` måneder. Søvn som historikken i tests/test_predict.py: nat 19:30-6:30 og lure 8:30-9:30, 12:00-13:30 og 16:30-17:00.
-    func seedDemo(months: Int = 4, sibling: Bool = false, now: Date = .now) throws {
+    func seedDemo(months: Int = 4, sibling: Bool = false, twin: Bool = false, now: Date = .now) throws {
         let cal = calendar
         let today = cal.startOfDay(for: now)
         let child = try createChild(name: "Folke", birthDate: cal.date(byAdding: .month, value: -months, to: today)!)
@@ -40,6 +40,7 @@ extension FolkeStore {
             }
         }
         if sibling { try seedSibling(now: now) }
+        if twin { try seedTwin(now: now) }
         // Vækst ved fødslen og hver måned
         for (mo, w, l, hc) in [(0, 3.5, 50.5, 35.0), (1, 4.6, 54.5, 37.4), (2, 5.7, 58.2, 39.1), (3, 6.4, 61.0, 40.5),
                                (5, 7.6, 65.5, 42.4), (6, 8.0, 67.4, 43.2)] {
@@ -70,6 +71,34 @@ extension FolkeStore {
             }
         }
         try saveGrowth(date: cal.date(byAdding: .month, value: -1, to: today)!, values: [.weight: 13.1, .length: 92.5], now: now)
+        currentChildID = first
+        try save()
+    }
+}
+
+extension FolkeStore {
+    /// Tvillingesøster Alma (samme fødselsdato som Folke), med lure lidt forskudt. Folke bliver valgt igen.
+    func seedTwin(now: Date = .now) throws {
+        guard let folke = child(), let birth = folke.birthDate else { return }
+        let first = folke.id
+        let cal = calendar
+        let today = cal.startOfDay(for: now)
+        let alma = try createChild(name: "Alma", birthDate: birth, sex: .girl, now: folke.createdAt ?? now)
+        func at(_ d: Date, _ h: Int, _ m: Int) -> Date { cal.date(bySettingHour: h, minute: m, second: 0, of: d)! }
+        for i in (0..<10).reversed() {
+            let d = cal.date(byAdding: .day, value: -i, to: today)!
+            let y = cal.date(byAdding: .day, value: -1, to: d)!
+            let spans = [(at(y, 19, 15), at(d, 6, 15), false), (at(d, 8, 45), at(d, 9, 40), true),
+                         (at(d, 12, 10), at(d, 13, 50), true), (at(d, 16, 40), at(d, 17, 10), true)]
+            for (start, end, nap) in spans where end <= now {
+                let s = Sleep(context: context)
+                s.id = UUID()
+                s.start = start
+                s.end = end
+                s.nap = nap
+                s.child = alma
+            }
+        }
         currentChildID = first
         try save()
     }

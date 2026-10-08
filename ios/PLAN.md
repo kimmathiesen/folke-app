@@ -404,8 +404,10 @@ Vigtigt over for App Review (sundhedsapp til børn) og bør med i App Store-besk
   forudsigelsen (`featurePrediction`, kan slås til igen under Indstillinger). Vækstkurver og percentiler til 5 år
   (WHO 0-60 mdr. fra pygrowup; længde liggende til 24 mdr., derefter stående højde), tøjstørrelser til str. 116.
   Alle data bliver altid.
-- Mangler: «start søvn for begge» (tvillinger), og når familien deles (milepæl 6), skal to telefoner, der hver har
-  oprettet en familie, flettes (`family()` tager den ældste).
+- Tvillinger (børn med samme fødselsdato, `FolkeCore/Twins.swift`): under start/stop vises tvillingens status (tryk for
+  at skifte) og «Start begge», når ingen sover, eller «Stop begge», når begge sover. Den store knap gælder kun det valgte barn.
+- Mangler: når familien deles (milepæl 6), skal to telefoner, der hver har oprettet en familie, flettes
+  (`family()` tager den ældste).
 
 Ud over milepælene (lavet uden udviklerkonto): app-ikon, baggrundsopdatering af notifikationer (`BGAppRefreshTask`,
 skal afprøves på telefon), tavlen lokalt (deling kommer med milepæl 6) og tøjstørrelse (afsnit 5, Vækst).

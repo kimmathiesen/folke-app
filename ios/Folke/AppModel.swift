@@ -42,6 +42,14 @@ struct Snapshot {
     /// Alle børn (ældste først) og det valgte
     var children: [ChildItem] = []
     var childID: UUID?
+    /// Tvillinger (samme fødselsdato som det valgte barn) og hvornår de faldt i søvn (nil = vågen)
+    var twins: [TwinItem] = []
+
+    struct TwinItem: Identifiable {
+        var id: UUID
+        var name: String
+        var since: Date?
+    }
 
     struct ChildItem: Identifiable, Hashable {
         var id: UUID
@@ -144,7 +152,8 @@ final class AppModel {
                     try store.importServerExport(Data(contentsOf: URL(fileURLWithPath: path)))
                 } else {
                     let months = d.integer(forKey: "demoMonths")
-                    try store.seedDemo(months: months > 0 ? months : 4, sibling: d.bool(forKey: "demoSibling"))
+                    try store.seedDemo(months: months > 0 ? months : 4, sibling: d.bool(forKey: "demoSibling"),
+                                       twin: d.bool(forKey: "demoTwin"))
                     FolkeShared.childID = store.currentChildID
                 }
             } catch {
@@ -186,6 +195,9 @@ final class AppModel {
             s.pumpRemindHours = f.pumpRemindHours
         }
         s.childID = child?.id
+        s.twins = store.twinsSleepingSince().compactMap { t in
+            t.child.id.map { .init(id: $0, name: t.child.name ?? "", since: t.since) }
+        }
         s.children = store.children().compactMap { c in
             guard let id = c.id else { return nil }
             return .init(id: id, name: c.name ?? "", birthDate: c.birthDate ?? .now)
@@ -259,6 +271,16 @@ final class AppModel {
                 try store.startSleep(by: role)
             }
         }
+    }
+
+    /// Start søvn for det valgte barn og tvillingerne (dem, der ikke allerede sover)
+    func startBoth() {
+        perform { try store.startSleepWithTwins(by: role) }
+    }
+
+    /// Stop søvn for det valgte barn og tvillingerne
+    func stopBoth() {
+        perform { try store.stopSleepWithTwins() }
     }
 
     /// «Glemte du at trykke?»: faldt i søvn eller vågnede kl. (i går, hvis tidspunktet ligger i fremtiden).

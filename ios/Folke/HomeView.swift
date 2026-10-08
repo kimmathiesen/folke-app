@@ -187,6 +187,7 @@ struct SleepPage: View {
                     get: { model.isNap }, set: { model.napSelection = $0 }), pill: true)
                     .padding(.top, 16)
             }
+            if !model.snapshot.twins.isEmpty { TwinRow(now: now).padding(.top, 14) }
         }
         .frame(maxWidth: .infinity)
     }
@@ -271,6 +272,51 @@ extension Snapshot {
         guard let p = plan, p.wake == nil, let f = p.items.first else { return nil }
         return Next(kind: f.kind, time: f.start,
                     now: p.missedAt != nil && f.kind == .nap && f.start <= now.addingTimeInterval(60))
+    }
+}
+
+/// Tvillinger: tvillingens status (tryk for at skifte) og «Start begge» / «Stop begge», når det giver mening.
+struct TwinRow: View {
+    @Environment(AppModel.self) private var model
+    @Environment(\.muted) private var muted
+    var now: Date
+
+    var body: some View {
+        let s = model.snapshot
+        let mine = s.running != nil
+        let theirs = s.twins.map { $0.since != nil }
+        VStack(spacing: 10) {
+            ForEach(s.twins) { t in
+                Button { model.selectChild(t.id) } label: {
+                    HStack(spacing: 6) {
+                        Image(systemName: t.since == nil ? "sun.max" : "moon.zzz.fill")
+                        Text(t.since.map { "\(t.name) sover · siden \(Format.time($0))" } ?? "\(t.name) er vågen")
+                        Image(systemName: "chevron.right").font(.system(size: 11, weight: .semibold))
+                    }
+                    .font(.system(size: 14))
+                    .foregroundStyle(muted)
+                }
+                .buttonStyle(.plain)
+                .accessibilityHint("Skift til \(t.name)")
+            }
+            if !mine && !theirs.contains(true) {
+                pill("Start begge", "play.fill") { model.startBoth() }
+            } else if mine && !theirs.contains(false) {
+                pill("Stop begge", "stop.fill") { model.stopBoth() }
+            }
+        }
+    }
+
+    func pill(_ title: String, _ icon: String, _ action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            Label(title, systemImage: icon)
+                .font(.system(size: 15, weight: .medium))
+                .foregroundStyle(Color.fg)
+                .padding(.vertical, 9).padding(.horizontal, 18)
+                .background(Color.card, in: Capsule())
+                .overlay(Capsule().strokeBorder(Color.line))
+        }
+        .buttonStyle(.plain)
     }
 }
 

@@ -1,13 +1,12 @@
-"""Datalag: samme funktioner mod Baby Buddy (REST) eller en lokal SQLite-fil.
+"""Datalag: en lokal SQLite-fil (DB_FILE, standard folke.db ved STATE_FILE).
 
-Vælges med BACKEND=babybuddy|sqlite (standard babybuddy). Tider returneres som ISO-tekst
-(med tidszone), så resten af appen ikke kan se forskel. Søvn, timere, måltider og
-pumpninger er dicts med samme felter som i Baby Buddys API.
+Tider gemmes som UTC-tekst (`iso()`), så de kan sammenlignes som tekst. Søvn, timere, måltider og
+pumpninger er dicts med de samme felter, som Baby Buddy havde (appen startede oven på Baby Buddy;
+kolonnen `bb_id` er rest fra importen og bruges ikke længere).
 """
 import glob
 import os
 import sqlite3
-import urllib.parse
 from datetime import date, datetime, timezone
 
 import folke
@@ -20,71 +19,6 @@ def iso(t):
     if isinstance(t, str):
         t = datetime.fromisoformat(t)
     return t.astimezone(timezone.utc).isoformat(timespec="seconds")
-
-
-# ---------- Baby Buddy ----------
-class BabyBuddy:
-    name = "babybuddy"
-
-    def _bb(self, path, method="GET", body=None):
-        return folke.call(f"{folke.BB_URL}/api/{path}", folke.BB_TOKEN, method, body)
-
-    @staticmethod
-    def _q(t):
-        return urllib.parse.quote(t.isoformat())
-
-    def child(self):
-        cs = folke.bb_all("children/")
-        return next((c for c in cs if not folke.CHILD_ID or str(c["id"]) == folke.CHILD_ID), None)
-
-    def sleeps(self, cid, since):
-        raw = folke.bb_all(f"sleep/?child={cid}&start_min={self._q(since)}&limit=200")
-        return [{"id": s["id"], "start": s["start"], "end": s["end"], "nap": s["nap"]}
-                for s in raw if s.get("end")]
-
-    def add_sleep(self, cid, start, end, nap):
-        self._bb("sleep/", "POST", {"child": cid, "start": start.isoformat(), "end": end.isoformat(), "nap": nap})
-
-    def edit_sleep(self, sid, start, end, nap=None):
-        body = {"start": start.isoformat(), "end": end.isoformat()}
-        if nap is not None:
-            body["nap"] = bool(nap)
-        self._bb(f"sleep/{sid}/", "PATCH", body)
-
-    def delete_sleep(self, sid):
-        self._bb(f"sleep/{sid}/", "DELETE")
-
-    def timer(self, cid):
-        return next((t for t in folke.bb_all(f"timers/?child={cid}") if t["name"] == TIMER), None)
-
-    def start_timer(self, cid, start):
-        self._bb("timers/", "POST", {"child": cid, "name": TIMER, "start": start.isoformat()})
-
-    def delete_timer(self, tid):
-        self._bb(f"timers/{tid}/", "DELETE")
-
-    def feedings(self, cid, since):
-        return folke.bb_all(f"feedings/?child={cid}&start_min={self._q(since)}&limit=200")
-
-    def add_feeding(self, cid, **f):
-        self._bb("feedings/", "POST", {"child": cid, **self._ser(f)})
-
-    def pumpings(self, cid, since):
-        return folke.bb_all(f"pumping/?child={cid}&start_min={self._q(since)}&limit=200")
-
-    def add_pumping(self, cid, side=None, minutes=None, **p):
-        # Baby Buddy har ingen felter til side og varighed
-        self._bb("pumping/", "POST", {"child": cid, **self._ser(p)})
-
-    def edit_pumping(self, pid, start, amount, side=None, minutes=None):
-        self._bb(f"pumping/{pid}/", "PATCH", {"start": start.isoformat(), "end": start.isoformat(), "amount": amount})
-
-    def delete_pumping(self, pid):
-        self._bb(f"pumping/{pid}/", "DELETE")
-
-    @staticmethod
-    def _ser(d):
-        return {k: v.isoformat() if isinstance(v, datetime) else v for k, v in d.items()}
 
 
 # ---------- SQLite ----------
@@ -103,7 +37,7 @@ MIGRATIONS = [
     CREATE INDEX feeding_start ON feeding (child, start);
     CREATE INDEX pumping_start ON pumping (child, start);
     """,
-    # Udpumpning: side (left/right/both) og varighed i minutter - findes ikke i Baby Buddy
+    # Udpumpning: side (left/right/both) og varighed i minutter
     """
     ALTER TABLE pumping ADD COLUMN side TEXT;
     ALTER TABLE pumping ADD COLUMN minutes REAL;
@@ -211,53 +145,6 @@ class Sqlite:
         self._exec("DELETE FROM pumping WHERE id = ?", (pid,))
 
     # ---------- import / eksport / backup ----------
-    def import_bb(self):
-        """Envejs-import fra Baby Buddy. Kan køres igen: rækker matches på bb_id, rækker der er
-        slettet i Baby Buddy fjernes også her, og alt oprettet lokalt (bb_id = NULL) røres ikke."""
-        bb = BabyBuddy()
-        child = bb.child()
-        if not child:
-            raise ValueError("Intet barn fundet i Baby Buddy")
-        bid = child["id"]
-        sources = {
-            "sleep": [{"bb_id": s["id"], "start": iso(s["start"]), "end": iso(s["end"]), "nap": int(bool(s["nap"]))}
-                      for s in folke.bb_all(f"sleep/?child={bid}&limit=1000") if s.get("end")],
-            "timer": [{"bb_id": t["id"], "name": t["name"], "start": iso(t["start"])}
-                      for t in folke.bb_all(f"timers/?child={bid}") if t.get("name") == TIMER and t.get("start")],
-            "feeding": [{"bb_id": f["id"], "start": iso(f["start"]), "end": f.get("end") and iso(f["end"]),
-                         "type": f.get("type"), "method": f.get("method"), "amount": f.get("amount"),
-                         "notes": f.get("notes")}
-                        for f in folke.bb_all(f"feedings/?child={bid}&limit=1000")],
-            # Ældre Baby Buddy har "time" i stedet for start/end på pumpning
-            "pumping": [{"bb_id": p["id"], "start": iso(p.get("start") or p["time"]),
-                         "end": iso(p.get("end") or p.get("start") or p["time"]),
-                         "amount": p.get("amount"), "notes": p.get("notes")}
-                        for p in folke.bb_all(f"pumping/?child={bid}&limit=1000")],
-        }
-        db = self._db()
-        counts = {}
-        try:
-            with db:
-                db.execute("INSERT INTO child (bb_id, first_name, birth_date) VALUES (?, ?, ?) "
-                           "ON CONFLICT(bb_id) DO UPDATE SET first_name = excluded.first_name, "
-                           "birth_date = excluded.birth_date",
-                           (bid, child.get("first_name", ""), child["birth_date"]))
-                cid = db.execute("SELECT id FROM child WHERE bb_id = ?", (bid,)).fetchone()[0]
-                for table, rows in sources.items():
-                    for r in rows:
-                        cols = ["child", *r]
-                        q = ", ".join(f'"{c}"' for c in cols)
-                        upd = ", ".join(f'"{c}" = excluded."{c}"' for c in r if c != "bb_id")
-                        db.execute(f"INSERT INTO {table} ({q}) VALUES ({', '.join('?' * len(cols))}) "
-                                   f"ON CONFLICT(bb_id) DO UPDATE SET {upd}", (cid, *r.values()))
-                    keep = [r["bb_id"] for r in rows]
-                    db.execute(f"DELETE FROM {table} WHERE child = ? AND bb_id IS NOT NULL "
-                               f"AND bb_id NOT IN ({', '.join('?' * len(keep))})", (cid, *keep))
-                    counts[table] = len(rows)
-        finally:
-            db.close()
-        return {"child": child.get("first_name", ""), **counts}
-
     def export(self):
         return {t: self._rows(f"SELECT * FROM {t} ORDER BY id") for t in TABLES}
 
@@ -278,17 +165,14 @@ class Sqlite:
         return target
 
 
-# ---------- valg af backend ----------
+# ---------- databasen ----------
 _current = []
 
 
 def get():
     if not _current:
-        if os.environ.get("BACKEND", "babybuddy") == "sqlite":
-            path = os.environ.get("DB_FILE") or os.path.join(os.path.dirname(folke.STATE_FILE) or ".", "folke.db")
-            _current.append(Sqlite(path))
-        else:
-            _current.append(BabyBuddy())
+        path = os.environ.get("DB_FILE") or os.path.join(os.path.dirname(folke.STATE_FILE) or ".", "folke.db")
+        _current.append(Sqlite(path))
     return _current[0]
 
 

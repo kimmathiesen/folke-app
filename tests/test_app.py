@@ -1,4 +1,4 @@
-"""API'erne i app.py, kørt mod både Baby Buddy (falsk) og SQLite via `world`-fixturen."""
+"""API'erne i app.py mod en frisk SQLite-fil (`world`-fixturen)."""
 from datetime import date, datetime, timedelta
 
 import pytest
@@ -36,7 +36,6 @@ def test_status_med_soevn_giver_forudsigelse(client, world):
     assert d["prediction"]["source"] == "aldersbaseret standard"
     assert datetime.fromisoformat(d["awake_since"]) == t
     assert sid in [x["id"] for x in d["today"]]
-    assert d["backend"] == world.store.name
 
 
 # ---------- start/stop ----------
@@ -161,6 +160,14 @@ def test_feed_med_tidspunkt(client, world):
     assert hm(folke.parse(world.feedings()[0]["start"])) == hm(t)
 
 
+def test_dagens_maaltider_i_status(client, world):
+    client.post("/api/feed", json={"kind": "left", "at": hm(now() - timedelta(minutes=2))})
+    client.post("/api/feed", json={"kind": "bottle", "amount": 90, "milk": "formula", "at": hm(now() - timedelta(minutes=1))})
+    ft = client.get("/api/status").get_json()["feed_today"]
+    assert [f["method"] for f in ft] == ["bottle", "left breast"]  # nyeste først
+    assert ft[0]["type"] == "formula" and ft[0]["amount"] == 90.0
+
+
 # ---------- vækst ----------
 def test_vaekst_gem_og_hent(client, world):
     birth = date.fromisoformat(world.birth())
@@ -218,14 +225,6 @@ def test_feature_og_profil(client):
     assert d["features"]["solids"] is True and d["sex"] == "girl"
 
 
-def test_baby_buddy_fejl_giver_502(fake_bb, monkeypatch):
-    import app as app_module
-    import store
-
-    monkeypatch.setattr(store, "_current", [store.BabyBuddy()])
-    client = app_module.app.test_client()
-    def boom(*a, **k):
-        raise OSError("forbindelse nægtet")
-    monkeypatch.setattr(folke, "call", boom)
-    r = client.get("/api/status")
-    assert r.status_code == 502 and "forbindelse" in r.get_json()["error"]
+def test_ukendt_adresse_giver_404(client, world):
+    assert client.post("/api/import").status_code == 404  # fjernet sammen med Baby Buddy
+    assert client.get("/api/start").status_code == 405

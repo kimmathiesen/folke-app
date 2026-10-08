@@ -1,7 +1,7 @@
 name: docker
 on:
   push:
-    branches: [main, standalone]
+    branches: [main]
   workflow_dispatch:
 permissions:
   contents: read
@@ -32,5 +32,8 @@ jobs:
           push: true
           platforms: linux/amd64
           # Små bogstaver kræves af ghcr.io
-          # main -> :latest (den kørende app), standalone -> :standalone
-          tags: ghcr.io/kimmathiesen/folke-app:${{ github.ref_name == 'main' && 'latest' || github.ref_name }}
+          # main -> :latest. :standalone bygges også, så containeren på Unraid (skabelonen med :standalone)
+          # kører videre uden ændring. Fjern linjen, når skabelonen er skiftet til :latest.
+          tags: |
+            ghcr.io/kimmathiesen/folke-app:latest
+            ghcr.io/kimmathiesen/folke-app:standalone

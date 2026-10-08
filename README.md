@@ -1,18 +1,19 @@
 # Folke-App
 
-Selfhostet baby-tracker oven på [Baby Buddy](https://github.com/babybuddy/babybuddy). Start/stop søvn med ét tryk, få en forudsigelse af næste lur eller sengetid, og log mad og pumpning. Designet som en mobil-app (PWA) til iPhonens hjemmeskærm. Data ligger i Baby Buddy, eller i en lokal SQLite-fil med `BACKEND=sqlite` (se *Stand-alone* nedenfor).
+Selfhostet baby-tracker. Start/stop søvn med ét tryk, få en forudsigelse af næste lur eller sengetid, og log mad, udpumpning og vækst. Designet som en mobil-app (PWA) til iPhonens hjemmeskærm. Data ligger i en SQLite-fil på serveren. (Appen startede oven på [Baby Buddy](https://github.com/babybuddy/babybuddy), men kører nu helt uden.)
 
 ## Funktioner
 
-- **Første opstart:** barnets navn (og fødselsdato, hvis intet er importeret) og «Jeg er mor/far» på hver enhed. Forsiden siger «Hej Folkes mor»
+- **Første opstart:** barnets navn og fødselsdato og «Jeg er mor/far» på hver enhed. Forsiden siger «Hej Folkes mor»
 
 - **Søvn:** start/stop med tæller, lur/nat, og mulighed for at taste "faldt i søvn kl." / "vågnede kl." bagud
 - **Dagsring:** 24-timers ring med dagens søvn som buer, klokkeslæt og forventet næste søvn
 - **Forudsigelse og dagsplan:** næste lur/sengetid og en plan for resten af dagen ud fra barnets egne vågenvinduer og lurlængder (median af de sidste 10 dage, pr. position på dagen). Planen genberegnes i realtid: misset lur giver «lur nu» og en flyttet dag, en kort lur (under 30 min) giver et kortere vindue, og en dag med for lidt søvn giver tidligere sengetid (højst 60 min). Afvigelser påvirker ikke barnets normale tal. Aldersbaseret standard bruges, indtil der er data nok
 - **Rediger søvn:** tryk på en søvn i listen for at rette tider, skifte lur/nat eller slette
-- **Mad:** amning (venstre/højre/begge), flaske (ml, modermælk/erstatning) og fastføde
-- **Vækst:** egen side (knap øverst til højre) med vægt, længde og hovedomfang på WHO's kurver (2006), 3.-97. percentil. Gemmes i `growth.json`, kurvedata ligger i `who.py`
-- **Udpumpning:** kort på forsiden (ml, tidspunkt og i stand-alone også side og minutter) med dagens total. Egen side med graf over 14 dage og en liste, hvor man kan rette og slette. Påmindelse via Home Assistant efter et valgfrit antal timer (ikke mellem 22 og 7). Kan slås fra under Indstillinger. `POST /api/pump` virker stadig fra Home Assistant
+- **Sider:** forsiden er sider, man stryger mellem som på iPhonens hjemmeskærm: Søvn (standard), Mad, Udpumpning og Vækst
+- **Mad:** amning (venstre/højre/begge), flaske (ml, modermælk/erstatning) og fastføde, og en liste over dagens måltider
+- **Vækst:** egen side med vægt, længde og hovedomfang på WHO's kurver (2006), 3.-97. percentil. Gemmes i `growth.json`, kurvedata ligger i `who.py`
+- **Udpumpning:** egen side med registrering (ml, side, minutter og tidspunkt), dagens total, graf over 14 dage og en liste, hvor man kan rette og slette. Påmindelse via Home Assistant efter et valgfrit antal timer (ikke mellem 22 og 7). Kan slås fra under Indstillinger. `POST /api/pump` virker stadig fra Home Assistant
 - **Forslag:** appen foreslår at tilføje eller skjule funktioner efter alder og brug (fast føde ved 6 mdr., skjul amning efter 3 uger uden). Intet ændres uden svar. Alt kan ændres under *Indstillinger* (knap øverst til venstre)
 - **Notifikationer:** «Tid til at slappe af. Næste lur ca. kl. 13:40» 30 min før, «Folke virker meget frisk. Prøv alligevel en lur» hvis tiden er gået med 15 min uden søvn, og påmindelse om udpumpning. Hver enhed (fx mors og fars telefon) vælger selv, hvilke den vil have. Søvnbeskederne er slået til, udpumpning fra. Via web push direkte til telefonen (Indstillinger → *Notifikationer på denne enhed*) og/eller via Home Assistant
 - **Tavlen:** et lille easter egg. Tryk på månen øverst for at tegne eller skrive til din partner med fingeren. Tavlen er fælles: det, den ene tegner eller visker ud, ser den anden også. Ingen notifikation, men stjernerne ved månen blinker, når der er noget nyt
@@ -24,21 +25,18 @@ Selfhostet baby-tracker oven på [Baby Buddy](https://github.com/babybuddy/babyb
 |---|---|
 | `folke.py` | Forudsigelsesmotor, HA-sensor og notifikationer (kan også køre alene via cron) |
 | `app.py` | Flask-API og baggrundstråd (kalder `folke.main()` hvert minut) |
-| `store.py` | Datalag: samme funktioner mod Baby Buddy eller SQLite, import og backup |
+| `store.py` | Datalag: SQLite-filen, migreringer, eksport og backup |
 | `who.py` | WHO's vækststandarder (LMS-tabeller) og percentilberegning |
 | `index.html` | Hele brugerfladen, ingen build |
 | `Dockerfile` | Python 3.12 slim + gunicorn (1 worker, så baggrundstråden kun kører ét sted) |
 | `.github/workflows/docker.yml` | Bygger og pusher image til `ghcr.io/kimmathiesen/folke-app:latest` |
 | `unraid/my-folke.xml` | Unraid-skabelon (`unraid/update-local.sh`: lokal variant uden GitHub) |
-| `unraid/my-folke-standalone.xml` | Unraid-skabelon til stand-alone ved siden af den kørende app |
-| `tests/` | pytest: `predict()`, WHO-kurver og API mod en falsk Baby Buddy |
+| `tests/` | pytest: forudsigelse, dagsplan, WHO-kurver og API'erne mod en frisk SQLite-fil |
 
 ## Konfiguration (miljøvariabler)
 
 | Variabel | Beskrivelse | Standard |
 |---|---|---|
-| `BB_URL` | Baby Buddy-adresse | `http://localhost:8000` |
-| `BB_TOKEN` | Baby Buddy API-nøgle | |
 | `HA_URL` | Home Assistant-adresse (valgfri) | |
 | `HA_TOKEN` | HA long-lived access token | |
 | `HA_NOTIFY` | Notify-tjeneste, fx `notify.mobile_app_din_telefon` | |
@@ -49,10 +47,9 @@ Selfhostet baby-tracker oven på [Baby Buddy](https://github.com/babybuddy/babyb
 | `HA_KINDS` | Beskedtyper, Home Assistant får (`sleep_soon`, `overdue`, `pump`) | `sleep_soon,overdue` |
 | `HISTORY_DAYS` | Dage søvnhistorik til forudsigelsen | `10` |
 | `STATE_FILE` | Stien til tilstandsfil (`prefs.json` ligger ved siden af) | `/data/state.json` |
-| `BACKEND` | `babybuddy` eller `sqlite` | `babybuddy` |
 | `DB_FILE` | SQLite-fil | `folke.db` ved siden af `STATE_FILE` |
 | `HA_SENSOR` | Sensoren, forudsigelsen skrives til | `sensor.baby_next_sleep` |
-| `CHILD_BIRTH`, `CHILD_NAME` | Kun SQLite uden import: barnets fødselsdato (ÅÅÅÅ-MM-DD) og navn | |
+| `CHILD_BIRTH`, `CHILD_NAME` | Valgfrit: barnets fødselsdato (ÅÅÅÅ-MM-DD) og navn. Ellers spørger appen ved første opstart | |
 
 Gem aldrig nøgler i repoet. Brug `.env` (ignoreret af git) eller felterne i Unraid-skabelonen.
 
@@ -60,7 +57,6 @@ Gem aldrig nøgler i repoet. Brug `.env` (ignoreret af git) eller felterne i Unr
 
 ```bash
 docker run -d --name folke-app --restart unless-stopped \
-  -e BB_URL=http://BABYBUDDY:8000 -e BB_TOKEN=... \
   -e HA_URL=http://HA:8123 -e HA_TOKEN=... -e HA_NOTIFY=notify.mobile_app_... \
   -e TZ=Europe/Copenhagen -e STATE_FILE=/data/state.json \
   -v /sti/til/data:/data -p 6660:8080 \
@@ -77,7 +73,7 @@ Læg `unraid/my-folke.xml` i `/boot/config/plugins/dockerMan/templates-user/`, o
 
 | Endpoint | Formål |
 |---|---|
-| `GET /api/status` | Tilstand, forudsigelse, dagens søvn, sidste måltid, forslag |
+| `GET /api/status` | Tilstand, forudsigelse, dagsplan, dagens søvn og måltider, forslag |
 | `POST /api/start` | Start søvn. Valgfrit `{"since": "HH:MM"}` |
 | `POST /api/stop` | Stop søvn. Valgfrit `{"nap": true, "wake": "HH:MM"}` |
 | `POST /api/sleep/<id>` / `DELETE` | Ret eller slet en søvn |
@@ -89,24 +85,16 @@ Læg `unraid/my-folke.xml` i `/boot/config/plugins/dockerMan/templates-user/`, o
 | `GET /api/push/key`, `POST /api/push/subscribe`, `/unsubscribe`, `/test` | Web push pr. enhed |
 | `GET/POST /api/growth`, `POST/DELETE /api/growth/<id>` | Vækstmålinger og kurver |
 | `POST /api/suggestion`, `POST /api/feature` | Svar på forslag, slå funktioner til/fra |
-| `POST /api/import` | Kun SQLite: hent alt fra Baby Buddy igen |
-| `GET /api/export` | Kun SQLite: alle data som JSON |
+| `POST /api/child` | Første opstart: `{"name", "birth_date"}` |
+| `GET /api/export` | Alle data som JSON |
 
-## Stand-alone (SQLite)
+## Data
 
-Med `BACKEND=sqlite` gemmer appen alt i `/data/folke.db` og behøver ikke Baby Buddy.
+Alt ligger i `/data`: `folke.db` (SQLite), `growth.json`, `prefs.json`, `board.json`, `push.json` og `vapid.pem`.
 
-- **Import:** er databasen tom, og er `BB_URL` og `BB_TOKEN` sat, hentes alt fra Baby Buddy automatisk ved start. *Importér fra Baby Buddy* under Indstillinger (eller `POST /api/import`) henter igen. Importen går kun den ene vej. Rækker fra Baby Buddy opdateres eller fjernes, så de svarer til Baby Buddy. Det, du har registreret i appen, røres ikke.
-- **Backup:** dagligt øjebliksbillede i `/data/backup/` (de seneste 14 dage). *Eksportér* under Indstillinger giver alle data som JSON.
-- Vækst og indstillinger ligger stadig i `growth.json` og `prefs.json` i samme mappe.
-
-**Kør ved siden af den nuværende app.** Branchen `standalone` bygger `ghcr.io/kimmathiesen/folke-app:standalone`, mens `main` stadig bygger `:latest`. Opret en container mere med `unraid/my-folke-standalone.xml`. Den bruger port 6661 og sin egen datamappe, og Home Assistant er slået fra. Når du vil skifte:
-
-1. Tryk *Importér fra Baby Buddy* en sidste gang.
-2. Udfyld HA-felterne, og sæt `HA_SENSOR=sensor.baby_next_sleep`.
-3. Stop den gamle `folke-app` (og byt evt. port til 6660).
-
-Baby Buddy kan blive stående som arkiv.
+- **Backup:** dagligt øjebliksbillede af databasen i `/data/backup/` (de seneste 14 dage).
+- **Eksport:** *Eksportér* under Indstillinger giver alle data som JSON. Filen kan også importeres i iPhone-appen (branch `ios`).
+- Kolonnen `bb_id` i databasen er en rest fra importen fra Baby Buddy og bruges ikke længere.
 
 ## Push-notifikationer
 
@@ -128,7 +116,7 @@ Der er intet login. Hold appen på LAN eller bag Tailscale, og udstil den ikke p
 
 ## Udvikling
 
-Se `CLAUDE.md` for arkitektur og kendte antagelser mod Baby Buddys API.
+Se `CLAUDE.md` for arkitektur og arbejdsgang.
 
 Tests (kører også i GitHub Actions før hvert image-build):
 

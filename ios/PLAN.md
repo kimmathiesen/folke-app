@@ -1,11 +1,11 @@
 # iPhone-app: plan og specifikation
 
 Mål: en native iPhone- og iPad-app i App Store, som andre forældre kan hente og bruge uden server, Docker
-eller login. Den skal kunne alt det, webappen på branchen `standalone` kan, og mere til (Live Activity,
+eller login. Den skal kunne alt det, webappen på `main` kan, og mere til (Live Activity,
 widgets, Siri). Kun Apple: data deles mellem forældrene via iCloud.
 
 Webappen og serveren (`app.py`, `folke.py`, `store.py`, `index.html`) er **facit** for regler, tekster og
-udseende. Er noget uklart i denne plan, så læs koden på branchen `standalone`. Serveren kører videre for
+udseende. Er noget uklart i denne plan, så læs koden på `main`. Serveren kører videre for
 familien, indtil appen kan overtage.
 
 ## 1. Grundvalg
@@ -260,7 +260,7 @@ Tilbyd «Inviter din partner» (iCloud-deling) og «Importér fra Folke-server»
 - «Skjul Amning», hvis der ikke er registreret amning i 21 dage.
 
 **Udseende:**
-- Kopiér farvetabellerne `ST` (ringen) og `SKY` (baggrunden) fra `index.html` på branchen `standalone`.
+- Kopiér farvetabellerne `ST` (ringen) og `SKY` (baggrunden) fra `index.html` på `main`.
 - Baggrunden følger tiden på dagen, med et skær øverst i ringens farve.
 - iPad: to kolonner fra 900 pt bredde.
 

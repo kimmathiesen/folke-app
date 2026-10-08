@@ -22,8 +22,7 @@ def test_registrer_med_tid_side_og_minutter(client, world):
     assert r.get_json() == {"ok": True, "amount": 120.5}
     [p] = world.pumpings()
     assert p["amount"] == 120.5 and folke.parse(p["start"]) == t
-    if world.store.name == "sqlite":  # Baby Buddy kan ikke gemme side og varighed
-        assert p["side"] == "left" and p["minutes"] == 15
+    assert p["side"] == "left" and p["minutes"] == 15
 
 
 def test_home_assistant_format_virker_stadig(client, world):
@@ -48,8 +47,7 @@ def test_ret_og_slet(client, world):
     [p] = world.pumpings()
     assert p["amount"] == 140
     assert folke.parse(p["start"]) == datetime.fromisoformat(f"{y}T08:30").replace(tzinfo=TZ)
-    if world.store.name == "sqlite":
-        assert p["side"] == "both" and p["minutes"] == 20
+    assert p["side"] == "both" and p["minutes"] == 20
     assert client.post(f"/api/pump/{pid}", json={"start": "x", "amount": 1}).status_code == 400
     future = (now() + timedelta(days=1)).strftime("%Y-%m-%dT%H:%M")
     assert client.post(f"/api/pump/{pid}", json={"start": future, "amount": 1}).status_code == 400
@@ -82,7 +80,6 @@ def test_historik_pr_dag(client, world):
         "date": (today - timedelta(days=1)).date().isoformat(), "ml": 220, "count": 2}
     assert d["avg_ml"] == 210  # gennemsnit af hele dage med udpumpning (220 og 200), ikke i dag
     assert [i["amount"] for i in d["items"]] == [50, 120, 100, 200]  # nyeste først, 20 dage gammel er udenfor
-    assert d["detail"] == (world.store.name == "sqlite")
 
 
 def test_paamindelse_indstilling(client):

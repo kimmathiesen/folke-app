@@ -112,12 +112,7 @@ def test_barnets_navn(client, world):
     assert d["child_name"] == "Folke Emil" and d["sex"] == "boy"  # køn er uændret
 
 
-def test_navn_fra_databasen_som_standard(client, world):
-    if world.store.name == "babybuddy":
-        assert client.get("/api/status").get_json()["child_name"] == "Folke"  # fra Baby Buddy
-
-
-def test_opsaetning_uden_import(tmp_path, monkeypatch, fake_bb):
+def test_opsaetning_uden_import(tmp_path, monkeypatch):
     import app as app_module
     import store
 

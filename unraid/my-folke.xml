@@ -1,22 +1,22 @@
 <?xml version="1.0"?>
 <Container version="2">
-  <Name>folke-app</Name>
+  <Name>folke</Name>
   <Repository>ghcr.io/kimmathiesen/folke-app:latest</Repository>
   <Registry>https://github.com/kimmathiesen/folke-app/pkgs/container/folke-app</Registry>
   <Icon>https://raw.githubusercontent.com/kimmathiesen/folke-app/main/icon.png</Icon>
   <Network>bridge</Network>
   <Privileged>false</Privileged>
   <Support>https://github.com/kimmathiesen/folke-app</Support>
-  <Overview>Selfhostet baby-søvntracker oven på Baby Buddy: start/stop søvn, forudsigelse og Home Assistant.</Overview>
+  <Overview>Folke-App: babysøvn, mad, udpumpning og vækst. Data i en SQLite-fil under /data (dagligt backup i /data/backup). Home Assistant er valgfrit.</Overview>
   <Category>HomeAutomation:</Category>
-  <WebUI>http://[IP]:[PORT:6660]/</WebUI>
-  <Config Name="WebUI port" Target="8080" Default="6660" Mode="tcp" Description="" Type="Port" Display="always" Required="true" Mask="false">6660</Config>
-  <Config Name="Data" Target="/data" Default="/mnt/user/appdata/folke-app/data" Mode="rw" Description="" Type="Path" Display="always" Required="true" Mask="false">/mnt/user/appdata/folke-app/data</Config>
-  <Config Name="BB_URL" Target="BB_URL" Default="http://192.168.68.58:8000" Mode="" Description="Baby Buddy adresse" Type="Variable" Display="always" Required="true" Mask="false">http://192.168.68.58:8000</Config>
-  <Config Name="BB_TOKEN" Target="BB_TOKEN" Default="" Mode="" Description="Baby Buddy API-nøgle" Type="Variable" Display="always" Required="true" Mask="true"></Config>
-  <Config Name="HA_URL" Target="HA_URL" Default="http://192.168.68.72:8123" Mode="" Description="Home Assistant adresse" Type="Variable" Display="always" Required="true" Mask="false">http://192.168.68.72:8123</Config>
-  <Config Name="HA_TOKEN" Target="HA_TOKEN" Default="" Mode="" Description="Home Assistant long-lived token" Type="Variable" Display="always" Required="true" Mask="true"></Config>
-  <Config Name="HA_NOTIFY" Target="HA_NOTIFY" Default="notify.mobile_app_kims_iphone" Mode="" Description="HA notify-tjeneste" Type="Variable" Display="always" Required="true" Mask="false">notify.mobile_app_kims_iphone</Config>
+  <WebUI>http://[IP]:[PORT:6661]/</WebUI>
+  <Config Name="WebUI port" Target="8080" Default="6661" Mode="tcp" Description="" Type="Port" Display="always" Required="true" Mask="false">6661</Config>
+  <Config Name="Data" Target="/data" Default="/mnt/user/appdata/folke-standalone/data" Mode="rw" Description="" Type="Path" Display="always" Required="true" Mask="false">/mnt/user/appdata/folke-standalone/data</Config>
+  <Config Name="HA_URL" Target="HA_URL" Default="" Mode="" Description="Home Assistant adresse (valgfri)" Type="Variable" Display="always" Required="false" Mask="false"></Config>
+  <Config Name="HA_TOKEN" Target="HA_TOKEN" Default="" Mode="" Description="Home Assistant long-lived token" Type="Variable" Display="always" Required="false" Mask="true"></Config>
+  <Config Name="HA_NOTIFY" Target="HA_NOTIFY" Default="" Mode="" Description="HA notify-tjeneste. Tom = ingen notifikationer" Type="Variable" Display="always" Required="false" Mask="false"></Config>
   <Config Name="TZ" Target="TZ" Default="Europe/Copenhagen" Mode="" Description="" Type="Variable" Display="advanced" Required="true" Mask="false">Europe/Copenhagen</Config>
   <Config Name="STATE_FILE" Target="STATE_FILE" Default="/data/state.json" Mode="" Description="" Type="Variable" Display="advanced" Required="true" Mask="false">/data/state.json</Config>
+  <Config Name="HA_SENSOR" Target="HA_SENSOR" Default="sensor.baby_next_sleep" Mode="" Description="Sensornavn i Home Assistant" Type="Variable" Display="advanced" Required="true" Mask="false">sensor.baby_next_sleep</Config>
+  <Config Name="CHILD_BIRTH" Target="CHILD_BIRTH" Default="" Mode="" Description="Valgfri: fødselsdato (ÅÅÅÅ-MM-DD). Ellers spørger appen ved første opstart" Type="Variable" Display="advanced" Required="false" Mask="false"></Config>
 </Container>

@@ -323,6 +323,16 @@ så prisen kan holdes lav.
   så brugeren skal nå at opleve dem. Efter prøven vises Plus-funktionerne låst med en kort forklaring, aldrig som pop-op midt i brugen.
 - **Familiedeling slået til** på købet, så partneren også får Plus. Deling mellem forældrene må aldrig kræve betaling: invitationen
   er appens vigtigste vej til nye brugere.
+- **Plus følger barnet, ikke kun kontoen** (beslutning 8/10 2026, laves med milepæl 6). Et køb hører til én Apple-konto.
+  Er partneren i samme Apple-familiedeling, virker det allerede (`Transaction.currentEntitlements` medtager familiedelte køb).
+  Mange par er ikke det, så:
+  - Når en forælder køber (eller gendanner), skrives en markering i barnets fælles data (fx `Settings.plusSince` og hvem der købte),
+    som deles via iCloud.
+  - Alle, der er inviteret til barnet, får Plus ud fra markeringen. Én betaler, hele familien omkring barnet har det.
+  - Widgets og intents læser det via App Group som i dag (`FolkeShared.plus()` får et ekstra «delt»-svar).
+  - Refunderes købet hos den, der købte, fjernes markeringen ved næste tjek på den enhed.
+  - **App Review:** købet sker med køb i appen, og fælles rum, hvor én betaler for alle inviterede, er almindelige. Det er dog en
+    gråzone i retningslinje 3.1.1. Forklar det tydeligt i noterne til gennemgangen. Afvises det, falder vi tilbage til kun familiedeling.
 - **Ingen reklamer, intet salg af data, ingen analyse-SDK'er.** Så kan «Data Not Collected» vælges i App Store.
 - Køb gendannes via «Gendan køb» under Indstillinger. Status læses med `Transaction.currentEntitlements` og gemmes ikke på en server.
 - Data forsvinder aldrig, hvis Plus udløber eller ikke købes: alt registreret kan stadig ses og eksporteres.
@@ -347,7 +357,7 @@ Afgør derefter prisen. Indtægter er skattepligtige: tjek CVR og moms (Apple af
 3. Resten af forsiden: glemte tryk, ret/slet, mad, udpumpning, forslag. *(færdig)*
 4. Lokale notifikationer og indstillinger. *(færdig)*
 5. Vækst og udpumpningshistorik. *(færdig)*
-6. iCloud-deling mellem to konti og tavlen (tavlen lokalt er færdig; deling mangler). Kræver betalt udviklerkonto, Team ID og endeligt bundle id. App Group `group.dk.folkeapp.folke` skal også oprettes på kontoen.
+6. iCloud-deling mellem to konti og tavlen (tavlen lokalt er færdig; deling mangler). Med den: Plus følger barnet (afsnit 9). Kræver betalt udviklerkonto, Team ID og endeligt bundle id. App Group `group.dk.folkeapp.folke` skal også oprettes på kontoen.
 7. Live Activity, widgets og App Intents. *(færdig, testet i simulatoren; Siri-sætninger og låseskærm-widgets er ikke afprøvet)*
 8. **Skjult** import fra Folke-serveren (kun i egne builds: debug og TestFlight, aldrig i App Store-versionen, da andre
    brugere ikke har en server). *(import færdig)* TestFlight til familien.

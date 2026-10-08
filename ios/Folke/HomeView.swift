@@ -159,11 +159,7 @@ struct HomeView: View {
         let s = model.snapshot
         return VStack(spacing: 16) {
             ForgotCard(sleeping: s.running != nil)
-            if s.plus.unlocked {
-                PlanCard(snapshot: s, now: now)
-            } else {
-                LockedCard(feature: .prediction)
-            }
+            PlanCard(snapshot: s, now: now)
             FeedCard(now: now)
             if s.featurePump {
                 PumpCard(now: now)
@@ -189,9 +185,33 @@ extension Snapshot {
     }
 
     func next(at now: Date) -> Next? {
+        // Uden Folke Plus er der ingen dagsplan, kun den enkle forudsigelse
+        if plan == nil, let p = prediction { return Next(kind: p.kind, time: p.time, now: false) }
         guard let p = plan, p.wake == nil, let f = p.items.first else { return nil }
         return Next(kind: f.kind, time: f.start,
                     now: p.missedAt != nil && f.kind == .nap && f.start <= now.addingTimeInterval(60))
+    }
+}
+
+/// Gratisudgaven: én diskret linje om dagsplanen i Folke Plus (aldrig et pop-op)
+struct PlusHint: View {
+    @Environment(AppModel.self) private var model
+    @Environment(\.muted) private var muted
+
+    var body: some View {
+        Button { model.page = .settings } label: {
+            HStack(alignment: .firstTextBaseline, spacing: 6) {
+                Image(systemName: "sparkles")
+                Text("Resten af dagen og en plan, der tilpasser sig, er med i Folke Plus ›")
+                    .multilineTextAlignment(.leading)
+            }
+            .font(.system(size: 13))
+            .foregroundStyle(muted)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(.top, 10)
+            .overlay(alignment: .top) { Rectangle().fill(Color.line).frame(height: 1) }
+        }
+        .buttonStyle(.plain)
     }
 }
 
@@ -263,6 +283,7 @@ struct PlanCard: View {
                         .padding(.top, 12)
                     }
                 }
+                if !snapshot.plus.unlocked { PlusHint().padding(.top, 12) }
             }
             .card()
         }

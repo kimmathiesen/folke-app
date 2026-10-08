@@ -1,7 +1,8 @@
 import Foundation
 
 /// Folke Plus (PLAN.md afsnit 9): engangskøb med familiedeling og 14 dages prøve fra første opstart.
-/// Gratis: søvn, mad, udpumpning, deling og tavlen. Plus: forudsigelse, notifikationer, widgets/Live Activity/Siri og vækstkurver.
+/// Gratis: søvn, mad, udpumpning, deling, tavlen og næste lur/sengetid (`Predictor.basic`).
+/// Plus: dagsplanen med løbende tilpasning, notifikationer, widgets/Live Activity/Siri og vækstkurver.
 public enum Plus {
     public static let productID = "dk.folkeapp.folke.plus"
     public static let trialDays = 14
@@ -35,11 +36,10 @@ public enum Plus {
 
     /// Hvad der er låst, og hvorfor (vises på kortet i stedet for funktionen, aldrig som pop-op)
     public enum Feature: Sendable {
-        case prediction, notifications, extensions, growthCurves
+        case notifications, extensions, growthCurves
 
         public var lockedText: String {
             switch self {
-            case .prediction: "Forudsigelse af næste lur og sengetid er med i Folke Plus."
             case .notifications: "Notifikationer er med i Folke Plus."
             case .extensions: "Widgets, Live Activity og Siri er med i Folke Plus."
             case .growthCurves: "Vækstkurver og percentiler er med i Folke Plus. Målingerne kan stadig skrives ind og ses herunder."

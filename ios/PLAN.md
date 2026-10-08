@@ -311,7 +311,8 @@ så prisen kan holdes lav.
 
 | Gratis | Folke Plus |
 |---|---|
-| Start/stop søvn, ringen, dagens søvn, glemte tryk, ret/slet | Forudsigelse af næste lur og sengetid (kortet og den stiplede cirkel) |
+| Start/stop søvn, ringen, dagens søvn, glemte tryk, ret/slet | Dagsplanen: resten af dagen og løbende tilpasning (misset/kort lur, aftenlur, rykket sengetid, forventet opvågning) |
+| Næste lur eller sengetid (den oprindelige forudsigelse fra den selfhostede server, `Predictor.basic`) | |
 | Mad og udpumpning, udpumpningshistorik | Notifikationer: `sleep_soon`, `overdue` og `pump` |
 | **Deling med partner** (iCloud) og tavlen | Widgets, Live Activity og Siri/Genveje |
 | Import fra Folke-server | Vækstkurver med percentiler (målinger kan altid indtastes og ses som liste) |
@@ -363,7 +364,9 @@ Folke Plus (milepæl 9) er lavet, så langt det kan uden konto:
 - Regler i `FolkeCore/Plus.swift` (14 hele kalenderdage fra første opstart på enheden, tests i `PlusTests`).
 - Køb i `Folke/PlusStore.swift` (StoreKit 2, `Transaction.currentEntitlements` og `Transaction.updates`, «Gendan køb» = `AppStore.sync()`).
   Status gemmes i App Group (`folke.plusPurchased`, `folke.trialStart`), så widgets og intents kan se den.
-- Låst uden Plus: forudsigelseskortet og de stiplede lure i ringen, notifikationer (intet planlægges), Live Activity,
+- Gratis forudsigelse (beslutning 8/10 2026): den oprindelige `predict()` fra før dagsplanen (commit `eeaa016^`), porteret
+  som `Predictor.basic` med tests i `BasicPredictTests`. Kortet viser næste lur/sengetid og en diskret linje om Plus.
+- Låst uden Plus: dagsplanen («Resten af dagen», genberegning, forventet opvågning og de planlagte lure i ringen), notifikationer (intet planlægges), Live Activity,
   widgets (viser en henvisning), intents/Siri, vækstkurver med percentil og tøjstørrelse. Målinger kan stadig skrives ind.
 - Testkøb: `ios/Folke.storekit` (produkt `dk.folkeapp.folke.plus`, 149 kr., familiedeling) bruges af den delte scheme, når
   appen køres fra Xcode (⌘R). Debug: `-plus locked|trial|purchased`.

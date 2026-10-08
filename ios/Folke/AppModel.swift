@@ -130,8 +130,8 @@ final class AppModel {
         }
         s.awakeSince = store.awakeSince(now: now)
         s.plus = FolkeShared.plus(now: now)
-        // Forudsigelsen er med i Folke Plus: uden den vises hverken kort, stiplede lure eller forventet opvågning
-        s.prediction = s.plus.unlocked ? store.prediction(now: now) : nil
+        // Gratis: den oprindelige forudsigelse (kun næste lur/sengetid). Plus: dagsplanen med løbende tilpasning.
+        s.prediction = s.plus.unlocked ? store.prediction(now: now) : store.basicPrediction(now: now)
         s.plan = s.plus.unlocked ? store.dayPlan(now: now) : nil
         s.today = store.todaySleeps(now: now).compactMap { x in
             guard let id = x.id, let start = x.start, let end = x.end else { return nil }

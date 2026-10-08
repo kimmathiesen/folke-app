@@ -173,6 +173,13 @@ public final class FolkeStore: @unchecked Sendable {
         return Predictor.predict(samples, birthDate: birth, now: now, calendar: calendar)
     }
 
+    /// Gratisudgaven: kun næste lur eller sengetid (`Predictor.basic`, den oprindelige forudsigelse).
+    public func basicPrediction(now: Date = .now) -> Prediction? {
+        guard runningSleep() == nil, let birth = child()?.birthDate else { return nil }
+        let samples = sleeps(since: now.addingTimeInterval(-Double(Predictor.historyDays) * 86400)).compactMap(\.sample)
+        return Predictor.basic(samples, birthDate: birth, now: now, calendar: calendar)
+    }
+
     /// Resten af dagen (afsnit 3). Under en lur regnes planen fra forventet opvågning; om natten er der ingen plan.
     public func dayPlan(now: Date = .now) -> DayPlan? {
         guard let birth = child()?.birthDate else { return nil }

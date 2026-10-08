@@ -262,9 +262,9 @@ struct PlusCard: View {
             }
             Text(status.text).font(.system(size: 15)).foregroundStyle(Color.fg).padding(.top, 6)
             if status != .purchased {
-                Text("Forudsigelse af næste lur og sengetid, notifikationer, widgets, Live Activity, Siri og vækstkurver. "
-                     + "Ét køb, intet abonnement, og det deles med familien. Søvn, mad, udpumpning, deling med partneren "
-                     + "og alt, du har registreret, er altid gratis.")
+                Text("Resten af dagen med en plan, der tilpasser sig korte og oversprungne lure, notifikationer, widgets, "
+                     + "Live Activity, Siri og vækstkurver. Ét køb, intet abonnement, og det deles med familien. Søvn, mad, "
+                     + "udpumpning, næste lur og sengetid, deling med partneren og alt, du har registreret, er altid gratis.")
                     .font(.system(size: 13)).foregroundStyle(muted).padding(.top, 6)
                     .fixedSize(horizontal: false, vertical: true)
                 Button { Task { await shop.buy() } } label: {

@@ -169,6 +169,9 @@ class Sqlite:
     def delete_pumping(self, pid):
         self._exec("DELETE FROM pumping WHERE id = ?", (pid,))
 
+    def delete_feeding(self, fid):
+        self._exec("DELETE FROM feeding WHERE id = ?", (fid,))
+
     # ---------- import / eksport / backup ----------
     def export(self):
         return {t: self._rows(f"SELECT * FROM {t} ORDER BY id") for t in TABLES}

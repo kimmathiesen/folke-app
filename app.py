@@ -635,6 +635,13 @@ def feed():
     return jsonify(ok=True)
 
 
+@app.delete("/api/feed/<int:fid>")
+def delete_feed(fid):
+    """Slet et måltid (bruges af iPhone-appens midlertidige synkronisering)."""
+    db().delete_feeding(fid)
+    return jsonify(ok=True)
+
+
 # ---------- Eksport ----------
 @app.get("/api/export")
 def export():

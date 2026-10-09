@@ -160,6 +160,13 @@ def test_feed_med_tidspunkt(client, world):
     assert hm(folke.parse(world.feedings()[0]["start"])) == hm(t)
 
 
+def test_slet_maaltid(client, world):
+    client.post("/api/feed", json={"kind": "left"})
+    fid = world.feedings()[0]["id"]
+    assert client.delete(f"/api/feed/{fid}").status_code == 200
+    assert world.feedings() == []
+
+
 def test_dagens_maaltider_i_status(client, world):
     client.post("/api/feed", json={"kind": "left", "at": hm(now() - timedelta(minutes=2))})
     client.post("/api/feed", json={"kind": "bottle", "amount": 90, "milk": "formula", "at": hm(now() - timedelta(minutes=1))})

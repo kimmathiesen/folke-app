@@ -5,7 +5,7 @@ forudsigelse af næste lur/sengetid, notifikation via web push (Home Assistant e
 ## Arkitektur
 - `folke.py`: motor. `plan_day()` laver dagsplanen (lure og sengetid resten af dagen), og `predict()` er dens første punkt (vågenvinduer pr. position på dagen, median, aldersbaseret fallback),
   besked (web push) LEAD_MIN (30) min før og OVERDUE_MIN (15) min efter, hvis ingen søvn er startet (minutterne kan vælges pr. enhed).
-- `app.py`: Flask. `/api/status`, `/api/start`, `/api/stop`, `/api/pump` (JSON {amount}). Start = en timer "Søvn" i databasen;
+- `app.py`: Flask. `/api/status`, `/api/start`, `/api/stop`, `/api/pump` (JSON {amount}). iPhone-appens midlertidige synkronisering bruger de samme endpoints plus `GET /api/export` og `DELETE /api/feed/<id>`. Start = en timer "Søvn" i databasen;
   stop = en søvn + timeren slettes. Baggrundstråd (`tick()`) kalder `folke.main()` hvert 60. sek. og tager daglig backup.
 - `store.py`: datalag. `store.get()` giver `Sqlite` (fil `DB_FILE`, standard `folke.db` ved STATE_FILE). app.py og `folke.main()` går altid gennem det. Tider gemmes som UTC-tekst (`iso()`), så de kan sammenlignes som tekst. Skemaændringer: tilføj et trin til `MIGRATIONS` (PRAGMA user_version). Kolonnen `bb_id` er en rest fra den gamle import fra Baby Buddy (fjernet 8/10 2026).
 - `index.html`: enkeltfil-UI (ingen build). Kør gunicorn med 1 worker (tråden).

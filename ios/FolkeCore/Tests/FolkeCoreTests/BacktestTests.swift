@@ -22,8 +22,9 @@ import Testing
         #expect(s.n > 20 && s.medianAbs == 0 && s.within15 == 1)
     }
 
-    @Test func spanAfrundesUdadTil5Min() {
-        #expect(Format.span(at(day(2026, 6, 10), 11, 30), (-14, 14), calendar: cph) == "kl. 11.15–11.45")
-        #expect(Format.span(at(day(2026, 6, 10), 19, 53), (-10, 13), calendar: cph) == "kl. 19.40–20.10")
+    @Test func spanEr10MinPaaHele5Min() {
+        #expect(Format.span(at(day(2026, 6, 10), 11, 30), calendar: cph) == "kl. 11.25–11.35")
+        #expect(Format.span(at(day(2026, 6, 10), 19, 53), calendar: cph) == "kl. 19.45–19.55")
+        #expect(Format.span(at(day(2026, 6, 10), 19, 56), calendar: cph) == "kl. 19.50–20.00")
     }
 }

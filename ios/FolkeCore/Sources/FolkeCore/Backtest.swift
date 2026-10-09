@@ -94,12 +94,10 @@ public extension FolkeStore {
 }
 
 public extension Format {
-    /// «kl. 11.15–11.45»: forudsigelsen med intervallet, afrundet udad til hele 5 minutter
-    static func span(_ t: Date, _ interval: (lo: Int, hi: Int), calendar: Calendar = .current) -> String {
-        let x = t.timeIntervalSinceReferenceDate
-        let lo = (((x + Double(interval.lo) * 60) / 300).rounded(.down)) * 300
-        let hi = (((x + Double(interval.hi) * 60) / 300).rounded(.up)) * 300
+    /// «kl. 11.25–11.35»: et vindue på 10 min omkring forudsigelsen, på hele 5 minutter
+    static func span(_ t: Date, calendar: Calendar = .current) -> String {
+        let lo = (((t.timeIntervalSinceReferenceDate - 300) / 300).rounded(.down)) * 300
         return "kl. \(time(Date(timeIntervalSinceReferenceDate: lo), calendar: calendar))–"
-            + "\(time(Date(timeIntervalSinceReferenceDate: hi), calendar: calendar))"
+            + "\(time(Date(timeIntervalSinceReferenceDate: lo + 600), calendar: calendar))"
     }
 }

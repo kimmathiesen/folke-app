@@ -385,9 +385,9 @@ struct PlanCard: View {
         return nil
     }
 
-    /// Interval ud fra hvor meget forudsigelsen har ramt ved siden af de seneste 14 dage, afrundet til 5 min
+    /// Vindue på 10 min omkring forudsigelsen (træfsikkerheden står i «typisk ±X min»)
     func span(_ t: Date) -> String {
-        Format.span(t, snapshot.accuracy?.interval ?? (-20, 20))
+        Format.span(t)
     }
 
     var hit: String {

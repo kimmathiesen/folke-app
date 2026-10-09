@@ -412,6 +412,11 @@ final class AppModel {
         didSet { FolkeShared.defaults.set(showNextSize, forKey: "folke.showNextSize") }
     }
 
+    /// Vinduet om næste lur/sengetid på kortet (`PlanWindow`), kun denne enhed
+    var planWindow: Int = FolkeShared.defaults.object(forKey: "folke.planWindow") as? Int ?? PlanWindow.standard {
+        didSet { FolkeShared.defaults.set(planWindow, forKey: "folke.planWindow") }
+    }
+
     // MARK: Tavlen
 
     /// Seneste tavleversion, denne enhed har set (stjernerne ved månen blinker, når der er nyt)

@@ -94,10 +94,32 @@ public extension FolkeStore {
 }
 
 public extension Format {
-    /// «kl. 11.25–11.35»: et vindue på 10 min omkring forudsigelsen, på hele 5 minutter
-    static func span(_ t: Date, calendar: Calendar = .current) -> String {
-        let lo = (((t.timeIntervalSinceReferenceDate - 300) / 300).rounded(.down)) * 300
+    /// Næste lur/sengetid med vinduet, som enheden har valgt (`PlanWindow`):
+    /// 0 = «ca. kl. 11.30», 10/20/30 = et vindue på så mange minutter omkring forudsigelsen,
+    /// `PlanWindow.auto` = intervallet ud fra målingen (afrundet udad). Altid på hele 5 minutter.
+    static func span(_ t: Date, window: Int = PlanWindow.standard, interval: (lo: Int, hi: Int) = (-20, 20),
+                     calendar: Calendar = .current) -> String {
+        let x = t.timeIntervalSinceReferenceDate
+        let lo: Double, hi: Double
+        switch window {
+        case 0:
+            return "ca. kl. \(time(t, calendar: calendar))"
+        case PlanWindow.auto:
+            lo = ((x + Double(interval.lo) * 60) / 300).rounded(.down) * 300
+            hi = ((x + Double(interval.hi) * 60) / 300).rounded(.up) * 300
+        default:
+            lo = ((x - Double(window) * 30) / 300).rounded(.down) * 300
+            hi = lo + Double(window) * 60
+        }
         return "kl. \(time(Date(timeIntervalSinceReferenceDate: lo), calendar: calendar))–"
-            + "\(time(Date(timeIntervalSinceReferenceDate: lo + 600), calendar: calendar))"
+            + "\(time(Date(timeIntervalSinceReferenceDate: hi), calendar: calendar))"
     }
+}
+
+/// Vinduet om næste lur/sengetid på kortet, valgt pr. enhed.
+public enum PlanWindow {
+    public static let auto = -1
+    public static let standard = 10
+    public static let options: [(Int, String)] = [(0, "Kun klokkeslæt"), (10, "10 min"), (20, "20 min"),
+                                                  (30, "30 min"), (auto, "Automatisk")]
 }

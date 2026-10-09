@@ -362,7 +362,10 @@ struct PlusHint: View {
 struct PlanCard: View {
     var snapshot: Snapshot
     var now: Date
+    @Environment(AppModel.self) private var model
     @Environment(\.muted) private var muted
+
+    var window: Int { model.planWindow }
 
     /// (overskrift, stort tidspunkt, forklaring)
     var texts: (String, String, String)? {
@@ -385,9 +388,9 @@ struct PlanCard: View {
         return nil
     }
 
-    /// Vindue på 10 min omkring forudsigelsen (træfsikkerheden står i «typisk ±X min»)
+    /// Vinduet, enheden har valgt under Indstillinger (træfsikkerheden står i «typisk ±X min»)
     func span(_ t: Date) -> String {
-        Format.span(t)
+        Format.span(t, window: window, interval: snapshot.accuracy?.interval ?? (-20, 20))
     }
 
     var hit: String {

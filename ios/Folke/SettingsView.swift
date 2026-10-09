@@ -68,6 +68,18 @@ struct SettingsView: View {
                 }
                 .listRowBackground(Color.card)
 
+                if s.featurePrediction {
+                    Section {
+                        Picker("Vindue for næste lur", selection: Binding(get: { model.planWindow }, set: { model.planWindow = $0 })) {
+                            ForEach(PlanWindow.options, id: \.0) { Text($0.1).tag($0.0) }
+                        }
+                    } footer: {
+                        Text("Hvor bredt et tidsrum kortet viser omkring næste lur og sengetid. «Automatisk» bruger, "
+                             + "hvor godt forudsigelsen har ramt de seneste 14 dage. Gælder kun denne enhed.")
+                    }
+                    .listRowBackground(Color.card)
+                }
+
                 Section {
                     Toggle("Udpumpning", isOn: bind(s.featurePump) { model.setFeature(.pump, $0) })
                     if s.featurePump {

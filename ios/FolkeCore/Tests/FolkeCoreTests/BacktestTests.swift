@@ -27,4 +27,16 @@ import Testing
         #expect(Format.span(at(day(2026, 6, 10), 19, 53), calendar: cph) == "kl. 19.45–19.55")
         #expect(Format.span(at(day(2026, 6, 10), 19, 56), calendar: cph) == "kl. 19.50–20.00")
     }
+
+    @Test func spanEfterValgtVindue() {
+        let t = at(day(2026, 6, 10), 11, 32)
+        #expect(Format.span(t, window: 0, calendar: cph) == "ca. kl. 11.32")
+        #expect(Format.span(t, window: 20, calendar: cph) == "kl. 11.20–11.40")
+        #expect(Format.span(t, window: 30, calendar: cph) == "kl. 11.15–11.45")
+        // Automatisk: intervallet fra målingen, afrundet udad
+        #expect(Format.span(at(day(2026, 6, 10), 11, 30), window: PlanWindow.auto, interval: (-14, 14), calendar: cph)
+                == "kl. 11.15–11.45")
+        #expect(Format.span(at(day(2026, 6, 10), 19, 53), window: PlanWindow.auto, interval: (-10, 13), calendar: cph)
+                == "kl. 19.40–20.10")
+    }
 }

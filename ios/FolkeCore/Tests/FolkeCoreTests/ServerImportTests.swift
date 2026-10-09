@@ -105,4 +105,19 @@ import Testing
         #expect(FolkeStore.serverWakeID(Data(json.utf8), start: start) == 1)
         #expect(FolkeStore.serverWakeID(Data(json.utf8), start: .now) == nil)
     }
+
+    @Test func spejlingFoelgerServerensTimerSelvMedGenbrugtNummer() throws {
+        let s = try FolkeStore(inMemory: true)
+        try s.mirrorServerExport(Data(json.utf8))
+        #expect(s.runningSleep()?.start == FolkeStore.time("2026-10-06T09:33:29+00:00"))
+        // Serveren genbruger timer-id 1 til en ny søvn, og appen har ikke hentet imellem
+        let later = json.replacingOccurrences(of: "2026-10-06T09:33:29+00:00", with: "2026-10-06T18:39:50+00:00")
+        try s.mirrorServerExport(Data(later.utf8))
+        #expect(s.runningSleep()?.start == FolkeStore.time("2026-10-06T18:39:50+00:00"))
+        // Den kørende søvn er stoppet på enheden (fx fra låseskærmen), men kører stadig på serveren
+        try s.stopSleep()
+        try s.mirrorServerExport(Data(later.utf8))
+        #expect(s.runningSleep()?.start == FolkeStore.time("2026-10-06T18:39:50+00:00"))
+        #expect(s.fetch(Sleep.self).filter { $0.serverID < 0 }.count == 1)
+    }
 }

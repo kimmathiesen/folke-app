@@ -200,8 +200,24 @@ public extension FolkeStore {
     /// og kun for det valgte barn (udpumpning for familien). Opvågninger kun, hvis serveren sender dem.
     @discardableResult
     func mirrorServerExport(_ data: Data) throws -> ServerImportResult {
+        let e: ServerExport
+        do {
+            e = try JSONDecoder().decode(ServerExport.self, from: data)
+        } catch {
+            throw ServerImportError.notAnExport
+        }
+        // Den kørende søvn er serverens timer og intet andet. Serveren genbruger timer-id'er, så en gammel række
+        // med samme nummer (anden start, eller stoppet på enheden) og andre kørende søvn fjernes, før importen
+        // lægger timeren ind igen.
+        if child() != nil {
+            let timer = e.timer?.first.flatMap { t in Self.time(t.start).map { (Int64(-t.id), $0) } }
+            let p = NSPredicate(format: "serverID < 0 OR end == nil")
+            for o in fetch(FolkeCore.Sleep.self, forChild(p))
+            where !(timer?.0 == o.serverID && timer?.1 == o.start && o.end == nil) {
+                context.delete(o)
+            }
+        }
         let r = try importServerExport(data)
-        let e = try JSONDecoder().decode(ServerExport.self, from: data)
         func prune<T: NSManagedObject>(_ type: T.Type, keep: Set<Int64>, family: Bool = false) {
             let p = NSPredicate(format: "serverID != 0")
             for o in fetch(type, family ? forFamily(p) : forChild(p)) {

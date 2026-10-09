@@ -200,7 +200,7 @@ header{position:relative}
 <nav id="pnav"><button data-p="p-sleep" class="on">Søvn</button><button data-p="p-food">Mad</button><button data-p="p-pump" id="npump">Udpumpning</button><button data-p="p-growth">Vækst</button></nav>
 <div id="v-settings" class="ov" hidden>
 <div class="gh"><a href="#">‹ Tilbage</a><div class="dl">Indstillinger</div><span></span></div>
-<div class="card"><div class="dl">Tilpas</div><label class="sw">Barnets navn<input type="text" id="sname" class="tin" maxlength="40" autocomplete="off"></label><label class="sw">Jeg er<select id="srole"><option value="mor">Mor</option><option value="far">Far</option></select></label><label class="sw">Amning i Mad-kortet<input type="checkbox" id="cb"></label><label class="sw">Fast føde i Mad-kortet<input type="checkbox" id="cs"></label>
+<div class="card"><div class="dl">Tilpas</div><label class="sw">Barnets navn<input type="text" id="sname" class="tin" maxlength="40" autocomplete="off"></label><label class="sw">Jeg er<select id="srole"><option value="mor">Mor</option><option value="far">Far</option></select></label><label class="sw">Amning i Mad-kortet<input type="checkbox" id="cb"></label><label class="sw">Fast føde i Mad-kortet<input type="checkbox" id="cs"></label><label class="sw">Vindue for næste lur<select id="swin"><option value="0">Kun klokkeslæt</option><option value="10">10 min</option><option value="20">20 min</option><option value="30">30 min</option><option value="-1">Automatisk</option></select></label>
 <label class="sw">Udpumpning<input type="checkbox" id="cp"></label>
 <label class="sw" id="premrow">Påmind om udpumpning<select id="prem"><option value="2">efter 2 t</option><option value="2.5">efter 2½ t</option><option value="3">efter 3 t</option><option value="3.5">efter 3½ t</option><option value="4">efter 4 t</option><option value="5">efter 5 t</option><option value="6">efter 6 t</option></select></label>
 <div id="premnote" hidden>Påmindelsen sendes kun til enheder, der har slået «Påmindelse om udpumpning» til under notifikationer herunder. Ingen påmindelser mellem 22 og 7.</div>
@@ -263,7 +263,7 @@ const j=await r.json();if(!r.ok)throw new Error(j.error||r.status);return j}
 const isNap=()=>napSel??S.nap_guess;
 // Lur/nat sendes kun, hvis man selv har valgt. Ellers gætter serveren ud fra både start og længde (aftenlur = lur)
 const napBody=()=>napSel===null?{}:{nap:napSel};
-async function load(){try{S=await api('/api/status');$('err').textContent='';if(S.setup||!S.child_name||!role())onb();if(S.setup)return;hello();$('logo').classList.toggle('new',S.board>seen()&&location.hash!=='#tavle');if(document.activeElement!==$('sname'))$('sname').value=S.child_name;$('srole').value=role()||'mor';const F=S.features||{};$('cb').checked=!!F.breast;$('cs').checked=!!F.solids;$('sx').value=S.sex||'boy';$('cp').checked=!!F.pump;$('prem').value=String(S.pump_remind||3);$('premrow').hidden=$('premnote').hidden=$('kpump').hidden=!F.pump;
+async function load(){try{S=await api('/api/status');$('err').textContent='';if(S.setup||!S.child_name||!role())onb();if(S.setup)return;hello();$('logo').classList.toggle('new',S.board>seen()&&location.hash!=='#tavle');if(document.activeElement!==$('sname'))$('sname').value=S.child_name;$('srole').value=role()||'mor';$('swin').value=String(win());const F=S.features||{};$('cb').checked=!!F.breast;$('cs').checked=!!F.solids;$('sx').value=S.sex||'boy';$('cp').checked=!!F.pump;$('prem').value=String(S.pump_remind||3);$('premrow').hidden=$('premnote').hidden=$('kpump').hidden=!F.pump;
 if(S.sleeping){$('st').value='';$('lb').hidden=true}else{napSel=null;$('wt').value='';$('wb').hidden=true}}
 catch(e){$('err').textContent=e.message}render()}
 function render(){if(!S||S.setup)return;const sl=S.sleeping,p=S.prediction,ow=sl&&wakeOpen(),b=ow?ow.start:sl?S.since:S.awake_since;let secs=0;
@@ -482,6 +482,7 @@ try{if(S.setup)await api('/api/child',{name:n,birth_date:$('obirth').value});els
 setRole(oRole);$('onb').hidden=true;await syncDev();load()}catch(e){$('oerr').textContent=e.message}$('osave').disabled=false};
 $('sname').onchange=()=>api('/api/profile',{name:$('sname').value}).then(load).catch(e=>{$('err').textContent=e.message;$('sname').value=S.child_name});
 $('srole').onchange=async()=>{setRole($('srole').value);hello();await syncDev()};
+$('swin').onchange=()=>{try{localStorage.setItem('folke.planWindow',$('swin').value)}catch(e){}load()};
 // Giver push-tilmeldingen et navn som «Mors iPhone», så man kan se, hvis enhed det er
 async function syncDev(){try{if(!PUSHOK||!isSecureContext)return;const sub=await (await navigator.serviceWorker.ready).pushManager.getSubscription();
 if(sub)await api('/api/push/subscribe',{subscription:sub.toJSON(),origin:location.origin,name:devName()})}catch(e){}}
@@ -525,9 +526,12 @@ function minus(a,b,ws,day){let parts=[[a,b]];for(const w of ws||[]){const wa=new
 wb=w.end?(new Date(w.end).toDateString()===day?hr(w.end):0):hr(new Date());if(wb<=wa)continue;
 parts=parts.flatMap(([x,y])=>wb<=x||wa>=y?[[x,y]]:[[x,Math.min(y,wa)],[Math.max(x,wb),y]].filter(([p,q])=>q>p))}return parts}
 // ---------- Dagsplan: kortet «Næste lur» og listen «Resten af dagen» ----------
-// Interval ud fra hvor meget forudsigelsen har ramt ved siden af de seneste 14 dage (status.accuracy), afrundet til 5 min
 const r5=(ms,up)=>Math[up?'ceil':'floor'](ms/3e5)*3e5;
-const span=t=>{const lo=r5(new Date(t).getTime()-3e5);return`kl. ${hm(lo)}–${hm(lo+6e5)}`}; // vindue på 10 min
+// Vinduet vælges pr. enhed (localStorage folke.planWindow): 0 = kun klokkeslæt, 10/20/30 min, -1 = automatisk ud fra målingen
+const win=()=>{try{const v=localStorage.getItem('folke.planWindow');return v===null?10:+v}catch(e){return 10}};
+const span=t=>{const w=win(),x=new Date(t).getTime();if(!w)return`ca. kl. ${hm(x)}`;
+if(w<0){const A=S.accuracy,i=A&&A.interval||[-20,20];return`kl. ${hm(r5(x+i[0]*6e4))}–${hm(r5(x+i[1]*6e4,1))}`}
+const lo=r5(x-w*3e4);return`kl. ${hm(lo)}–${hm(lo+w*6e4)}`};
 const hit=()=>{const A=S.accuracy;const m=A&&Math.round(A.median_abs);return A&&A.n>=8?(m<5?' · typisk inden for 5 min':` · typisk ±${m} min`):''};
 function planUI(p,n){const P=S.plan;let k='',big='',sub='';
 if(P&&P.wake){k='Forventet vågen';big='ca. kl. '+hm(P.wake);sub='Ud fra hvor længe hans lure plejer at vare'}

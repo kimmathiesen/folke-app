@@ -1,5 +1,5 @@
 """Folke webapp: start/stop søvn + forudsigelse. Bruger folke.py som motor."""
-import json, math, os, struct, threading, time, zlib
+import hashlib, json, math, os, struct, threading, time, zlib
 from datetime import datetime, timedelta, date
 from flask import Flask, Response, jsonify, request, send_from_directory
 from werkzeug.exceptions import HTTPException
@@ -648,8 +648,12 @@ def export():
     """Alle data som JSON. Vækst og indstillinger ligger i growth.json og prefs.json."""
     data = {**db().export(), "growth": load_growth(), "prefs": prefs()}
     name = f"folke-{datetime.now(TZ):%Y-%m-%d}.json"
-    return Response(json.dumps(data, ensure_ascii=False, indent=1), mimetype="application/json",
-                    headers={"Content-Disposition": f'attachment; filename="{name}"'})
+    body = json.dumps(data, ensure_ascii=False, indent=1)
+    r = Response(body, mimetype="application/json",
+                 headers={"Content-Disposition": f'attachment; filename="{name}"', "Cache-Control": "no-cache"})
+    # ETag: iPhone-appen spørger ofte og får 304 (uden data), når intet er ændret
+    r.set_etag(hashlib.sha1(body.encode()).hexdigest())
+    return r.make_conditional(request)
 
 
 def make_icon(n=512):

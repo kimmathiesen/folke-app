@@ -160,6 +160,16 @@ def test_feed_med_tidspunkt(client, world):
     assert hm(folke.parse(world.feedings()[0]["start"])) == hm(t)
 
 
+def test_eksport_svarer_304_naar_intet_er_aendret(client, world):
+    r = client.get("/api/export")
+    tag = r.headers["ETag"]
+    assert r.status_code == 200 and tag
+    assert client.get("/api/export", headers={"If-None-Match": tag}).status_code == 304
+    client.post("/api/feed", json={"kind": "left"})
+    r2 = client.get("/api/export", headers={"If-None-Match": tag})
+    assert r2.status_code == 200 and r2.headers["ETag"] != tag
+
+
 def test_slet_maaltid(client, world):
     client.post("/api/feed", json={"kind": "left"})
     fid = world.feedings()[0]["id"]

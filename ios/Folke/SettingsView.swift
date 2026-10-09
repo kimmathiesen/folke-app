@@ -193,7 +193,7 @@ struct SettingsView: View {
             Text("Synkronisering med Folke-server")
         } footer: {
             Text("Samme adresse som webappen. Midlertidigt, indtil deling via iCloud er klar. Serveren bestemmer: alt, du registrerer, sendes til den, "
-                 + "og appen henter jeres fælles data hvert 20. sekund, mens den er åben. Uden forbindelse til serveren gemmes "
+                 + "og appen henter jeres fælles data hvert 5. sekund, mens den er åben. Uden forbindelse til serveren gemmes "
                  + "intet. Widgets og Siri gemmer kun på enheden.")
         }
         .listRowBackground(Color.card)

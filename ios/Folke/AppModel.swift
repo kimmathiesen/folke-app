@@ -648,18 +648,29 @@ final class AppModel {
         return true
     }
 
-    /// Hent serverens data (ved start, når appen kommer frem, hvert 20. sek. mens den er fremme, og efter handlinger)
+    /// Hvor ofte der hentes, mens appen er fremme: tit, når der er forbindelse (serveren svarer kort «uændret»),
+    /// sjældnere, når serveren ikke kan nås
+    var pullInterval: Duration { serverOffline ? .seconds(30) : .seconds(5) }
+    private var pullFailures = 0
+
+    /// Hent serverens data (ved start, når appen kommer frem, jævnligt mens den er fremme, og efter handlinger).
+    /// «Ingen forbindelse» vises først efter to mislykkede hentninger i træk.
     func pullServer() async {
         guard let sync = serverSync else { return }
+        let wasOffline = serverOffline
         do {
-            try await sync.pull(into: store)
+            let changed = try await sync.pull(into: store)
             syncStatus = "Hentet kl. \(Format.time(.now))"
+            pullFailures = 0
             serverOffline = false
+            if changed || wasOffline { refresh() }
         } catch {
-            syncStatus = (error as? LocalizedError)?.errorDescription ?? error.localizedDescription
-            serverOffline = true
+            pullFailures += 1
+            if pullFailures >= 2 {
+                syncStatus = (error as? LocalizedError)?.errorDescription ?? error.localizedDescription
+                serverOffline = true
+            }
         }
-        refresh()
     }
 
     /// Slå synkroniseringen til: tjek adressen, slet det, der kun ligger på enheden, og hent serverens data.
@@ -684,6 +695,7 @@ final class AppModel {
         serverSync = nil
         syncStatus = ""
         serverOffline = false
+        pullFailures = 0
     }
 
     // MARK: Eksport som CSV

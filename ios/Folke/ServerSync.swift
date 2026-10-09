@@ -14,6 +14,8 @@ import Foundation
     let base: URL
     private(set) var lastExport: Data?
     private(set) var lastPull: Date?
+    /// Serverens fingeraftryk af seneste eksport (svar 304 = intet nyt)
+    private var etag: String?
 
     init?(_ text: String = ServerSync.url) {
         var t = text.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -43,12 +45,32 @@ import Foundation
         }
     }
 
-    /// Hent serverens data og spejl dem ind.
-    func pull(into store: FolkeStore) async throws {
-        let data = try await request("GET", "/api/export")
+    /// Hent serverens data og spejl dem ind. Giver true, hvis noget var ændret.
+    /// Et mislykket forsøg (fx et kort hak i forbindelsen) prøves igen én gang efter 2 sek.
+    func pull(into store: FolkeStore) async throws -> Bool {
+        let (data, status, tag): (Data, Int, String?)
+        do {
+            (data, status, tag) = try await fetchExport()
+        } catch Failure.offline {
+            try await Task.sleep(for: .seconds(2))
+            (data, status, tag) = try await fetchExport()
+        }
+        lastPull = .now
+        if status == 304 || data == lastExport { return false }
         try store.mirrorServerExport(data)
         lastExport = data
-        lastPull = .now
+        etag = tag
+        return true
+    }
+
+    private func fetchExport() async throws -> (Data, Int, String?) {
+        var r = URLRequest(url: base.appending(path: "/api/export"), cachePolicy: .reloadIgnoringLocalCacheData,
+                           timeoutInterval: 10)
+        if let etag, lastExport != nil { r.setValue(etag, forHTTPHeaderField: "If-None-Match") }
+        let (data, response) = try await load(r)
+        if response.statusCode == 304 { return (Data(), 304, etag) }
+        try check(data, response)
+        return (data, response.statusCode, response.value(forHTTPHeaderField: "ETag"))
     }
 
     /// Send en handling. `body` bliver til JSON.
@@ -63,19 +85,30 @@ import Foundation
             r.setValue("application/json", forHTTPHeaderField: "Content-Type")
             r.httpBody = try JSONSerialization.data(withJSONObject: body)
         }
-        let data: Data, response: URLResponse
+        let (data, response) = try await load(r)
+        try check(data, response)
+        return data
+    }
+
+    private func load(_ r: URLRequest) async throws -> (Data, HTTPURLResponse) {
         do {
-            (data, response) = try await URLSession.shared.data(for: r)
+            let (data, response) = try await URLSession.shared.data(for: r)
+            guard let http = response as? HTTPURLResponse else { throw Failure.offline("intet svar") }
+            return (data, http)
+        } catch let f as Failure {
+            throw f
         } catch {
             throw Failure.offline(error.localizedDescription)
         }
-        let status = (response as? HTTPURLResponse)?.statusCode ?? 0
+    }
+
+    private func check(_ data: Data, _ response: HTTPURLResponse) throws {
+        let status = response.statusCode
         if status == 404 || status == 405 { throw Failure.unsupported }
         if !(200..<300).contains(status) {
             let msg = (try? JSONSerialization.jsonObject(with: data) as? [String: Any])?["error"] as? String
             throw Failure.server(msg ?? "Serveren svarede \(status)")
         }
-        return data
     }
 
     // MARK: Tidspunkter i serverens format (serveren regner i dansk tid)

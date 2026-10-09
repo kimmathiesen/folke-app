@@ -47,11 +47,11 @@ struct RootView: View {
         } message: {
             Text(model.serverAlert ?? "")
         }
-        // Midlertidig synkronisering: hent fra Folke-serveren hvert 20. sek., mens appen er fremme
+        // Midlertidig synkronisering: hent fra Folke-serveren jævnligt, mens appen er fremme (`AppModel.pullInterval`)
         .task(id: scenePhase == .active && model.serverSync != nil) {
             while scenePhase == .active && model.serverSync != nil && !Task.isCancelled {
                 await model.pullServer()
-                try? await Task.sleep(for: .seconds(20))
+                try? await Task.sleep(for: model.pullInterval)
             }
         }
         .onChange(of: scenePhase) { _, phase in

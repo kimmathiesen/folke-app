@@ -179,7 +179,7 @@ struct SettingsView: View {
                 Button("Hent nu") { Task { await model.pullServer() } }
                 Button("Stop synkronisering", role: .destructive) { model.disconnectServer() }
             } else {
-                TextField("Adresse, fx 192.168.1.10:6661", text: $serverURL)
+                TextField("Adresse, fx folke.mathiesen.pro", text: $serverURL)
                     .keyboardType(.URL)
                     .textInputAutocapitalization(.never)
                     .autocorrectionDisabled()
@@ -192,7 +192,7 @@ struct SettingsView: View {
         } header: {
             Text("Synkronisering med Folke-server")
         } footer: {
-            Text("Midlertidigt, indtil deling via iCloud er klar. Serveren bestemmer: alt, du registrerer, sendes til den, "
+            Text("Samme adresse som webappen. Midlertidigt, indtil deling via iCloud er klar. Serveren bestemmer: alt, du registrerer, sendes til den, "
                  + "og appen henter jeres fælles data hvert 20. sekund, mens den er åben. Uden forbindelse til serveren gemmes "
                  + "intet. Widgets og Siri gemmer kun på enheden.")
         }

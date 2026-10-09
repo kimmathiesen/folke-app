@@ -5,7 +5,7 @@ import Foundation
 /// Kun i egne builds. Serveren er facit: handlinger sendes til dens API, og bagefter hentes `GET /api/export`
 /// og spejles ind i databasen (`mirrorServerExport`). Uden forbindelse til serveren gemmes intet.
 @MainActor final class ServerSync {
-    /// Adressen gemmes kun på enheden, fx «http://192.168.1.10:6661». Tom = slået fra.
+    /// Adressen gemmes kun på enheden, fx «https://folke.mathiesen.pro» eller «http://192.168.1.10:6661». Tom = slået fra.
     static var url: String {
         get { FolkeShared.defaults.string(forKey: "folke.serverURL") ?? "" }
         set { FolkeShared.defaults.set(newValue, forKey: "folke.serverURL") }
@@ -18,7 +18,13 @@ import Foundation
     init?(_ text: String = ServerSync.url) {
         var t = text.trimmingCharacters(in: .whitespacesAndNewlines)
         while t.hasSuffix("/") { t.removeLast() }
-        if !t.isEmpty && !t.contains("://") { t = "http://" + t }
+        // Uden «http(s)://»: et domæne (fx folke.mathiesen.pro) får https, en IP-adresse eller et lokalt navn
+        // på hjemmenetværket (fx 192.168.1.10:6661, tower.local) får http
+        if !t.isEmpty && !t.contains("://") {
+            let host = t.split(separator: ":").first.map(String.init) ?? t
+            let local = host.allSatisfy { $0.isNumber || $0 == "." } || host.hasSuffix(".local") || !host.contains(".")
+            t = (local ? "http://" : "https://") + t
+        }
         guard !t.isEmpty, let u = URL(string: t), u.host != nil else { return nil }
         base = u
     }

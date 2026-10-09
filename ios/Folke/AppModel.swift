@@ -665,7 +665,7 @@ final class AppModel {
     /// Slå synkroniseringen til: tjek adressen, slet det, der kun ligger på enheden, og hent serverens data.
     /// Giver en fejltekst eller nil.
     func connectServer(_ text: String) async -> String? {
-        guard let sync = ServerSync(text) else { return "Skriv serverens adresse, fx 192.168.1.10:6661" }
+        guard let sync = ServerSync(text) else { return "Skriv serverens adresse, fx folke.mathiesen.pro" }
         do {
             try await sync.send("GET", "/api/export")
             try store.deleteLocalOnly()

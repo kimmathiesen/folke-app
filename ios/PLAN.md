@@ -364,6 +364,7 @@ Afgør derefter prisen. Indtægter er skattepligtige: tjek CVR og moms (Apple af
 4. Lokale notifikationer og indstillinger. *(færdig)*
 5. Vækst og udpumpningshistorik. *(færdig)*
 6. iCloud-deling mellem to konti og tavlen (tavlen lokalt er færdig; deling mangler). Med den: Plus følger barnet (afsnit 9). Kræver betalt udviklerkonto, Team ID og endeligt bundle id. App Group `group.dk.folkeapp.folke` skal også oprettes på kontoen.
+   **Fjern den midlertidige synkronisering med Folke-serveren** (`Folke/ServerSync.swift`, `remote`/`pullServer`/`connectServer` i `AppModel`, sektionen i Indstillinger, `-serverURL`, `mirrorServerExport`/`deleteLocalOnly`/`serverWakeID` i `ServerImport.swift` med tests, `NSAllowsLocalNetworking` og `NSLocalNetworkUsageDescription` i `Folke-Info.plist`). Den er kun en nødløsning, indtil iCloud virker (besluttet 9/10 2026). Importen af en eksportfil bliver.
 7. Live Activity, widgets og App Intents. *(færdig, testet i simulatoren; Siri-sætninger og låseskærm-widgets er ikke afprøvet)*
 8. **Skjult** import fra Folke-serveren (kun i egne builds: debug og TestFlight, aldrig i App Store-versionen, da andre
    brugere ikke har en server). *(import færdig)* TestFlight til familien.

@@ -153,6 +153,11 @@ final class AppModel {
         // `-demoData YES` (evt. `-demoMonths 7`): barn på 4 mdr. med 10 dages søvn, mad, udpumpning og vækst.
         // `-demoExport <sti>`: en eksport fra Folke-serveren (som importen under Indstillinger).
         let d = UserDefaults.standard
+        // `-serverURL <adresse>`: synkronisering med en Folke-server (som «Forbind» under Indstillinger)
+        if let url = d.string(forKey: "serverURL") {
+            ServerSync.url = url
+            try? FolkeShared.store.deleteLocalOnly()
+        }
         if d.string(forKey: "demoExport") != nil || d.bool(forKey: "demoData") {
             let store = FolkeShared.store
             do {
@@ -283,6 +288,13 @@ final class AppModel {
     }
 
     func toggleSleep() {
+        if remote({ [nap = napSelection, running = snapshot.running != nil] sync in
+            if running {
+                try await sync.send("POST", "/api/stop", nap.map { ["nap": $0] } ?? [:])
+            } else {
+                try await sync.send("POST", "/api/start", [:])
+            }
+        }) { return }
         perform {
             if snapshot.running != nil {
                 try store.stopSleep(nap: napSelection) // uden eget valg gættes ud fra start og længde
@@ -306,6 +318,15 @@ final class AppModel {
     func forgot(_ time: Date) {
         let c = Calendar.current.dateComponents([.hour, .minute], from: time)
         let t = SleepRules.resolve(hour: c.hour ?? 0, minute: c.minute ?? 0, now: .now)
+        if remote({ [nap = napSelection, running = snapshot.running != nil] sync in
+            if running {
+                var body: [String: Any] = ["wake": ServerSync.clock(t)]
+                if let nap { body["nap"] = nap }
+                try await sync.send("POST", "/api/stop", body)
+            } else {
+                try await sync.send("POST", "/api/start", ["since": ServerSync.clock(t)])
+            }
+        }) { return }
         perform {
             if snapshot.running != nil {
                 try store.stopSleep(at: t, nap: napSelection)
@@ -325,6 +346,14 @@ final class AppModel {
 
     func editSleep(id: UUID, start: Date, end: Date, nap: Bool) -> String? {
         guard let s = store.sleep(id: id) else { return nil }
+        if serverSync != nil {
+            guard s.serverID > 0 else { return "Søvnen findes ikke på serveren endnu" }
+            remote { sync in
+                try await sync.send("POST", "/api/sleep/\(s.serverID)",
+                                    ["start": ServerSync.local(start), "end": ServerSync.local(end), "nap": nap])
+            }
+            return nil
+        }
         do {
             try store.editSleep(s, start: start, end: end, nap: nap)
             refresh()
@@ -336,32 +365,61 @@ final class AppModel {
 
     func deleteSleep(id: UUID) {
         guard let s = store.sleep(id: id) else { return }
+        if serverSync != nil, s.serverID > 0 {
+            remote { [sid = s.serverID] sync in try await sync.send("DELETE", "/api/sleep/\(sid)") }
+            return
+        }
         perform { try store.deleteSleep(s) }
     }
 
     /// «Vågnede» / «Sover igen» om natten
     func toggleWake() {
+        if remote({ [open = store.openWake() != nil] sync in
+            try await sync.send("POST", "/api/wake", ["action": open ? "stop" : "start"])
+        }) { return }
         perform {
             if store.openWake() != nil { try store.stopWake() } else { try store.startWake(by: role) }
         }
     }
 
     func deleteWake(id: UUID) {
+        if let sync = serverSync {
+            let start = store.wakes(from: .distantPast).first { $0.id == id }?.start
+            guard let start, let data = sync.lastExport, let wid = FolkeStore.serverWakeID(data, start: start) else {
+                error = "Opvågningen findes ikke på serveren endnu"
+                return
+            }
+            remote { sync in try await sync.send("DELETE", "/api/wake/\(wid)") }
+            return
+        }
         perform { try store.deleteWake(id: id) }
     }
 
     @discardableResult
     func feed(_ kind: FeedKind, amountMl: Double? = nil, milk: Milk = .breast, note: String = "", at time: Date?) -> Bool {
-        perform { try store.addFeeding(kind, amountMl: amountMl, milk: milk, note: note, at: Self.resolve(time)) }
+        var body: [String: Any] = ["kind": kind.rawValue, "milk": milk.rawValue, "note": note]
+        if let amountMl { body["amount"] = amountMl }
+        if let t = Self.resolve(time) { body["at"] = ServerSync.clock(t) }
+        if remote({ [body] sync in try await sync.send("POST", "/api/feed", body) }) { return true }
+        return perform { try store.addFeeding(kind, amountMl: amountMl, milk: milk, note: note, at: Self.resolve(time)) }
     }
 
     @discardableResult
     func pump(amountMl: Double, side: Side?, minutes: Double?, at time: Date?) -> Bool {
-        perform { try store.addPumping(amountMl: amountMl, side: side, minutes: minutes, at: Self.resolve(time)) }
+        var body: [String: Any] = ["amount": amountMl]
+        if let side { body["side"] = side.rawValue }
+        if let minutes { body["minutes"] = minutes }
+        if let t = Self.resolve(time) { body["at"] = ServerSync.clock(t) }
+        if remote({ [body] sync in try await sync.send("POST", "/api/pump", body) }) { return true }
+        return perform { try store.addPumping(amountMl: amountMl, side: side, minutes: minutes, at: Self.resolve(time)) }
     }
 
     func deleteFeeding(id: UUID) {
         guard let f = store.feeding(id: id) else { return }
+        if serverSync != nil, f.serverID > 0 {
+            remote { [fid = f.serverID] sync in try await sync.send("DELETE", "/api/feed/\(fid)") }
+            return
+        }
         perform { try store.delete(f) }
     }
 
@@ -383,15 +441,38 @@ final class AppModel {
     }
 
     func saveGrowth(id: UUID?, date: Date, values: [WHO.Measure: Double?]) -> String? {
-        attempt { try store.saveGrowth(id.flatMap(store.growth(id:)), date: date, values: values) }
+        if serverSync != nil {
+            let g = id.flatMap(store.growth(id:))
+            if g != nil && g!.serverID <= 0 { return "Målingen findes ikke på serveren endnu" }
+            var body: [String: Any] = ["date": ServerSync.day(date)]
+            for (m, key) in [(WHO.Measure.weight, "w"), (.length, "l"), (.head, "h")] {
+                body[key] = values[m].flatMap { $0 } ?? NSNull()
+            }
+            let path = g.map { "/api/growth/\($0.serverID)" } ?? "/api/growth"
+            remote { [body] sync in try await sync.send("POST", path, body) }
+            return nil
+        }
+        return attempt { try store.saveGrowth(id.flatMap(store.growth(id:)), date: date, values: values) }
     }
 
     func deleteGrowth(id: UUID) {
+        if serverSync != nil, let g = store.growth(id: id), g.serverID > 0 {
+            remote { [gid = g.serverID] sync in try await sync.send("DELETE", "/api/growth/\(gid)") }
+            return
+        }
         _ = attempt { if let g = store.growth(id: id) { try store.delete(g) } }
     }
 
     func editPumping(id: UUID, time: Date, amountMl: Double, side: Side?, minutes: Double?) -> String? {
-        attempt {
+        if serverSync != nil {
+            guard let p = store.pumping(id: id), p.serverID > 0 else { return "Udpumpningen findes ikke på serveren endnu" }
+            var body: [String: Any] = ["start": ServerSync.local(time), "amount": amountMl]
+            if let side { body["side"] = side.rawValue }
+            if let minutes { body["minutes"] = minutes }
+            remote { [body, pid = p.serverID] sync in try await sync.send("POST", "/api/pump/\(pid)", body) }
+            return nil
+        }
+        return attempt {
             if let p = store.pumping(id: id) {
                 try store.editPumping(p, time: time, amountMl: amountMl, side: side, minutes: minutes)
             }
@@ -399,6 +480,10 @@ final class AppModel {
     }
 
     func deletePumping(id: UUID) {
+        if serverSync != nil, let p = store.pumping(id: id), p.serverID > 0 {
+            remote { [pid = p.serverID] sync in try await sync.send("DELETE", "/api/pump/\(pid)") }
+            return
+        }
         _ = attempt { if let p = store.pumping(id: id) { try store.delete(p) } }
     }
 
@@ -533,6 +618,72 @@ final class AppModel {
         } catch {
             return (error as? LocalizedError)?.errorDescription ?? error.localizedDescription
         }
+    }
+
+    // MARK: Midlertidig synkronisering med Folke-serveren (ServerSync)
+
+    private(set) var serverSync: ServerSync? = ServerSync()
+    /// «Hentet kl. 14.05» eller fejlen fra seneste forsøg (vises under Indstillinger)
+    private(set) var syncStatus = ""
+    /// Fejl fra en handling, der ikke nåede serveren (vises som advarsel)
+    var serverAlert: String?
+    /// Seneste hentning fra serveren mislykkedes
+    private(set) var serverOffline = false
+
+    /// Send en handling til serveren og hent bagefter dens data. Giver false, når synkroniseringen er slået fra,
+    /// så handlingen i stedet gemmes på enheden.
+    @discardableResult
+    private func remote(_ work: @escaping (ServerSync) async throws -> Void) -> Bool {
+        guard let sync = serverSync else { return false }
+        Task {
+            do {
+                try await work(sync)
+                error = nil
+            } catch {
+                // Som advarsel midt på skærmen: det, man lige trykkede på, er ikke gemt
+                serverAlert = (error as? LocalizedError)?.errorDescription ?? error.localizedDescription
+            }
+            await pullServer()
+        }
+        return true
+    }
+
+    /// Hent serverens data (ved start, når appen kommer frem, hvert 20. sek. mens den er fremme, og efter handlinger)
+    func pullServer() async {
+        guard let sync = serverSync else { return }
+        do {
+            try await sync.pull(into: store)
+            syncStatus = "Hentet kl. \(Format.time(.now))"
+            serverOffline = false
+        } catch {
+            syncStatus = (error as? LocalizedError)?.errorDescription ?? error.localizedDescription
+            serverOffline = true
+        }
+        refresh()
+    }
+
+    /// Slå synkroniseringen til: tjek adressen, slet det, der kun ligger på enheden, og hent serverens data.
+    /// Giver en fejltekst eller nil.
+    func connectServer(_ text: String) async -> String? {
+        guard let sync = ServerSync(text) else { return "Skriv serverens adresse, fx 192.168.1.10:6661" }
+        do {
+            try await sync.send("GET", "/api/export")
+            try store.deleteLocalOnly()
+            ServerSync.url = sync.base.absoluteString
+            serverSync = sync
+            await pullServer()
+            return nil
+        } catch {
+            return (error as? LocalizedError)?.errorDescription ?? error.localizedDescription
+        }
+    }
+
+    /// Slå synkroniseringen fra. Data bliver liggende på enheden.
+    func disconnectServer() {
+        ServerSync.url = ""
+        serverSync = nil
+        syncStatus = ""
+        serverOffline = false
     }
 
     // MARK: Eksport som CSV

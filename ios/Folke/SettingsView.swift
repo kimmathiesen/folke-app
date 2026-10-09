@@ -14,6 +14,10 @@ struct SettingsView: View {
     @State private var importMessage = ""
     @State private var exportFile: URL?
     @FocusState private var nameFocused: Bool
+    @State private var serverURL = ""
+    @State private var serverMessage = ""
+    @State private var connecting = false
+    @State private var confirmConnect = false
 
     static let remindOptions: [(Double, String)] = [(2, "efter 2 t"), (2.5, "efter 2½ t"), (3, "efter 3 t"),
                                                      (3.5, "efter 3½ t"), (4, "efter 4 t"), (5, "efter 5 t"),
@@ -115,6 +119,10 @@ struct SettingsView: View {
                 .listRowBackground(Color.card)
 
                 if model.importAvailable {
+                    serverSection
+                }
+
+                if model.importAvailable && model.serverSync == nil {
                     Section {
                         Button("Vælg fil") { importing = true }
                         if !importMessage.isEmpty { Text(importMessage).font(.footnote) }
@@ -157,6 +165,48 @@ struct SettingsView: View {
             case .success(let url): importMessage = model.importServer(url)
             case .failure(let error): importMessage = error.localizedDescription
             }
+        }
+    }
+
+    /// Midlertidig synkronisering med Folke-serveren (kun egne builds), indtil iCloud er slået til
+    @ViewBuilder var serverSection: some View {
+        Section {
+            if let sync = model.serverSync {
+                LabeledContent("Server", value: sync.base.absoluteString)
+                if !model.syncStatus.isEmpty {
+                    Text(model.syncStatus).font(.footnote).foregroundStyle(muted)
+                }
+                Button("Hent nu") { Task { await model.pullServer() } }
+                Button("Stop synkronisering", role: .destructive) { model.disconnectServer() }
+            } else {
+                TextField("Adresse, fx 192.168.1.10:6661", text: $serverURL)
+                    .keyboardType(.URL)
+                    .textInputAutocapitalization(.never)
+                    .autocorrectionDisabled()
+                Button(connecting ? "Forbinder …" : "Forbind") { confirmConnect = true }
+                    .disabled(serverURL.trimmingCharacters(in: .whitespaces).isEmpty || connecting)
+                if !serverMessage.isEmpty {
+                    Text(serverMessage).font(.footnote).foregroundStyle(Color.errorText)
+                }
+            }
+        } header: {
+            Text("Synkronisering med Folke-server")
+        } footer: {
+            Text("Midlertidigt, indtil deling via iCloud er klar. Serveren bestemmer: alt, du registrerer, sendes til den, "
+                 + "og appen henter jeres fælles data hvert 20. sekund, mens den er åben. Uden forbindelse til serveren gemmes "
+                 + "intet. Widgets og Siri gemmer kun på enheden.")
+        }
+        .listRowBackground(Color.card)
+        .confirmationDialog("Forbind til Folke-serveren?", isPresented: $confirmConnect, titleVisibility: .visible) {
+            Button("Forbind og hent serverens data") {
+                connecting = true
+                Task {
+                    serverMessage = await model.connectServer(serverURL) ?? ""
+                    connecting = false
+                }
+            }
+        } message: {
+            Text("Det, der kun er registreret på denne enhed for \(model.snapshot.childName), slettes, så serverens data ikke står dobbelt.")
         }
     }
 

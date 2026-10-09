@@ -10,6 +10,13 @@ struct HomeView: View {
     var body: some View {
         VStack(spacing: 0) {
             TopBar()
+            if model.serverOffline {
+                Label("Ingen forbindelse til Folke-serveren. Det, du ser, er måske ikke det nyeste.", systemImage: "wifi.slash")
+                    .font(.footnote)
+                    .foregroundStyle(Color.errorText)
+                    .padding(.horizontal, 20)
+                    .padding(.bottom, 6)
+            }
             GeometryReader { g in
                 ScrollView(.horizontal) {
                     HStack(spacing: 0) {

@@ -62,4 +62,47 @@ import Testing
         #expect(throws: ServerImportError.self) { try s.importServerExport(Data("{\"x\": 1}".utf8)) }
         #expect(throws: ServerImportError.self) { try s.importServerExport(Data("{\"child\": []}".utf8)) }
     }
+
+    // MARK: Spejling (midlertidig synkronisering)
+
+    @Test func spejlingFjernerDetServerenHarSlettet() throws {
+        let s = try FolkeStore(inMemory: true)
+        try s.mirrorServerExport(Data(json.utf8))
+        #expect(s.runningSleep() != nil)
+        // Timeren er stoppet på serveren (ny søvn id 3), måltid 3, udpumpningen, målingen og opvågningen er slettet
+        let next = json
+            .replacingOccurrences(of: #""timer": [{"id": 1, "bb_id": null, "child": 1, "name": "Søvn", "start": "2026-10-06T09:33:29+00:00"}]"#,
+                                  with: #""timer": []"#)
+            .replacingOccurrences(of: #""nap": 0}],"#,
+                                  with: #""nap": 0}, {"id": 3, "child": 1, "start": "2026-10-06T09:33:29+00:00", "end": "2026-10-06T10:40:00+00:00", "nap": 1}],"#)
+            .replacingOccurrences(of: #",\s*\{"id": 3, "bb_id": null[^}]*\}"#, with: "", options: .regularExpression)
+            .replacingOccurrences(of: #""growth": [{"id": 1, "date": "2026-09-01", "w": 6.1, "l": 61.0, "h": null}]"#, with: #""growth": []"#)
+            .replacingOccurrences(of: #""night_wake": [{"id": 1, "child": 1, "start": "2026-10-04T23:10:00+00:00", "end": "2026-10-04T23:30:00+00:00"}]"#,
+                                  with: #""night_wake": []"#)
+        try s.mirrorServerExport(Data(next.utf8))
+        #expect(s.runningSleep() == nil)
+        #expect(s.fetch(Sleep.self).map(\.serverID).sorted() == [1, 2, 3])
+        #expect(s.fetch(Feeding.self).map(\.serverID).sorted() == [1, 2])
+        #expect(s.fetch(Pumping.self).count == 1)
+        #expect(s.fetch(Growth.self).isEmpty && s.wakes(from: .distantPast).isEmpty)
+    }
+
+    @Test func spejlingRoererIkkeLokaleRaekkerOgDeleteLocalOnlyRydder() throws {
+        let s = try FolkeStore(inMemory: true)
+        try s.mirrorServerExport(Data(json.utf8))
+        try s.addPumping(amountMl: 90) // kun på enheden (serverID 0)
+        try s.mirrorServerExport(Data(json.utf8))
+        #expect(s.fetch(Pumping.self).count == 2)
+        try s.deleteLocalOnly()
+        #expect(s.fetch(Pumping.self).map(\.serverID) == [1])
+        #expect(s.wakes(from: .distantPast).isEmpty) // opvågninger hentes igen ved næste spejling
+        try s.mirrorServerExport(Data(json.utf8))
+        #expect(s.wakes(from: .distantPast).count == 1)
+    }
+
+    @Test func serverensIdForEnOpvaagning() throws {
+        let start = try #require(FolkeStore.time("2026-10-04T23:10:00+00:00"))
+        #expect(FolkeStore.serverWakeID(Data(json.utf8), start: start) == 1)
+        #expect(FolkeStore.serverWakeID(Data(json.utf8), start: .now) == nil)
+    }
 }

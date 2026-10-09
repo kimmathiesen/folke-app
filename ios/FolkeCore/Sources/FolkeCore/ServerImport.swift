@@ -195,6 +195,51 @@ public extension FolkeStore {
         return r
     }
 
+    /// Spejl serveren (midlertidig synkronisering, kun egne builds): importér som ovenfor, og fjern derefter det,
+    /// serveren ikke har længere (slettet eller, for en kørende timer, stoppet). Kun rækker med serverID røres,
+    /// og kun for det valgte barn (udpumpning for familien). Opvågninger kun, hvis serveren sender dem.
+    @discardableResult
+    func mirrorServerExport(_ data: Data) throws -> ServerImportResult {
+        let r = try importServerExport(data)
+        let e = try JSONDecoder().decode(ServerExport.self, from: data)
+        func prune<T: NSManagedObject>(_ type: T.Type, keep: Set<Int64>, family: Bool = false) {
+            let p = NSPredicate(format: "serverID != 0")
+            for o in fetch(type, family ? forFamily(p) : forChild(p)) {
+                if let id = o.value(forKey: "serverID") as? Int64, !keep.contains(id) { context.delete(o) }
+            }
+        }
+        prune(FolkeCore.Sleep.self, keep: Set((e.sleep ?? []).map { Int64($0.id) } + (e.timer ?? []).map { Int64(-$0.id) }))
+        prune(Feeding.self, keep: Set((e.feeding ?? []).map { Int64($0.id) }))
+        prune(Pumping.self, keep: Set((e.pumping ?? []).map { Int64($0.id) }), family: true)
+        prune(Growth.self, keep: Set((e.growth ?? []).map { Int64($0.id) }))
+        if let wakes = e.night_wake {
+            let starts = Set(wakes.compactMap { Self.time($0.start) })
+            for w in fetch(NightWake.self, forChild(nil)) where !starts.contains(w.start ?? .distantPast) {
+                context.delete(w)
+            }
+        }
+        try save()
+        return r
+    }
+
+    /// Når synkroniseringen slås til: det, der kun ligger på enheden for det valgte barn (og familiens udpumpning),
+    /// slettes, så serveren er facit og intet står dobbelt.
+    func deleteLocalOnly() throws {
+        let p = NSPredicate(format: "serverID == 0")
+        for o in fetch(FolkeCore.Sleep.self, forChild(p)) { context.delete(o) }
+        for o in fetch(Feeding.self, forChild(p)) { context.delete(o) }
+        for o in fetch(Growth.self, forChild(p)) { context.delete(o) }
+        for o in fetch(Pumping.self, forFamily(p)) { context.delete(o) }
+        for o in fetch(NightWake.self, forChild(nil)) { context.delete(o) }
+        try save()
+    }
+
+    /// Serverens id for en opvågning (genkendes på starttidspunktet i serverens eksport)
+    static func serverWakeID(_ data: Data, start: Date) -> Int? {
+        guard let e = try? JSONDecoder().decode(ServerExport.self, from: data) else { return nil }
+        return e.night_wake?.first { time($0.start) == start }?.id
+    }
+
     /// ISO-tid fra serveren, fx "2026-10-04T15:44:51+00:00" (med eller uden brøkdele af sekunder).
     static func time(_ s: String) -> Date? {
         let f = ISO8601DateFormatter()

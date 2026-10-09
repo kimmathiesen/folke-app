@@ -42,6 +42,18 @@ struct RootView: View {
             .onChange(of: Calendar.current.component(.minute, from: tl.date)) { model.refresh() }
         }
         .preferredColorScheme(.dark)
+        .alert("Ikke gemt", isPresented: Binding(get: { model.serverAlert != nil }, set: { if !$0 { model.serverAlert = nil } })) {
+            Button("OK") {}
+        } message: {
+            Text(model.serverAlert ?? "")
+        }
+        // Midlertidig synkronisering: hent fra Folke-serveren hvert 20. sek., mens appen er fremme
+        .task(id: scenePhase == .active && model.serverSync != nil) {
+            while scenePhase == .active && model.serverSync != nil && !Task.isCancelled {
+                await model.pullServer()
+                try? await Task.sleep(for: .seconds(20))
+            }
+        }
         .onChange(of: scenePhase) { _, phase in
             if phase == .active { model.refresh() }
             if phase == .background { BackgroundRefresh.schedule() }

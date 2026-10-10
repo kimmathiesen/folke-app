@@ -6,6 +6,8 @@ struct PumpHistoryView: View {
     @Environment(AppModel.self) private var model
     @Environment(\.muted) private var muted
     @State private var editing: Snapshot.PumpItem?
+    @State private var adding = false
+    @State private var addID = UUID()
 
     var body: some View {
         let s = model.snapshot
@@ -28,6 +30,8 @@ struct PumpHistoryView: View {
                 }
                 .card()
                 .padding(.top, 16)
+                GoButton(title: "Tilføj tidligere udpumpning", kind: .ghost) { addID = UUID(); adding = true }
+                    .padding(.top, 12)
                 if !s.pumpItems.isEmpty {
                     list(s.pumpItems)
                 }
@@ -46,7 +50,9 @@ struct PumpHistoryView: View {
         .scrollIndicators(.hidden)
         .scrollDismissesKeyboard(.interactively)
         }
-        .sheet(item: $editing) { PumpSheet(item: $0) }
+        // Egen identitet pr. ark, så «Tilføj» ikke arver felterne fra den udpumpning, der sidst blev rettet
+        .sheet(item: $editing) { PumpSheet(item: $0).id($0.id.uuidString) }
+        .sheet(isPresented: $adding) { PumpSheet(item: nil).id(addID.uuidString) }
     }
 
     func list(_ items: [Snapshot.PumpItem]) -> some View {
@@ -131,7 +137,7 @@ struct PumpChart: View {
     }
 }
 
-/// «Ret udpumpning» (`#psheet`).
+/// «Ret udpumpning» (`#psheet`), eller «Tilføj udpumpning» (item nil) til en glemt udpumpning, også en anden dag.
 struct PumpSheet: View {
     @Environment(AppModel.self) private var model
     @Environment(\.dismiss) private var dismiss
@@ -142,28 +148,28 @@ struct PumpSheet: View {
     @State private var minutes: String
     @State private var error = ""
     @State private var armed = false
-    let item: Snapshot.PumpItem
+    let item: Snapshot.PumpItem?
 
-    init(item: Snapshot.PumpItem) {
+    init(item: Snapshot.PumpItem?) {
         self.item = item
-        _time = State(initialValue: item.time)
-        _ml = State(initialValue: Format.number((item.amountMl * 10).rounded() / 10))
-        _side = State(initialValue: item.side)
-        _minutes = State(initialValue: item.minutes > 0 ? "\(Int(item.minutes.rounded()))" : "")
+        _time = State(initialValue: item?.time ?? .now)
+        _ml = State(initialValue: item.map { Format.number(($0.amountMl * 10).rounded() / 10) } ?? "")
+        _side = State(initialValue: item?.side)
+        _minutes = State(initialValue: item.map { $0.minutes > 0 ? "\(Int($0.minutes.rounded()))" : "" } ?? "")
     }
 
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 0) {
-                Text("Ret udpumpning").font(.headline).foregroundStyle(Color.fg)
+                Text(item == nil ? "Tilføj udpumpning" : "Ret udpumpning").font(.headline).foregroundStyle(Color.fg)
                 HStack {
                     Text("Tidspunkt").font(.subheadline).foregroundStyle(muted)
                     Spacer()
-                    DatePicker("Tidspunkt", selection: $time).labelsHidden()
+                    DatePicker("Tidspunkt", selection: $time, in: ...Date.now).labelsHidden()
                 }
                 .padding(.top, 14)
                 Text("Mængde (ml)").font(.subheadline).foregroundStyle(muted).padding(.top, 14)
-                TextField("", text: $ml).keyboardType(.decimalPad).field()
+                TextField("", text: $ml, prompt: Text("ml").foregroundStyle(muted)).keyboardType(.decimalPad).field()
                 Segmented(options: [(Side.left, "Venstre"), (.right, "Højre"), (.both, "Begge")], selection: $side, toggles: true)
                     .padding(.top, 12)
                 Text("Minutter (valgfrit)").font(.subheadline).foregroundStyle(muted).padding(.top, 14)
@@ -172,11 +178,13 @@ struct PumpSheet: View {
                     Text(error).font(.subheadline).foregroundStyle(Color.errorText).padding(.top, 12)
                 }
                 VStack(spacing: 10) {
-                    GoButton(title: "Gem ændringer", action: save)
-                    GoButton(title: armed ? "Tryk igen for at slette" : "Slet udpumpning", kind: .delete) {
-                        if !armed { return armed = true }
-                        model.deletePumping(id: item.id)
-                        dismiss()
+                    GoButton(title: item == nil ? "Gem udpumpning" : "Gem ændringer", action: save)
+                    if let item {
+                        GoButton(title: armed ? "Tryk igen for at slette" : "Slet udpumpning", kind: .delete) {
+                            if !armed { return armed = true }
+                            model.deletePumping(id: item.id)
+                            dismiss()
+                        }
                     }
                     GoButton(title: "Annullér", kind: .ghost) { dismiss() }
                 }
@@ -194,7 +202,9 @@ struct PumpSheet: View {
         guard let v = parseNumber(ml) else { return error = "Ugyldig mængde" }
         let m = minutes.trimmingCharacters(in: .whitespaces)
         guard m.isEmpty || parseNumber(m) != nil else { return error = "Ugyldigt antal minutter" }
-        if let e = model.editPumping(id: item.id, time: time, amountMl: v, side: side, minutes: parseNumber(m)) {
+        let e = item.map { model.editPumping(id: $0.id, time: time, amountMl: v, side: side, minutes: parseNumber(m)) }
+            ?? model.addPumping(time: time, amountMl: v, side: side, minutes: parseNumber(m))
+        if let e {
             error = e
         } else {
             dismiss()

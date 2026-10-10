@@ -463,6 +463,19 @@ final class AppModel {
         _ = attempt { if let g = store.growth(id: id) { try store.delete(g) } }
     }
 
+    /// En glemt udpumpning med dato og klokkeslæt (fra «Tilføj tidligere udpumpning»). Giver en fejltekst eller nil.
+    func addPumping(time: Date, amountMl: Double, side: Side?, minutes: Double?) -> String? {
+        if time > .now.addingTimeInterval(60) { return RecordError.inFuture.errorDescription }
+        if serverSync != nil {
+            var body: [String: Any] = ["start": ServerSync.local(time), "amount": amountMl]
+            if let side { body["side"] = side.rawValue }
+            if let minutes { body["minutes"] = minutes }
+            remote { [body] sync in try await sync.send("POST", "/api/pump", body) }
+            return nil
+        }
+        return attempt { try store.addPumping(amountMl: amountMl, side: side, minutes: minutes, at: time) }
+    }
+
     func editPumping(id: UUID, time: Date, amountMl: Double, side: Side?, minutes: Double?) -> String? {
         if serverSync != nil {
             guard let p = store.pumping(id: id), p.serverID > 0 else { return "Udpumpningen findes ikke på serveren endnu" }

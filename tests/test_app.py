@@ -170,6 +170,16 @@ def test_eksport_svarer_304_naar_intet_er_aendret(client, world):
     assert r2.status_code == 200 and r2.headers["ETag"] != tag
 
 
+def test_glemt_udpumpning_en_anden_dag(client, world):
+    t = (now() - timedelta(days=3)).replace(second=0, microsecond=0)
+    r = client.post("/api/pump", json={"amount": 80, "start": t.strftime("%Y-%m-%dT%H:%M")})
+    assert r.status_code == 200
+    p = world.pumpings()[0]
+    assert folke.parse(p["start"]) == t and p["amount"] == 80
+    fremtid = (now() + timedelta(hours=1)).strftime("%Y-%m-%dT%H:%M")
+    assert client.post("/api/pump", json={"amount": 80, "start": fremtid}).status_code == 400
+
+
 def test_slet_maaltid(client, world):
     client.post("/api/feed", json={"kind": "left"})
     fid = world.feedings()[0]["id"]

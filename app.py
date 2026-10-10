@@ -223,7 +223,8 @@ def clean_pump(d):
 @app.post("/api/pump")
 def pump():
     """Log en udpumpning fra appen: {"amount": ml}.
-    Valgfrit: "at": "HH:MM", "side": left|right|both, "minutes", "notes"."""
+    Valgfrit: "at": "HH:MM" eller "start": "YYYY-MM-DDTHH:MM" (en glemt udpumpning en anden dag),
+    "side": left|right|both, "minutes", "notes"."""
     data = request.get_json(silent=True) or {}
     now = datetime.now(TZ)
     try:
@@ -231,9 +232,11 @@ def pump():
     except ValueError as e:
         return jsonify(ok=False, error=str(e)), 400
     try:
-        t = clock(data["at"], now) if data.get("at") else now
+        t = local(data["start"]) if data.get("start") else clock(data["at"], now) if data.get("at") else now
     except ValueError:
         return jsonify(ok=False, error="Ugyldigt tidspunkt"), 400
+    if t > now + timedelta(minutes=1):
+        return jsonify(ok=False, error="Tidspunktet ligger i fremtiden"), 400
     db().add_pumping(get_child()["id"], start=t, end=t, notes=data.get("notes", ""), **p)
     return jsonify(ok=True, amount=p["amount"])
 

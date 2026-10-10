@@ -182,6 +182,7 @@ header{position:relative}
 <button class="go" id="pgo">Gem udpumpning</button></div>
 <div id="v-pump">
 <div class="card"><svg id="psvg" viewBox="0 0 340 200"></svg><div id="psum2"></div></div>
+<button class="go ghost" id="padd" style="margin-top:12px">Tilføj tidligere udpumpning</button>
 <ul id="plist" class="card" hidden></ul>
 <div id="pnote"></div><div id="perr"></div>
 </div>
@@ -215,7 +216,7 @@ header{position:relative}
 <div class="seg" id="bbtns"><button id="bundo">Fortryd</button><button id="bclr">Visk ud</button></div>
 <div id="binfo"></div><div id="berr"></div>
 </div>
-<div id="psheet" hidden><div class="sh"><div class="dl">Ret udpumpning</div>
+<div id="psheet" hidden><div class="sh"><div class="dl" id="petitle">Ret udpumpning</div>
 <label>Tidspunkt<input type="datetime-local" id="pes"></label>
 <label>Mængde (ml)<input type="number" inputmode="decimal" id="peml"></label>
 <div id="pedet"><div class="seg" id="peside"><button data-s="left">Venstre</button><button data-s="right">Højre</button><button data-s="both">Begge</button></div>
@@ -424,11 +425,15 @@ const wk=P.items.filter(x=>Date.now()-new Date(x.start)<7*864e5);$('plist').hidd
 $('plist').innerHTML=wk.map(x=>`<li data-id="${x.id}"><div><div class="tm">${cap(new Date(x.start).toLocaleDateString('da-DK',{weekday:'short',day:'numeric',month:'short'}))} kl. ${hm(x.start)}</div><div class="lb">${pdesc(x)}</div></div><svg class="ch" viewBox="0 0 24 24"><path d="m9 6 6 6-6 6"/></svg></li>`).join('');
 $('pnote').textContent='Grafen viser de seneste 14 dage, listen de seneste 7. Gennemsnittet regnes kun af hele dage med udpumpning.'+(P.remind?` Påmindelse efter ${String(P.remind).replace('.5','½')} timer.`:' Påmindelser kan slås til under Indstillinger.')}
 function peui(){document.querySelectorAll('#peside button').forEach(x=>x.classList.toggle('on',x.dataset.s===peSide));$('pedel').textContent=parm?'Tryk igen for at slette':'Slet udpumpning'}
-$('plist').onclick=e=>{const li=e.target.closest('li');if(!li)return;ped=P.items.find(x=>x.id==li.dataset.id);peSide=ped.side;parm=false;
-$('pes').value=loc(ped.start);$('peml').value=Math.round(+ped.amount*10)/10;$('pemin').value=ped.minutes?Math.round(ped.minutes):'';$('perr2').textContent='';$('psheet').hidden=false;peui()};
+// Samme ark til at rette en udpumpning og til at tilføje en glemt (ped = null), også en anden dag
+function peopen(x){ped=x;peSide=x?x.side:null;parm=false;$('petitle').textContent=x?'Ret udpumpning':'Tilføj udpumpning';
+$('pesave').textContent=x?'Gem ændringer':'Gem udpumpning';$('pedel').hidden=!x;$('pes').max=loc(new Date());
+$('pes').value=loc(x?x.start:new Date());$('peml').value=x?Math.round(+x.amount*10)/10:'';$('pemin').value=x&&x.minutes?Math.round(x.minutes):'';$('perr2').textContent='';$('psheet').hidden=false;peui()}
+$('plist').onclick=e=>{const li=e.target.closest('li');if(li)peopen(P.items.find(x=>x.id==li.dataset.id))};
+$('padd').onclick=()=>peopen(null);
 document.querySelectorAll('#peside button').forEach(x=>x.onclick=()=>{peSide=peSide===x.dataset.s?null:x.dataset.s;peui()});
 $('pecancel').onclick=()=>{$('psheet').hidden=true;ped=null};$('psheet').onclick=e=>{if(e.target.id==='psheet')$('pecancel').onclick()};
-$('pesave').onclick=async()=>{try{await api('/api/pump/'+ped.id,{start:$('pes').value,amount:$('peml').value,side:peSide,minutes:$('pemin').value||null});$('psheet').hidden=true;loadP();load()}catch(e){$('perr2').textContent=e.message}};
+$('pesave').onclick=async()=>{try{await api(ped?'/api/pump/'+ped.id:'/api/pump',{start:$('pes').value,amount:$('peml').value,side:peSide,minutes:$('pemin').value||null});$('psheet').hidden=true;loadP();load()}catch(e){$('perr2').textContent=e.message}};
 $('pedel').onclick=async()=>{if(!parm){parm=true;peui();return}
 try{await api('/api/pump/'+ped.id,{},'DELETE');$('psheet').hidden=true;loadP();load()}catch(e){$('perr2').textContent=e.message;parm=false;peui()}};
 // ---------- Push-notifikationer på denne enhed ----------

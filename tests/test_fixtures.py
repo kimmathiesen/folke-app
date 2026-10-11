@@ -7,6 +7,7 @@ from datetime import date, datetime
 import pytest
 
 import evaluate
+import rough
 from folke import TZ, plan_day
 
 HERE = os.path.join(os.path.dirname(__file__), "fixtures")
@@ -48,3 +49,15 @@ def test_maaling():
     assert {k: s[k] for k in ("n", "median_abs", "within_15", "within_30")} == \
         {k: d["expect"][k] for k in ("n", "median_abs", "within_15", "within_30")}
     assert list(evaluate.interval([r["error"] for r in res])) == d["expect"]["interval"]
+
+
+ROUGH = sorted(glob.glob(os.path.join(HERE, "rough", "*.json")))
+
+
+@pytest.mark.parametrize("path", ROUGH, ids=[os.path.basename(f)[:-5] for f in ROUGH])
+def test_urolig_soevn(path):
+    d = json.load(open(path))
+    p = lambda t: t and datetime.fromisoformat(t).astimezone(TZ)  # noqa: E731
+    wakes = [{"start": p(w["start"]), "end": p(w["end"])} for w in d["wakes"]]
+    got = rough.check(sleeps(d), wakes, date.fromisoformat(d["birth_date"]), datetime.fromisoformat(d["now"]), d["name"])
+    assert got == d["expect"], d["description"]

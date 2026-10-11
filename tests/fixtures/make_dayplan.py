@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Fælles testdata for dagsplanen: scenarier -> JSON med folke.plan_day som facit.
+"""Fælles testdata for dagsplanen (og urolig søvn): scenarier -> JSON med folke.plan_day og rough.check som facit.
 
 Både tests/test_fixtures.py (Python) og ios/FolkeCore (Swift, FixtureTests) indlæser filerne, så reglerne
 ikke kan glide fra hinanden. Kør igen efter en bevidst ændring af reglerne, og commit de nye filer:
@@ -15,9 +15,11 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path[:0] = [os.path.dirname(HERE), os.path.dirname(os.path.dirname(HERE))]
 
 import evaluate  # noqa: E402
+import rough  # noqa: E402
 from folke import plan_day  # noqa: E402
 from test_dayplan import catnap_history  # noqa: E402
 from test_predict import BIRTH, at, history  # noqa: E402
+import test_rough  # noqa: E402
 
 DAY, CAT = date(2026, 6, 10), date(2026, 6, 11)
 
@@ -93,8 +95,35 @@ def write_backtest():
         f.write("\n")
 
 
+# Urolig søvn: (navn, beskrivelse, fødselsdato, navn på barnet, argumenter til test_rough.history)
+ROUGH = [
+    ("4m-urolig", "4 urolige dage midt i 4-måneders perioden", test_rough.BIRTH_4M, "Folke", {}),
+    ("urolig-uden-periode", "4 urolige dage uden for de kendte perioder", test_rough.BIRTH_6M, "", {}),
+    ("4m-fint", "I perioden, men søvnen er som normalt", test_rough.BIRTH_4M, "Folke", {"bad": 0}),
+    ("en-daarlig-dag", "Kun én dårlig dag", test_rough.BIRTH_4M, "Folke", {"bad": 1}),
+    ("kun-opvaagninger", "Kun flere opvågninger, lurene er normale", test_rough.BIRTH_4M, "Folke", {"bad_naps": False}),
+    ("opvaagninger-kun-nu", "Opvågninger er først registreret nu og tæller ikke", test_rough.BIRTH_4M, "Folke",
+     {"wakes_before": False}),
+    ("for-lidt-data", "Kun 2 af de seneste 4 dage registreret", test_rough.BIRTH_4M, "Folke", {"gaps": (1, 2)}),
+]
+
+
+def write_rough(name, desc, birth, child, kw):
+    sleeps, wakes = test_rough.history(**kw)
+    data = {"description": desc, "birth_date": birth.isoformat(), "now": iso(test_rough.NOW), "name": child,
+            "sleeps": [{"id": x["id"], "start": iso(x["start"]), "end": iso(x["end"]), "nap": x["nap"]} for x in sleeps],
+            "wakes": [{"start": iso(w["start"]), "end": w["end"] and iso(w["end"])} for w in wakes],
+            "expect": rough.check(sleeps, wakes, birth, test_rough.NOW, child)}
+    os.makedirs(os.path.join(HERE, "rough"), exist_ok=True)
+    with open(os.path.join(HERE, "rough", f"{name}.json"), "w") as f:
+        json.dump(data, f, ensure_ascii=False, indent=1)
+        f.write("\n")
+
+
 if __name__ == "__main__":
     for sc in SCENARIOS:
         write(*sc)
     write_backtest()
-    print(f"{len(SCENARIOS)} dagsplaner og 1 måling skrevet")
+    for sc in ROUGH:
+        write_rough(*sc)
+    print(f"{len(SCENARIOS)} dagsplaner, 1 måling og {len(ROUGH)} om urolig søvn skrevet")

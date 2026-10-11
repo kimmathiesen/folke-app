@@ -3,7 +3,7 @@ import hashlib, json, math, os, struct, threading, time, zlib
 from datetime import datetime, timedelta, date
 from flask import Flask, Response, jsonify, request, send_from_directory
 from werkzeug.exceptions import HTTPException
-import evaluate, folke, push, store, who
+import evaluate, folke, push, rough, store, who
 
 app = Flask(__name__)
 TZ = folke.TZ
@@ -77,6 +77,7 @@ def status():
         plan=plan,
         last_feed=last_feed,
         accuracy=accuracy(c, now),
+        rough=rough_sleep(c, now),
         feed_today=feed_today,
         pump=pump_summary(c["id"], now),
         pump_remind=prefs()["pump_remind"],
@@ -344,6 +345,26 @@ def pump_reminder(now):
 PREFS = os.path.join(os.path.dirname(folke.STATE_FILE) or ".", "prefs.json")
 _sc = {"t": 0, "v": []}
 _acc = {"t": 0, "v": None}
+
+
+_rough = {"t": 0, "v": None}
+
+
+def rough_sleep(c, now):
+    """Besked om urolig søvn (rough.check: de seneste 4 hele dage mod de 14 før). Højst hvert 10. minut."""
+    if time.time() - _rough["t"] > 600:
+        try:
+            since = now - timedelta(days=rough.RECENT_DAYS + rough.BASE_DAYS + 2)
+            sleeps = [{"start": folke.parse(s["start"]), "end": folke.parse(s["end"]), "nap": s["nap"]}
+                      for s in db().sleeps(c["id"], since)]
+            wakes = [{"start": folke.parse(w["start"]), "end": w["end"] and folke.parse(w["end"])}
+                     for w in db().wakes(c["id"], since)]
+            _rough["v"] = rough.check(sleeps, wakes, date.fromisoformat(c["birth_date"]), now, child_name(c))
+        except Exception as e:
+            print("rough:", e, flush=True)
+            _rough["v"] = None
+        _rough["t"] = time.time()
+    return _rough["v"]
 
 
 def accuracy(c, now):

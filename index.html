@@ -130,6 +130,8 @@ header{position:relative}
 </header>
 <div id="sug" class="card" hidden><div class="t"><span>Forslag</span><b id="sugt" style="display:block"></b></div>
 <div class="seg"><button id="sy">Ja, gør det</button><button id="sl">Ikke nu</button><button id="sn">Aldrig</button></div></div>
+<div id="rough" class="card" hidden><div class="t"><b id="rought" style="display:block"></b><span id="roughx" style="display:block;margin-top:6px;line-height:1.4"></span></div>
+<div class="seg"><button id="roughok">Tak</button></div></div>
 <div class="colA">
 <div id="dial"><svg viewBox="0 0 360 400" role="img" aria-label="Dagens rytme"><defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#6ea0ff"/><stop offset="1" stop-color="#8b7cf6"/></linearGradient></defs>
 <circle cx="180" cy="200" r="88" fill="none" stroke="rgba(255,255,255,.06)" stroke-width="9"/>
@@ -201,7 +203,7 @@ header{position:relative}
 <nav id="pnav"><button data-p="p-sleep" class="on">Søvn</button><button data-p="p-food">Mad</button><button data-p="p-pump" id="npump">Udpumpning</button><button data-p="p-growth">Vækst</button></nav>
 <div id="v-settings" class="ov" hidden>
 <div class="gh"><a href="#">‹ Tilbage</a><div class="dl">Indstillinger</div><span></span></div>
-<div class="card"><div class="dl">Tilpas</div><label class="sw">Barnets navn<input type="text" id="sname" class="tin" maxlength="40" autocomplete="off"></label><label class="sw">Jeg er<select id="srole"><option value="mor">Mor</option><option value="far">Far</option></select></label><label class="sw">Amning i Mad-kortet<input type="checkbox" id="cb"></label><label class="sw">Fast føde i Mad-kortet<input type="checkbox" id="cs"></label><label class="sw">Vindue for næste lur<select id="swin"><option value="0">Kun klokkeslæt</option><option value="10">10 min</option><option value="20">20 min</option><option value="30">30 min</option><option value="-1">Automatisk</option></select></label>
+<div class="card"><div class="dl">Tilpas</div><label class="sw">Barnets navn<input type="text" id="sname" class="tin" maxlength="40" autocomplete="off"></label><label class="sw">Jeg er<select id="srole"><option value="mor">Mor</option><option value="far">Far</option></select></label><label class="sw">Amning i Mad-kortet<input type="checkbox" id="cb"></label><label class="sw">Fast føde i Mad-kortet<input type="checkbox" id="cs"></label><label class="sw">Vindue for næste lur<select id="swin"><option value="0">Kun klokkeslæt</option><option value="10">10 min</option><option value="20">20 min</option><option value="30">30 min</option><option value="-1">Automatisk</option></select></label><label class="sw">Besked ved urolig søvn<input type="checkbox" id="crough"></label>
 <label class="sw">Udpumpning<input type="checkbox" id="cp"></label>
 <label class="sw" id="premrow">Påmind om udpumpning<select id="prem"><option value="2">efter 2 t</option><option value="2.5">efter 2½ t</option><option value="3">efter 3 t</option><option value="3.5">efter 3½ t</option><option value="4">efter 4 t</option><option value="5">efter 5 t</option><option value="6">efter 6 t</option></select></label>
 <div id="premnote" hidden>Påmindelsen sendes kun til enheder, der har slået «Påmindelse om udpumpning» til under notifikationer herunder. Ingen påmindelser mellem 22 og 7.</div>
@@ -280,6 +282,7 @@ document.querySelectorAll('#type button').forEach(x=>x.classList.toggle('on',(x.
 planUI(p,n);
 feedDay();const lf=S.last_feed;$('lastfeed').textContent=lf?`${FM[lf.method]||lf.method}${lf.amount?' '+Math.round(+lf.amount)+' ml':''} kl. ${hm(lf.time)} · for ${ago(lf.time)} siden`:'Ingen måltider endnu';
 const F=S.features||{},sg=(S.suggestions||[])[0];$('fbr').hidden=!F.breast;$('fsolid').hidden=!F.solids;$('sug').hidden=!sg;if(sg)$('sugt').textContent=sg.text;
+roughUI();
 pumpUI();
 $('day').hidden=!S.today.length;
 if(S.today.length){let n=0,tot=0;$('dd').textContent=cap(new Date().toLocaleDateString('da-DK',{weekday:'long',day:'numeric',month:'long'}));
@@ -487,6 +490,11 @@ try{if(S.setup)await api('/api/child',{name:n,birth_date:$('obirth').value});els
 setRole(oRole);$('onb').hidden=true;await syncDev();load()}catch(e){$('oerr').textContent=e.message}$('osave').disabled=false};
 $('sname').onchange=()=>api('/api/profile',{name:$('sname').value}).then(load).catch(e=>{$('err').textContent=e.message;$('sname').value=S.child_name});
 $('srole').onchange=async()=>{setRole($('srole').value);hello();await syncDev()};
+// Urolig søvn (status.rough): «Tak» skjuler beskeden på denne enhed (folke.roughSeen), og den kan slås fra (folke.roughOff)
+const lsGet=(k,d)=>{try{const v=localStorage.getItem(k);return v===null?d:JSON.parse(v)}catch(e){return d}},lsSet=(k,v)=>{try{localStorage.setItem(k,JSON.stringify(v))}catch(e){}};
+function roughUI(){const R=S.rough;$('crough').checked=!lsGet('folke.roughOff',false);$('rough').hidden=!R||lsGet('folke.roughOff',false)||lsGet('folke.roughSeen',[]).includes(R.key);if(R){$('rought').textContent=R.title;$('roughx').textContent=R.text}}
+$('roughok').onclick=()=>{if(S.rough)lsSet('folke.roughSeen',[...lsGet('folke.roughSeen',[]),S.rough.key].slice(-20));roughUI()};
+$('crough').onchange=()=>{lsSet('folke.roughOff',!$('crough').checked);roughUI()};
 $('swin').onchange=()=>{try{localStorage.setItem('folke.planWindow',$('swin').value)}catch(e){}load()};
 // Giver push-tilmeldingen et navn som «Mors iPhone», så man kan se, hvis enhed det er
 async function syncDev(){try{if(!PUSHOK||!isSecureContext)return;const sub=await (await navigator.serviceWorker.ready).pushManager.getSubscription();

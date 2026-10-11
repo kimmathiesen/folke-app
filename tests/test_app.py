@@ -306,3 +306,22 @@ def test_slet_nat_sletter_opvaagninger(client, world):
     assert len(world.store.wakes(world.cid, now() - timedelta(days=1))) == 1
     client.delete(f"/api/sleep/{sid}")
     assert world.store.wakes(world.cid, now() - timedelta(days=1)) == []
+
+
+def test_status_har_urolig_soevn(client, world):
+    import test_rough
+    sleeps, wakes = test_rough.history()
+    # Samme mønster flyttet, så de urolige dage er de seneste 4 hele dage før i dag (barnet er 17 uger: 4 mdr.)
+    shift = now().date() - test_rough.TODAY
+    for s in sleeps:
+        world.add_sleep(s["start"] + shift, s["end"] + shift, s["nap"])
+    for w in wakes:
+        world.store.add_wake(world.cid, w["start"] + shift)
+        world.store.end_wake(world.store.open_wake(world.cid)["id"], w["end"] + shift)
+    r = client.get("/api/status").get_json()["rough"]
+    assert r["key"] == "p-4m" and r["reasons"] == ["wakes", "naps", "short", "day"]
+    assert r["text"].startswith("Folke har sovet lidt dårligere")
+
+
+def test_status_uden_urolig_soevn(client, world):
+    assert client.get("/api/status").get_json()["rough"] is None

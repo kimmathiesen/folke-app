@@ -5,7 +5,7 @@ forudsigelse af næste lur/sengetid, notifikation via web push (Home Assistant e
 ## Arkitektur
 - `folke.py`: motor. `plan_day()` laver dagsplanen (lure og sengetid resten af dagen), og `predict()` er dens første punkt (vågenvinduer pr. position på dagen, median, aldersbaseret fallback),
   besked (web push) LEAD_MIN (30) min før og OVERDUE_MIN (15) min efter, hvis ingen søvn er startet (minutterne kan vælges pr. enhed).
-- `app.py`: Flask. `/api/status`, `/api/start`, `/api/stop`, `/api/pump` (JSON {amount}). Start = en timer "Søvn" i databasen;
+- `app.py`: Flask. `/api/status`, `/api/start`, `/api/stop`, `/api/pump` (JSON {amount}). iPhone-appens midlertidige synkronisering bruger de samme endpoints plus `GET /api/export` (med ETag, 304 når intet er ændret, da appen spørger hvert 5. sek.) og `DELETE /api/feed/<id>`. Start = en timer "Søvn" i databasen;
   stop = en søvn + timeren slettes. Baggrundstråd (`tick()`) kalder `folke.main()` hvert 60. sek. og tager daglig backup.
 - `store.py`: datalag. `store.get()` giver `Sqlite` (fil `DB_FILE`, standard `folke.db` ved STATE_FILE). app.py og `folke.main()` går altid gennem det. Tider gemmes som UTC-tekst (`iso()`), så de kan sammenlignes som tekst. Skemaændringer: tilføj et trin til `MIGRATIONS` (PRAGMA user_version). Kolonnen `bb_id` er en rest fra den gamle import fra Baby Buddy (fjernet 8/10 2026).
 - `index.html`: enkeltfil-UI (ingen build). Kør gunicorn med 1 worker (tråden).
@@ -27,6 +27,11 @@ forudsigelse af næste lur/sengetid, notifikation via web push (Home Assistant e
 ## Forslag og tilpasning
 - `prefs.json` (ved siden af state.json) gemmer funktionsvalg og svar på forslag. `suggestions()` i app.py beregnes højst hvert 10. min.
 - Forslag: «Fast føde» ved 6 mdr., «skjul Amning» efter 21 dage uden amning. Intet ændres uden svar (Ja / Ikke nu = 30 dage / Aldrig). Siden «Indstillinger» (`#indstillinger`, knap øverst til venstre) gør alt reversibelt.
+
+## Opvågninger om natten
+- Tabel `night_wake` (migration 3, `end` NULL = vågen nu), knyttet til natten ud fra tidspunktet. `POST /api/wake` `{"action": "start"|"stop"}` mens søvnen kører, `DELETE /api/wake/<id>`.
+- Knappen «Vågnede»/«Sover igen» vises, når den kørende søvn er en nat. Stoppes natten, mens han er vågen, slutter natten ved opvågningen. Sletning af en nat sletter dens opvågninger.
+- `status.today[].wakes` og `status.night_wakes` (den kørende nat). Ringen tegner natten uden opvågningerne, listen viser «Nat · 2 opvågninger · 25 min vågen», og varighed og «Samlet søvn» trækker den vågne tid fra. Forudsigelsen bruger stadig hele natten.
 
 ## Udpumpning
 - Kort på forsiden, side `#pumpning` (graf 14 dage, liste 7 dage, ret/slet). Side og minutter kom til i migration 2.
@@ -58,6 +63,7 @@ forudsigelse af næste lur/sengetid, notifikation via web push (Home Assistant e
 - **Aftenlur:** en lur, der starter kl. 17 eller senere, er aftenluren, også under 30 min (reglen om korte lure gælder kun om dagen). Når den er sovet, kommer kun sengetid: slutningen + hans typiske tid vågen efter en aftenlur (`evening_gap`, 75 % efter en kort aftenlur), uden at vente på hans normale sengetid (`after_catnap`).
 - **Hans tal beskyttes:** vinduer lige før og efter korte lure bruges ikke, og afvigere uden for 60–160 % af medianen sorteres fra (`_robust`).
 - **Måling:** `evaluate.py` (backtest): for hver søvn regnes planen ud fra det, der var registreret lige efter forrige opvågning, og sammenlignes med, hvornår han faktisk faldt i søvn. `python evaluate.py eksport.json` giver en rapport. `/api/status` har `accuracy` (seneste 14 dage, højst hvert 10. min), og kortet viser næste lur/sengetid som et vindue og «typisk ±X min» (medianfejlen). Vinduet vælges pr. enhed under Indstillinger (`localStorage` `folke.planWindow`): kun klokkeslæt, 10 (standard), 20 eller 30 min, eller automatisk ud fra målingen (`evaluate.interval`, midterste halvdel af fejlene, ±10-45 min, ±20 uden data).
+- **Urolig søvn:** `rough.py` (`check`): de seneste 4 hele dage mod de 14 før. Er mindst 2 ting tydeligt dårligere (flere opvågninger, kun hvis opvågninger også blev registreret før; nætter ≤ 85 %; lure ≤ 75 % i længde; mindst én kort lur mere pr. dag; dagsøvn ≤ 80 %), giver `/api/status` `rough` (`key`, `period`, `reasons`, `title`, `text`, højst hvert 10. min). I en kendt periode (uger fra fødslen: 4 mdr. 14–22, 8–10 mdr. 34–46, 1 år 50–56, 1½ år 76–84, 2 år 100–108) forklarer teksten den, ellers en generel tekst. Tigerspring er bevidst ikke med. Kortet `#rough` på Søvn-siden; «Tak» skjuler det på enheden (`localStorage` `folke.roughSeen`, nøgle pr. periode eller pr. uge), og det kan slås fra under Indstillinger (`folke.roughOff`). Gratis. Fælles testdata: `tests/fixtures/rough/` (laves af `make_dayplan.py`).
 - Facit: `tests/test_dayplan.py`. Specifikationen til iOS står i `ios/PLAN.md` afsnit 3.
 
 ## Arbejdsgang: main og ios (to sessioner)

@@ -160,6 +160,33 @@ def test_feed_med_tidspunkt(client, world):
     assert hm(folke.parse(world.feedings()[0]["start"])) == hm(t)
 
 
+def test_eksport_svarer_304_naar_intet_er_aendret(client, world):
+    r = client.get("/api/export")
+    tag = r.headers["ETag"]
+    assert r.status_code == 200 and tag
+    assert client.get("/api/export", headers={"If-None-Match": tag}).status_code == 304
+    client.post("/api/feed", json={"kind": "left"})
+    r2 = client.get("/api/export", headers={"If-None-Match": tag})
+    assert r2.status_code == 200 and r2.headers["ETag"] != tag
+
+
+def test_glemt_udpumpning_en_anden_dag(client, world):
+    t = (now() - timedelta(days=3)).replace(second=0, microsecond=0)
+    r = client.post("/api/pump", json={"amount": 80, "start": t.strftime("%Y-%m-%dT%H:%M")})
+    assert r.status_code == 200
+    p = world.pumpings()[0]
+    assert folke.parse(p["start"]) == t and p["amount"] == 80
+    fremtid = (now() + timedelta(hours=1)).strftime("%Y-%m-%dT%H:%M")
+    assert client.post("/api/pump", json={"amount": 80, "start": fremtid}).status_code == 400
+
+
+def test_slet_maaltid(client, world):
+    client.post("/api/feed", json={"kind": "left"})
+    fid = world.feedings()[0]["id"]
+    assert client.delete(f"/api/feed/{fid}").status_code == 200
+    assert world.feedings() == []
+
+
 def test_dagens_maaltider_i_status(client, world):
     client.post("/api/feed", json={"kind": "left", "at": hm(now() - timedelta(minutes=2))})
     client.post("/api/feed", json={"kind": "bottle", "amount": 90, "milk": "formula", "at": hm(now() - timedelta(minutes=1))})
@@ -240,3 +267,61 @@ def test_status_giver_traefsikkerhed_og_interval(client, world):
                     {"error": 20, "actual": "sengetid", "predicted": "lur"}]) == {
         "n": 2, "mean_abs": 15.0, "median_abs": 15.0, "within_15": 0.5, "within_30": 1.0, "bias": 5.0, "wrong_kind": 1}
     assert backtest([], None) == []
+
+
+# ---------- opvågninger om natten ----------
+def test_opvaagning_om_natten(client, world):
+    assert client.post("/api/wake", json={"action": "start"}).status_code == 409  # ingen søvn i gang
+    world.add_timer(now() - timedelta(hours=3))
+    assert client.post("/api/wake", json={"action": "x"}).status_code == 400
+    client.post("/api/wake", json={"action": "start"})
+    client.post("/api/wake", json={"action": "start"})  # to tryk giver ikke to opvågninger
+    [w] = client.get("/api/status").get_json()["night_wakes"]
+    assert w["end"] is None
+    client.post("/api/wake", json={"action": "stop"})
+    [w] = client.get("/api/status").get_json()["night_wakes"]
+    assert w["end"] is not None
+    assert client.post("/api/stop", json={"nap": False}).status_code == 200
+    d = client.get("/api/status").get_json()
+    [night] = [x for x in d["today"] if not x["nap"]]
+    assert len(night["wakes"]) == 1 and d["night_wakes"] == []
+
+
+def test_stop_mens_han_er_vaagen_slutter_natten_ved_opvaagningen(client, world):
+    world.add_timer(now() - timedelta(hours=3))
+    client.post("/api/wake", json={"action": "start"})
+    started = folke.parse(client.get("/api/status").get_json()["night_wakes"][0]["start"])
+    client.post("/api/stop", json={"nap": False})
+    [s] = world.sleeps()
+    assert abs((folke.parse(s["end"]) - started).total_seconds()) < 2
+    assert client.get("/api/status").get_json()["today"][0]["wakes"] == []  # den åbne opvågning er væk
+
+
+def test_slet_nat_sletter_opvaagninger(client, world):
+    world.add_timer(now() - timedelta(hours=3))
+    client.post("/api/wake", json={"action": "start"})
+    client.post("/api/wake", json={"action": "stop"})
+    client.post("/api/stop", json={"nap": False})
+    sid = world.sleeps()[0]["id"]
+    assert len(world.store.wakes(world.cid, now() - timedelta(days=1))) == 1
+    client.delete(f"/api/sleep/{sid}")
+    assert world.store.wakes(world.cid, now() - timedelta(days=1)) == []
+
+
+def test_status_har_urolig_soevn(client, world):
+    import test_rough
+    sleeps, wakes = test_rough.history()
+    # Samme mønster flyttet, så de urolige dage er de seneste 4 hele dage før i dag (barnet er 17 uger: 4 mdr.)
+    shift = now().date() - test_rough.TODAY
+    for s in sleeps:
+        world.add_sleep(s["start"] + shift, s["end"] + shift, s["nap"])
+    for w in wakes:
+        world.store.add_wake(world.cid, w["start"] + shift)
+        world.store.end_wake(world.store.open_wake(world.cid)["id"], w["end"] + shift)
+    r = client.get("/api/status").get_json()["rough"]
+    assert r["key"] == "p-4m" and r["reasons"] == ["wakes", "naps", "short", "day"]
+    assert r["text"].startswith("Folke har sovet lidt dårligere")
+
+
+def test_status_uden_urolig_soevn(client, world):
+    assert client.get("/api/status").get_json()["rough"] is None

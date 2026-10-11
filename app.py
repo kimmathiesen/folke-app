@@ -1,9 +1,9 @@
 """Folke webapp: start/stop søvn + forudsigelse. Bruger folke.py som motor."""
-import json, math, os, struct, threading, time, zlib
+import hashlib, json, math, os, struct, threading, time, zlib
 from datetime import datetime, timedelta, date
 from flask import Flask, Response, jsonify, request, send_from_directory
 from werkzeug.exceptions import HTTPException
-import evaluate, folke, push, store, who
+import evaluate, folke, push, rough, store, who
 
 app = Flask(__name__)
 TZ = folke.TZ
@@ -42,6 +42,7 @@ def status():
         return jsonify(setup=True)
     t = sleep_timer(c["id"])
     raw = db().sleeps(c["id"], now - timedelta(days=folke.HISTORY_DAYS))
+    wakes = db().wakes(c["id"], now - timedelta(days=2))
     sleeps = [{"id": s["id"], "start": folke.parse(s["start"]), "end": folke.parse(s["end"]),
                "nap": s["nap"]} for s in raw]
     birth = date.fromisoformat(c["birth_date"])
@@ -76,6 +77,7 @@ def status():
         plan=plan,
         last_feed=last_feed,
         accuracy=accuracy(c, now),
+        rough=rough_sleep(c, now),
         feed_today=feed_today,
         pump=pump_summary(c["id"], now),
         pump_remind=prefs()["pump_remind"],
@@ -89,9 +91,11 @@ def status():
         features=prefs()["features"],
         sex=prefs()["sex"],
         suggestions=current_suggestions(c, now, prefs()),
-        today=[{"id": s["id"], "start": s["start"].isoformat(), "end": s["end"].isoformat(), "nap": s["nap"]}
+        today=[{"id": s["id"], "start": s["start"].isoformat(), "end": s["end"].isoformat(), "nap": s["nap"],
+                "wakes": [] if s["nap"] else wakes_in(wakes, s["start"], s["end"])}
                for s in sorted(sleeps, key=lambda s: s["start"])
                if now.date() in (s["start"].date(), s["end"].date())],
+        night_wakes=wakes_in(wakes, start, None) if start else [],
     )
 
 
@@ -137,10 +141,49 @@ def stop():
         if e <= s:
             return jsonify(ok=False, error=f"Søvnen startede kl. {s:%H:%M}"), 400
     # Har brugeren ikke selv valgt lur/nat, gættes der ud fra både start og længde (aftenlur efter kl. 18 = lur)
+    w = db().open_wake(c["id"])
+    if w:  # vågen om natten og ikke faldet i søvn igen: natten sluttede, da han vågnede
+        db().delete_wake(w["id"])
+        if not body.get("wake"):
+            e = max(folke.parse(w["start"]), s + timedelta(minutes=1))
     nap = body["nap"] if "nap" in body else folke.nap_at_stop(s, e)
     db().add_sleep(c["id"], s, e, nap)
     db().delete_timer(t["id"])
     return jsonify(ok=True)
+
+
+@app.post("/api/wake")
+def night_wake():
+    """Opvågning om natten, mens natten kører: {"action": "start"} (vågnede) eller {"action": "stop"} (sover igen)."""
+    c = get_child()
+    t = sleep_timer(c["id"])
+    if not t:
+        return jsonify(ok=False, error="Ingen søvn i gang"), 409
+    now = datetime.now(TZ)
+    w = db().open_wake(c["id"])
+    action = (request.get_json(silent=True) or {}).get("action")
+    if action == "start":
+        if not w:
+            db().add_wake(c["id"], now)
+    elif action == "stop":
+        if w:
+            db().end_wake(w["id"], now)
+    else:
+        return jsonify(ok=False, error="Ugyldig handling"), 400
+    return jsonify(ok=True)
+
+
+@app.delete("/api/wake/<int:wid>")
+def delete_night_wake(wid):
+    db().delete_wake(wid)
+    return jsonify(ok=True)
+
+
+def wakes_in(wakes, start, end):
+    """Opvågninger, der startede i søvnen [start, end] (end None = søvnen kører)."""
+    return [{"id": w["id"], "start": folke.parse(w["start"]).isoformat(),
+             "end": w["end"] and folke.parse(w["end"]).isoformat()}
+            for w in wakes if start <= folke.parse(w["start"]) and (end is None or folke.parse(w["start"]) <= end)]
 
 
 # ---------- Udpumpning ----------
@@ -181,7 +224,8 @@ def clean_pump(d):
 @app.post("/api/pump")
 def pump():
     """Log en udpumpning fra appen: {"amount": ml}.
-    Valgfrit: "at": "HH:MM", "side": left|right|both, "minutes", "notes"."""
+    Valgfrit: "at": "HH:MM" eller "start": "YYYY-MM-DDTHH:MM" (en glemt udpumpning en anden dag),
+    "side": left|right|both, "minutes", "notes"."""
     data = request.get_json(silent=True) or {}
     now = datetime.now(TZ)
     try:
@@ -189,9 +233,11 @@ def pump():
     except ValueError as e:
         return jsonify(ok=False, error=str(e)), 400
     try:
-        t = clock(data["at"], now) if data.get("at") else now
+        t = local(data["start"]) if data.get("start") else clock(data["at"], now) if data.get("at") else now
     except ValueError:
         return jsonify(ok=False, error="Ugyldigt tidspunkt"), 400
+    if t > now + timedelta(minutes=1):
+        return jsonify(ok=False, error="Tidspunktet ligger i fremtiden"), 400
     db().add_pumping(get_child()["id"], start=t, end=t, notes=data.get("notes", ""), **p)
     return jsonify(ok=True, amount=p["amount"])
 
@@ -299,6 +345,26 @@ def pump_reminder(now):
 PREFS = os.path.join(os.path.dirname(folke.STATE_FILE) or ".", "prefs.json")
 _sc = {"t": 0, "v": []}
 _acc = {"t": 0, "v": None}
+
+
+_rough = {"t": 0, "v": None}
+
+
+def rough_sleep(c, now):
+    """Besked om urolig søvn (rough.check: de seneste 4 hele dage mod de 14 før). Højst hvert 10. minut."""
+    if time.time() - _rough["t"] > 600:
+        try:
+            since = now - timedelta(days=rough.RECENT_DAYS + rough.BASE_DAYS + 2)
+            sleeps = [{"start": folke.parse(s["start"]), "end": folke.parse(s["end"]), "nap": s["nap"]}
+                      for s in db().sleeps(c["id"], since)]
+            wakes = [{"start": folke.parse(w["start"]), "end": w["end"] and folke.parse(w["end"])}
+                     for w in db().wakes(c["id"], since)]
+            _rough["v"] = rough.check(sleeps, wakes, date.fromisoformat(c["birth_date"]), now, child_name(c))
+        except Exception as e:
+            print("rough:", e, flush=True)
+            _rough["v"] = None
+        _rough["t"] = time.time()
+    return _rough["v"]
 
 
 def accuracy(c, now):
@@ -551,6 +617,10 @@ def edit_sleep(sid):
 
 @app.delete("/api/sleep/<int:sid>")
 def delete_sleep(sid):
+    c = get_child()
+    s = next((x for x in db().sleeps(c["id"], datetime(2000, 1, 1, tzinfo=TZ)) if x["id"] == sid), None)
+    if s and not s["nap"]:
+        db().delete_wakes_between(c["id"], folke.parse(s["start"]), folke.parse(s["end"]))
     db().delete_sleep(sid)
     return jsonify(ok=True)
 
@@ -589,14 +659,25 @@ def feed():
     return jsonify(ok=True)
 
 
+@app.delete("/api/feed/<int:fid>")
+def delete_feed(fid):
+    """Slet et måltid (bruges af iPhone-appens midlertidige synkronisering)."""
+    db().delete_feeding(fid)
+    return jsonify(ok=True)
+
+
 # ---------- Eksport ----------
 @app.get("/api/export")
 def export():
     """Alle data som JSON. Vækst og indstillinger ligger i growth.json og prefs.json."""
     data = {**db().export(), "growth": load_growth(), "prefs": prefs()}
     name = f"folke-{datetime.now(TZ):%Y-%m-%d}.json"
-    return Response(json.dumps(data, ensure_ascii=False, indent=1), mimetype="application/json",
-                    headers={"Content-Disposition": f'attachment; filename="{name}"'})
+    body = json.dumps(data, ensure_ascii=False, indent=1)
+    r = Response(body, mimetype="application/json",
+                 headers={"Content-Disposition": f'attachment; filename="{name}"', "Cache-Control": "no-cache"})
+    # ETag: iPhone-appen spørger ofte og får 304 (uden data), når intet er ændret
+    r.set_etag(hashlib.sha1(body.encode()).hexdigest())
+    return r.make_conditional(request)
 
 
 def make_icon(n=512):

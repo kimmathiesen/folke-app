@@ -69,6 +69,7 @@ struct SettingsView: View {
                     Toggle("Amning i Mad-kortet", isOn: bind(s.featureBreast) { model.setFeature(.breast, $0) })
                     Toggle("Fast føde i Mad-kortet", isOn: bind(s.featureSolids) { model.setFeature(.solids, $0) })
                     Toggle("Forudsigelse af lure", isOn: bind(s.featurePrediction) { model.setFeature(.prediction, $0) })
+                    Toggle("Besked ved urolig søvn", isOn: bind(!model.roughOff) { model.roughOff = !$0 })
                 }
                 .listRowBackground(Color.card)
 

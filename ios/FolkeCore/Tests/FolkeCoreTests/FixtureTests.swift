@@ -68,4 +68,31 @@ import Testing
         #expect(s.within15 == d.expect.within_15 && s.within30 == d.expect.within_30)
         #expect([s.interval.lo, s.interval.hi] == d.expect.interval)
     }
+
+    // MARK: Urolig søvn (rough.py)
+
+    static var roughFiles: [String] {
+        ((try? FileManager.default.contentsOfDirectory(atPath: dir.appending(path: "rough").path)) ?? [])
+            .filter { $0.hasSuffix(".json") }.sorted()
+    }
+
+    struct Rough: Decodable {
+        struct W: Decodable { var start: String; var end: String? }
+        struct E: Decodable { var key: String; var period: String?; var reasons: [String]; var title: String; var text: String }
+        var description: String; var birth_date: String; var now: String; var name: String
+        var sleeps: [JSleep]; var wakes: [W]; var expect: E?
+    }
+
+    @Test func derErFixturesOmUroligSoevn() {
+        #expect(Self.roughFiles.count >= 7)
+    }
+
+    @Test(arguments: roughFiles) func uroligSoevn(_ file: String) throws {
+        let d = try JSONDecoder().decode(Rough.self, from: Data(contentsOf: Self.dir.appending(path: "rough/\(file)")))
+        let wakes = d.wakes.map { WakeItem(id: UUID(), start: Self.date($0.start), end: $0.end.map(Self.date)) }
+        let r = RoughPatch.check(sleeps: Self.samples(d.sleeps), wakes: wakes, birthDate: Self.birth(d.birth_date),
+                                 now: Self.date(d.now), name: d.name, calendar: cph)
+        let want = d.expect.map { RoughSleep(key: $0.key, period: $0.period, reasons: $0.reasons, title: $0.title, text: $0.text) }
+        #expect(r == want, "\(d.description)")
+    }
 }

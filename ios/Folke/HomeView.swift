@@ -264,6 +264,9 @@ struct SleepPage: View {
         if let sg = model.snapshot.suggestion {
             SuggestionCard(suggestion: sg).padding(.top, 16)
         }
+        if let r = model.visibleRough {
+            RoughCard(rough: r).padding(.top, 16)
+        }
     }
 
     func cards(now: Date) -> some View {

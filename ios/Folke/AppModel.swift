@@ -34,6 +34,8 @@ struct Snapshot {
     var lastFeed: (kind: FeedKind, amountMl: Double, time: Date)?
     var pump = PumpSummary(todayCount: 0, todayMl: 0, last: nil)
     var suggestion: Suggestions.Suggestion?
+    /// Besked om urolig søvn (RoughPatch), før «Tak» og indstillingen på enheden
+    var rough: RoughSleep?
     var pumpRemindHours = 3.0
     var sex = Sex.boy
     var birthDate: Date?
@@ -199,6 +201,12 @@ final class AppModel {
             accuracyChild = child?.id
         }
         s.accuracy = accuracyCache
+        if now.timeIntervalSince(roughAt) > 600 || roughChild != child?.id {
+            roughCache = store.roughSleep(now: now)
+            roughAt = now
+            roughChild = child?.id
+        }
+        s.rough = roughCache
         // Gratis: den oprindelige forudsigelse (kun næste lur/sengetid). Plus: dagsplanen med løbende tilpasning.
         s.prediction = s.plus.unlocked ? store.prediction(now: now) : store.basicPrediction(now: now)
         s.plan = s.plus.unlocked ? store.dayPlan(now: now) : nil
@@ -254,6 +262,9 @@ final class AppModel {
     private var accuracyCache: Backtest.Summary?
     private var accuracyAt = Date.distantPast
     private var accuracyChild: UUID?
+    private var roughCache: RoughSleep?
+    private var roughAt = Date.distantPast
+    private var roughChild: UUID?
 
     /// Live Activity og widgets følger appen. Widgets genindlæses kun, når noget, de viser, har ændret sig.
     private func syncExtensions(_ s: Snapshot) {
@@ -510,6 +521,27 @@ final class AppModel {
         didSet { FolkeShared.defaults.set(showNextSize, forKey: "folke.showNextSize") }
     }
 
+    // MARK: Urolig søvn (kun denne enhed)
+
+    var roughOff: Bool = FolkeShared.defaults.bool(forKey: "folke.roughOff") {
+        didSet { FolkeShared.defaults.set(roughOff, forKey: "folke.roughOff") }
+    }
+
+    /// Nøgler, der er sagt «Tak» til (én pr. periode, eller pr. uge uden periode)
+    var roughSeen: [String] = FolkeShared.defaults.stringArray(forKey: "folke.roughSeen") ?? [] {
+        didSet { FolkeShared.defaults.set(roughSeen, forKey: "folke.roughSeen") }
+    }
+
+    var visibleRough: RoughSleep? {
+        guard !roughOff, let r = snapshot.rough, !roughSeen.contains(r.key) else { return nil }
+        return r
+    }
+
+    func dismissRough() {
+        guard let key = snapshot.rough?.key else { return }
+        roughSeen = Array((roughSeen + [key]).suffix(20))
+    }
+
     /// Vinduet om næste lur/sengetid på kortet (`PlanWindow`), kun denne enhed
     var planWindow: Int = FolkeShared.defaults.object(forKey: "folke.planWindow") as? Int ?? PlanWindow.standard {
         didSet { FolkeShared.defaults.set(planWindow, forKey: "folke.planWindow") }
@@ -626,6 +658,8 @@ final class AppModel {
         defer { if scoped { url.stopAccessingSecurityScopedResource() } }
         do {
             let r = try store.importServerExport(Data(contentsOf: url))
+            accuracyAt = .distantPast
+            roughAt = .distantPast
             refresh()
             return r.summary
         } catch {
@@ -676,6 +710,7 @@ final class AppModel {
             syncStatus = "Hentet kl. \(Format.time(.now))"
             pullFailures = 0
             serverOffline = false
+            if changed { accuracyAt = .distantPast; roughAt = .distantPast } // nye data: regn målingen og uro forfra
             if changed || wasOffline { refresh() }
         } catch {
             pullFailures += 1

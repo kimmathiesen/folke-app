@@ -21,6 +21,27 @@ struct SuggestionCard: View {
     }
 }
 
+/// Urolig søvn (`#rough`): en blid besked, når søvnen er tydeligt dårligere end normalt. «Tak» skjuler den på enheden.
+struct RoughCard: View {
+    @Environment(AppModel.self) private var model
+    @Environment(\.muted) private var muted
+    var rough: RoughSleep
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            Text(rough.title).font(.callout.weight(.medium)).foregroundStyle(Color.fg)
+            Text(rough.text).font(.subheadline).foregroundStyle(muted)
+                .fixedSize(horizontal: false, vertical: true)
+                .padding(.top, 6)
+            ActionRow(options: [("Tak", { model.dismissRough() })])
+                .padding(.top, 12)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .card()
+        .accessibilityElement(children: .contain)
+    }
+}
+
 /// «Glemte du at trykke?» (`#late` og `#wake`): faldt i søvn kl., eller vågnede kl., mens søvnen kører.
 struct ForgotCard: View {
     @Environment(AppModel.self) private var model

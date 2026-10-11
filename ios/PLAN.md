@@ -163,6 +163,16 @@ samme dag, er en lur (aftenlur). Webappen sender kun `nap`, hvis brugeren har tr
 er sovet, kommer kun sengetid: slutningen + hans typiske tid vågen efter en aftenlur (75 % efter en kort), uden at vente
 på hans normale sengetid. Folkes dag 8/10 (lure 16.32-16.53 og 18.06-18.26) gav før en lur kl. 19.29 og sengetid 22.07;
 nu sengetid ca. 19.53.
+### 3.9 Urolig søvn (port af `rough.py`, `FolkeCore/RoughPatch.swift`)
+- De seneste 4 hele dage holdes op mod de 14 dage før (kun dage med registreringer; mindst 3 og 7). Natten hører til
+  dagen, den starter. Tydeligt dårligere: flere opvågninger (+1 og ×1,5, kun hvis der også blev registreret opvågninger
+  før), nætter ≤ 85 % (minus tid vågen), lure ≤ 75 % i længde, mindst én kort lur mere pr. dag, dagsøvn ≤ 80 %.
+- Mindst 2 ting giver et kort på Søvn-siden: «Søvnen er lidt urolig lige nu» med årsagerne, en forklaring, hvis barnet er
+  i en kendt periode (uger fra fødslen: 4 mdr. 14–22, 8–10 mdr. 34–46, 1 år 50–56, 1½ år 76–84, 2 år 100–108), ellers en
+  generel tekst, og til sidst «Husk, at du gør det godt.» Tigerspring er bevidst ikke med (svag faglig opbakning).
+- «Tak» skjuler kortet på enheden (nøgle pr. periode, eller pr. uge uden periode). Kan slås fra under Indstillinger. Gratis.
+  Planen ændres ikke. Facit: `tests/fixtures/rough/`.
+
 ## 4. Notifikationer (lokale)
 
 Tidspunktet er `predict()` (afsnit 3): første punkt i dagsplanen uden genberegning ved misset lur.

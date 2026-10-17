@@ -111,4 +111,22 @@ import Testing
         #expect(s.feeding(id: today[0].id!) == today[0])
         #expect(Format.feedName(.left) == "Amning, venstre")
     }
+
+    @Test func tilfoejGlemtSoevn() throws {
+        let s = try FolkeStore(inMemory: true)
+        try s.createChild(name: "Folke", birthDate: day(2026, 6, 20), sex: .boy)
+        let d = day(2026, 10, 16), now = at(day(2026, 10, 17), 12, 0)
+        try s.addSleep(start: at(d, 20, 40), end: at(day(2026, 10, 17), 7, 30), nap: false, now: now)
+        #expect(s.fetch(Sleep.self).count == 1)
+        #expect(throws: AddSleepError.endBeforeStart) { try s.addSleep(start: at(d, 10, 0), end: at(d, 9, 0), nap: true, now: now) }
+        #expect(throws: AddSleepError.inFuture) { try s.addSleep(start: at(day(2026, 10, 17), 11, 0), end: at(day(2026, 10, 17), 13, 0), nap: true, now: now) }
+        #expect(throws: AddSleepError.tooLong) { try s.addSleep(start: at(d, 0, 0), end: at(d, 17, 0), nap: false, now: now) }
+        #expect(throws: AddSleepError.overlaps(at(d, 20, 40), at(day(2026, 10, 17), 7, 30))) {
+            try s.addSleep(start: at(day(2026, 10, 17), 7, 0), end: at(day(2026, 10, 17), 8, 0), nap: true, now: now)
+        }
+        try s.startSleep(at: at(day(2026, 10, 17), 11, 24), by: nil, now: now)
+        #expect(throws: AddSleepError.overlapsRunning) {
+            try s.addSleep(start: at(day(2026, 10, 17), 11, 0), end: at(day(2026, 10, 17), 11, 50), nap: true, now: now)
+        }
+    }
 }

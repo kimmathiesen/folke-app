@@ -41,6 +41,21 @@ public enum RecordError: Error, Equatable, LocalizedError {
     }
 }
 
+public enum AddSleepError: Error, Equatable, LocalizedError {
+    case endBeforeStart, inFuture, tooLong, overlapsRunning
+    case overlaps(Date, Date)
+
+    public var errorDescription: String? {
+        switch self {
+        case .endBeforeStart: "Vågnede skal være efter faldt i søvn"
+        case .inFuture: "Tidspunktet ligger i fremtiden"
+        case .tooLong: "En søvn kan højst vare 16 timer"
+        case .overlapsRunning: "Overlapper søvnen, der er i gang"
+        case .overlaps(let a, let b): "Overlapper søvnen kl. \(Format.clock(a))–\(Format.clock(b))"
+        }
+    }
+}
+
 /// Opsummering til udpumpningskortet på forsiden.
 public struct PumpSummary: Equatable, Sendable {
     public var todayCount: Int
@@ -64,6 +79,27 @@ public extension FolkeStore {
         s.end = end
         s.nap = nap
         try save()
+    }
+
+    /// Tilføj en glemt søvn bagud (som `POST /api/sleep`): ikke i fremtiden, højst 16 timer, ikke overlappende.
+    @discardableResult
+    func addSleep(start: Date, end: Date, nap: Bool, now: Date = .now) throws -> Sleep {
+        guard end > start else { throw AddSleepError.endBeforeStart }
+        if end > now.addingTimeInterval(60) { throw AddSleepError.inFuture }
+        if end.timeIntervalSince(start) > 16 * 3600 { throw AddSleepError.tooLong }
+        let p = NSPredicate(format: "start < %@ AND (end == nil OR end > %@)", end as NSDate, start as NSDate)
+        if let o = fetch(Sleep.self, forChild(p), limit: 1).first, let os = o.start {
+            throw o.end.map { AddSleepError.overlaps(os, $0) } ?? AddSleepError.overlapsRunning
+        }
+        let c = child()
+        let s = insert(Sleep.self, child: c)
+        s.id = UUID()
+        s.start = start
+        s.end = end
+        s.nap = nap
+        s.child = c
+        try save()
+        return s
     }
 
     func delete(_ obj: NSManagedObject) throws {

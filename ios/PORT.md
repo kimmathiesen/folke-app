@@ -10,6 +10,11 @@ Format: `- [ ] dato · commit på main · hvad · hvor i PLAN.md · facit`
 
 ## Åbne
 
+- [x] 2026-10-17 · `0463244` (forbedring-web) · **Glemt søvn og glemt nat:** «Tilføj glemt søvn» (start og slut med dato,
+      lur/nat; ikke i fremtiden, højst 16 t, ikke overlappende) og kortet «Mangler natten?» med hans typiske tider.
+      PLAN.md afsnit 3.10. Facit: `folke.missing_night`, `tests/test_missing.py`, `tests/fixtures/missing/`. Lavet samtidig
+      i Swift (`MissingNight.swift`, `store.addSleep`, `FixtureTests.glemtNat`, `RecordsTests.tilfoejGlemtSoevn`).
+
 - [x] 2026-10-17 · `a390da1` (forbedring-web) · **Mildere notifikationer:** 10 støttende varianter pr. slags (snart lur,
       snart sengetid, lurtiden/sengetiden er gået, udpumpning), valgt ud fra tidspunktet (minutter siden 1970 modulo 10).
       Uden navn: «den lille». PLAN.md afsnit 4. Facit: `messages.py`, `tests/test_messages.py`, `tests/fixtures/messages.json`.

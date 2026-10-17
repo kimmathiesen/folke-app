@@ -36,6 +36,8 @@ struct Snapshot {
     var suggestion: Suggestions.Suggestion?
     /// Besked om urolig søvn (RoughPatch), før «Tak» og indstillingen på enheden
     var rough: RoughSleep?
+    /// Forslag til en glemt nat (MissingNight), før «Ikke nu»
+    var missingNight: (start: Date, end: Date)?
     var pumpRemindHours = 3.0
     var sex = Sex.boy
     var birthDate: Date?
@@ -207,6 +209,7 @@ final class AppModel {
             roughChild = child?.id
         }
         s.rough = roughCache
+        s.missingNight = store.missingNight(now: now)
         // Gratis: den oprindelige forudsigelse (kun næste lur/sengetid). Plus: dagsplanen med løbende tilpasning.
         s.prediction = s.plus.unlocked ? store.prediction(now: now) : store.basicPrediction(now: now)
         s.plan = s.plus.unlocked ? store.dayPlan(now: now) : nil
@@ -372,6 +375,33 @@ final class AppModel {
         } catch {
             return (error as? LocalizedError)?.errorDescription ?? error.localizedDescription
         }
+    }
+
+    /// Tilføj en glemt søvn bagud. Giver en fejltekst eller nil.
+    func addSleep(start: Date, end: Date, nap: Bool) -> String? {
+        if serverSync != nil {
+            if end > .now.addingTimeInterval(60) { return AddSleepError.inFuture.errorDescription }
+            remote { sync in
+                try await sync.send("POST", "/api/sleep", ["start": ServerSync.local(start), "end": ServerSync.local(end), "nap": nap])
+            }
+            return nil
+        }
+        return attempt { try store.addSleep(start: start, end: end, nap: nap) }
+    }
+
+    /// «Ikke nu» på kortet om den glemte nat: skjult resten af dagen på denne enhed
+    var missSeen: String = FolkeShared.defaults.string(forKey: "folke.missSeen") ?? "" {
+        didSet { FolkeShared.defaults.set(missSeen, forKey: "folke.missSeen") }
+    }
+
+    var visibleMissingNight: (start: Date, end: Date)? {
+        guard let m = snapshot.missingNight, missSeen != Self.dayKey(.now) else { return nil }
+        return m
+    }
+
+    static func dayKey(_ d: Date) -> String {
+        let c = Calendar.current.dateComponents([.year, .month, .day], from: d)
+        return "\(c.year ?? 0)-\(c.month ?? 0)-\(c.day ?? 0)"
     }
 
     func deleteSleep(id: UUID) {

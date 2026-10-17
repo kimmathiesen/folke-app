@@ -111,7 +111,8 @@ struct EditSleepSheet: View {
     @State private var armed = false
     @State private var error = ""
     @State private var wakes: [WakeItem]
-    let item: Snapshot.Item
+    /// nil = «Tilføj søvn» (en glemt søvn, fx en nat), ellers «Ret søvn»
+    let item: Snapshot.Item?
 
     init(item: Snapshot.Item) {
         self.item = item
@@ -121,11 +122,19 @@ struct EditSleepSheet: View {
         _wakes = State(initialValue: item.wakes)
     }
 
+    init(addStart: Date, end: Date, nap: Bool) {
+        item = nil
+        _start = State(initialValue: addStart)
+        _end = State(initialValue: end)
+        _nap = State(initialValue: nap)
+        _wakes = State(initialValue: [])
+    }
+
     var body: some View {
         let m = Int((end.timeIntervalSince(start) / 60).rounded())
         ScrollView {
             VStack(alignment: .leading, spacing: 0) {
-                Text("Ret søvn").font(.headline).foregroundStyle(Color.fg)
+                Text(item == nil ? "Tilføj søvn" : "Ret søvn").font(.headline).foregroundStyle(Color.fg)
                 field("Faldt i søvn", $start)
                 field("Vågnede", $end)
                 Segmented(options: [(true, "Lur"), (false, "Nat")], selection: $nap).padding(.top, 12)
@@ -153,17 +162,17 @@ struct EditSleepSheet: View {
                     Text(error).font(.subheadline).foregroundStyle(Color.errorText).padding(.top, 12)
                 }
                 VStack(spacing: 10) {
-                    GoButton(title: "Gem ændringer") {
-                        if let e = model.editSleep(id: item.id, start: start, end: end, nap: nap ?? true) {
-                            error = e
-                        } else {
+                    GoButton(title: item == nil ? "Gem søvn" : "Gem ændringer") {
+                        let e = item.map { model.editSleep(id: $0.id, start: start, end: end, nap: nap ?? true) }
+                            ?? model.addSleep(start: start, end: end, nap: nap ?? true)
+                        if let e { error = e } else { dismiss() }
+                    }
+                    if let item {
+                        GoButton(title: armed ? "Tryk igen for at slette" : "Slet søvn", kind: .delete) {
+                            if !armed { return armed = true }
+                            model.deleteSleep(id: item.id)
                             dismiss()
                         }
-                    }
-                    GoButton(title: armed ? "Tryk igen for at slette" : "Slet søvn", kind: .delete) {
-                        if !armed { return armed = true }
-                        model.deleteSleep(id: item.id)
-                        dismiss()
                     }
                     GoButton(title: "Annullér", kind: .ghost) { dismiss() }
                 }
@@ -183,7 +192,7 @@ struct EditSleepSheet: View {
         HStack {
             Text(label).font(.subheadline).foregroundStyle(muted)
             Spacer()
-            DatePicker(label, selection: value).labelsHidden()
+            DatePicker(label, selection: value, in: ...Date.now).labelsHidden()
         }
         .padding(.top, 14)
     }
@@ -192,4 +201,43 @@ struct EditSleepSheet: View {
 extension String {
     /// Stort begyndelsesbogstav («Mandag 5. oktober»), som `cap` i index.html.
     var capitalizedFirst: String { prefix(1).uppercased() + dropFirst() }
+}
+
+/// «Tilføj glemt søvn» under Dagens søvn, og kortet «Mangler natten?» (`#sadd` og `#miss` i index.html).
+struct AddSleepButton: View {
+    @State private var adding: (start: Date, end: Date, nap: Bool)?
+    @State private var addID = UUID()
+
+    var body: some View {
+        GoButton(title: "Tilføj glemt søvn", kind: .ghost) {
+            addID = UUID()
+            adding = (.now.addingTimeInterval(-3600), .now, true)
+        }
+        .sheet(isPresented: Binding(get: { adding != nil }, set: { if !$0 { adding = nil } })) {
+            if let a = adding { EditSleepSheet(addStart: a.start, end: a.end, nap: a.nap).id(addID) }
+        }
+    }
+}
+
+struct MissingNightCard: View {
+    @Environment(AppModel.self) private var model
+    @Environment(\.muted) private var muted
+    @State private var adding = false
+    var night: (start: Date, end: Date)
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            Text("Mangler natten?").font(.callout.weight(.medium)).foregroundStyle(Color.fg)
+            Text("Der er ingen nat registreret fra i går aftes. Tilføj den, så planen for i dag passer igen.")
+                .font(.subheadline).foregroundStyle(muted)
+                .fixedSize(horizontal: false, vertical: true)
+                .padding(.top, 6)
+            ActionRow(options: [("Tilføj natten", { adding = true }),
+                                ("Ikke nu", { model.missSeen = AppModel.dayKey(.now) })])
+                .padding(.top, 12)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .card()
+        .sheet(isPresented: $adding) { EditSleepSheet(addStart: night.start, end: night.end, nap: false) }
+    }
 }

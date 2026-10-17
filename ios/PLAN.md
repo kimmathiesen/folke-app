@@ -173,6 +173,15 @@ nu sengetid ca. 19.53.
 - «Tak» skjuler kortet på enheden (nøgle pr. periode, eller pr. uge uden periode). Kan slås fra under Indstillinger. Gratis.
   Planen ændres ikke. Facit: `tests/fixtures/rough/`.
 
+### 3.10 Glemt søvn og glemt nat (`store.addSleep`, `MissingNight.swift`)
+- «Tilføj glemt søvn» under Dagens søvn: start og slut med dato, lur eller nat. Afvises: i fremtiden, over 16 timer,
+  eller hvis den overlapper anden søvn (også den, der kører).
+- Mangler natten (efter kl. 5, i går registreret, ingen nat mellem i går kl. 15 og i dag kl. 9, og ingen søvn kørt siden
+  før kl. 5), viser Søvn-siden «Mangler natten?» med «Tilføj natten» (arket udfyldt med hans typiske sengetid og opvågning,
+  median af de seneste 15 nætter, afrundet til 5 min, inden for sidste søvn i går og første søvn i dag/nu) og «Ikke nu».
+  Hans historik er i forvejen beskyttet mod hullet (`_robust`); det er dagens plan, der bliver skæv uden natten.
+  Facit: `tests/fixtures/missing/`.
+
 ## 4. Notifikationer (lokale)
 Teksterne: `Messages.swift` (port af `messages.py`). Varianten vælges ud fra tidspunktet (minutter siden 1970 modulo 10).
 

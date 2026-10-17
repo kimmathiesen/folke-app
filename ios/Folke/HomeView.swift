@@ -264,6 +264,9 @@ struct SleepPage: View {
         if let sg = model.snapshot.suggestion {
             SuggestionCard(suggestion: sg).padding(.top, 16)
         }
+        if let m = model.visibleMissingNight {
+            MissingNightCard(night: m).padding(.top, 16)
+        }
         if let r = model.visibleRough {
             RoughCard(rough: r).padding(.top, 16)
         }
@@ -278,6 +281,7 @@ struct SleepPage: View {
             if !s.today.isEmpty {
                 DayCard(now: now)
             }
+            AddSleepButton()
         }
         .padding(.top, 16)
         .frame(maxWidth: .infinity)

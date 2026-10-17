@@ -115,4 +115,27 @@ import Testing
             #expect(Messages.pick(k, when: Self.date(p.when), name: p.name, t: p.t, h: p.h) == p.expect)
         }
     }
+
+    // MARK: Glemt nat (folke.missing_night)
+
+    static var missingFiles: [String] {
+        ((try? FileManager.default.contentsOfDirectory(atPath: dir.appending(path: "missing").path)) ?? [])
+            .filter { $0.hasSuffix(".json") }.sorted()
+    }
+
+    struct Missing: Decodable {
+        struct E: Decodable { var start: String; var end: String }
+        var description: String; var now: String; var running: String?; var sleeps: [JSleep]; var expect: E?
+    }
+
+    @Test func derErFixturesOmGlemtNat() {
+        #expect(Self.missingFiles.count >= 9)
+    }
+
+    @Test(arguments: missingFiles) func glemtNat(_ file: String) throws {
+        let d = try JSONDecoder().decode(Missing.self, from: Data(contentsOf: Self.dir.appending(path: "missing/\(file)")))
+        let m = MissingNight.check(Self.samples(d.sleeps), now: Self.date(d.now), running: d.running.map(Self.date), calendar: cph)
+        #expect(m?.start == d.expect.map { Self.date($0.start) }, "\(d.description)")
+        #expect(m?.end == d.expect.map { Self.date($0.end) }, "\(d.description)")
+    }
 }

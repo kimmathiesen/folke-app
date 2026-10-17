@@ -21,6 +21,7 @@ from folke import plan_day  # noqa: E402
 from test_dayplan import catnap_history  # noqa: E402
 from test_predict import BIRTH, at, history  # noqa: E402
 import test_missing  # noqa: E402
+import test_stats  # noqa: E402
 import test_rough  # noqa: E402
 
 DAY, CAT = date(2026, 6, 10), date(2026, 6, 11)
@@ -155,6 +156,26 @@ def write_missing():
     return len(cases)
 
 
+def write_stats():
+    """Søvn i tal (stats.stats): samme scenarier som tests/test_stats.py."""
+    import stats
+    T = test_stats
+    cases = [("to-uger", "To hele uger, sengetid 20:00 ugen før og 20:30 nu", T.history(), "Folke"),
+             ("manglende-nat", "Natten i går mangler", T.history(missing=(1,)), ""),
+             ("opvaagninger", "To nætter med en opvågning", T.history(wake_nights=(1, 2)), "Folke"),
+             ("en-uge", "Kun en uge registreret", T.history(days=7), "Folke"),
+             ("tom", "Intet registreret", ([], []), "Folke")]
+    os.makedirs(os.path.join(HERE, "stats"), exist_ok=True)
+    for name, desc, (sleeps, wakes), child in cases:
+        data = {"description": desc, "now": iso(T.NOW), "name": child,
+                "sleeps": [{"id": i + 1, "start": iso(x["start"]), "end": iso(x["end"]), "nap": x["nap"]} for i, x in enumerate(sleeps)],
+                "wakes": [{"start": iso(w["start"]), "end": w["end"] and iso(w["end"])} for w in wakes],
+                "expect": stats.stats(sleeps, wakes, T.NOW, child)}
+        with open(os.path.join(HERE, "stats", f"{name}.json"), "w") as f:
+            json.dump(data, f, ensure_ascii=False, indent=1)
+            f.write("\n")
+
+
 def write_messages():
     """Notifikationernes tekster og et par valg, så Swift har præcis de samme (Messages.swift)."""
     from datetime import datetime
@@ -177,4 +198,5 @@ if __name__ == "__main__":
         write_rough(*sc)
     write_messages()
     write_missing()
+    write_stats()
     print(f"{len(SCENARIOS)} dagsplaner, 1 måling og {len(ROUGH)} om urolig søvn skrevet")

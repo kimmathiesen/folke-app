@@ -81,3 +81,15 @@ def test_glemt_nat(path):
     m = missing_night(sleeps(d), datetime.fromisoformat(d["now"]), d["running"] and datetime.fromisoformat(d["running"]))
     want = d["expect"] and {k: datetime.fromisoformat(v) for k, v in d["expect"].items()}
     assert m == want, d["description"]
+
+
+STATS = sorted(glob.glob(os.path.join(HERE, "stats", "*.json")))
+
+
+@pytest.mark.parametrize("path", STATS, ids=[os.path.basename(f)[:-5] for f in STATS])
+def test_soevn_i_tal(path):
+    import stats
+    d = json.load(open(path))
+    p = lambda t: t and datetime.fromisoformat(t).astimezone(TZ)  # noqa: E731
+    wakes = [{"start": p(w["start"]), "end": p(w["end"])} for w in d["wakes"]]
+    assert stats.stats(sleeps(d), wakes, datetime.fromisoformat(d["now"]), d["name"]) == d["expect"], d["description"]

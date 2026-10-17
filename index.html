@@ -99,7 +99,10 @@ header{position:relative}
 #setbtn{position:absolute;left:18px;top:8px;display:flex;align-items:center;gap:6px;padding:8px 14px;border-radius:99px;border:1px solid var(--line);background:var(--card);color:var(--fg);font-size:14px;text-decoration:none}
 #setbtn svg{width:16px;height:16px;stroke:var(--fg);fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
 .gh{display:flex;justify-content:space-between;align-items:center;margin:4px 0 14px}.gh a,.gh span{min-width:90px;text-align:left;color:var(--acc);text-decoration:none;font-size:16px}
-#gsvg,#psvg{display:block;width:100%;height:auto}#gsvg text,#psvg text{fill:var(--mut);font-size:11px}#gsum,#psum2{margin-top:8px;font-size:15px}
+#gsvg,#psvg,#ssvg{display:block;width:100%;height:auto}#gsvg text,#psvg text,#ssvg text{fill:var(--mut);font-size:11px}
+#slg{display:flex;gap:16px;margin-top:8px;font-size:14px;color:var(--mut)}#slg i{display:inline-block;width:10px;height:10px;border-radius:3px;margin-right:6px}#stext{margin-top:10px;font-size:15px;line-height:1.4}
+#stab{width:100%;border-collapse:collapse;font-size:15px}#stab th{font-weight:400;color:var(--mut);font-size:13px;text-align:right;padding:0 0 6px}#stab th:first-child{text-align:left}
+#stab td{padding:9px 0;border-top:1px solid var(--line);text-align:right;white-space:nowrap}#stab td:first-child{text-align:left;white-space:normal}#stab td.pv{color:var(--mut);padding-left:10px}#stab .ar{color:var(--mut);font-size:12px;margin-left:4px}#snote{color:var(--mut);font-size:13px;margin:12px 4px}#gsum,#psum2{margin-top:8px;font-size:15px}
 #gnote{margin:16px 4px 0;color:var(--mut);font-size:13px;text-align:left}#gadd{margin-top:14px}
 #glist,#plist{list-style:none;margin:16px 0 0}#plist li,#glist li{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:12px 0;border-top:1px solid var(--line);cursor:pointer}#glist li:first-child,#plist li:first-child{border:0}
 .more{flex:none;color:var(--acc);text-decoration:none;font-size:14px}#pnote{margin:16px 4px 0;color:var(--mut);font-size:13px;text-align:left}#logo{cursor:pointer;-webkit-user-select:none;user-select:none}#logo.new path[fill="#ffe28a"]{animation:tw 1.4s ease-in-out infinite;transform-box:fill-box;transform-origin:center}#logo.new path[fill="#ffe28a"]:nth-of-type(4){animation-delay:.45s}#logo.new path[fill="#ffe28a"]:nth-of-type(5){animation-delay:.9s}@keyframes tw{50%{opacity:.3;transform:scale(.55)}}
@@ -165,6 +168,7 @@ header{position:relative}
 <div id="day" class="card" hidden><div class="dh"><div class="dl"><svg class="ic" viewBox="0 0 24 24"><rect x="4" y="5" width="16" height="15" rx="2"/><path d="M4 10h16M9 3v4M15 3v4"/></svg>Dagens søvn</div><span id="dd"></span></div>
 <ul id="tl"></ul><div class="sum"><span>Samlet søvn</span><b id="tot"></b></div></div>
 <button class="go ghost" id="sadd" style="margin-top:12px">Tilføj glemt søvn</button>
+<button class="go ghost" id="sstat" style="margin-top:10px">Se søvn i tal</button>
 </div>
 </div></section>
 <section class="pg" id="p-food"><div class="in"><h1>Mad</h1>
@@ -213,6 +217,13 @@ header{position:relative}
 <label class="sw">Notifikationer på denne enhed<span id="pushst"></span></label><div class="seg" style="margin-top:10px"><button id="pushbtn" hidden>Slå til</button><button id="pushtest" hidden>Send test</button></div><div id="pushkinds" hidden><div id="pushkh">Send til denne enhed:</div><label class="sw"><span id="klead">Tid til at slappe af</span><input type="checkbox" data-k="sleep_soon"></label><label class="sw" id="mleadrow">Hvornår<select id="mlead" data-m="lead"></select></label><label class="sw"><span id="klate">Hvis lurtiden er gået</span><input type="checkbox" data-k="overdue"></label><label class="sw" id="mlaterow">Hvornår<select id="mlate" data-m="overdue"></select></label><label class="sw" id="kpump">Påmindelse om udpumpning<input type="checkbox" data-k="pump"></label></div><div id="pushmsg"></div>
 <label class="sw">Vækstkurver<select id="sx"><option value="boy">Dreng</option><option value="girl">Pige</option></select></label>
 <div id="dsrc"><label class="sw">Data<span>På serveren (SQLite)</span></label><div class="seg" style="margin-top:10px"><button id="exp">Eksportér</button></div></div></div>
+</div>
+<div id="v-stats" class="ov" hidden>
+<div class="gh"><a href="#">‹ Tilbage</a><div class="dl">Søvn i tal</div><span></span></div>
+<div class="card"><svg id="ssvg" viewBox="0 0 340 200" role="img" aria-label="Søvn de seneste 14 dage"></svg>
+<div id="slg"><span><i style="background:#8b7cf6"></i>Nat</span><span><i style="background:#a9c2ff"></i>Dag</span></div><div id="stext"></div></div>
+<div class="card"><table id="stab"></table></div>
+<div id="snote">Gennemsnit af de seneste 7 hele dage mod ugen før. Dage, hvor natten mangler, vises i grafen, men tæller ikke med i gennemsnittet.</div><div id="serr"></div>
 </div>
 <div id="v-board" class="ov" hidden>
 <div class="gh"><a href="#">‹ Tilbage</a><div class="dl">Tavlen</div><span></span></div>
@@ -363,7 +374,7 @@ try{await api('/api/sleep/'+ed.id,{},'DELETE');$('sheet').hidden=true;ed=null;lo
 let G=null,gk='w',gid=null,garm=false;
 const GL={w:['Vægt','kg'],l:['Længde','cm'],h:['Hoved','cm']},nf=v=>v.toLocaleString('da-DK',{maximumFractionDigits:2}),dc=v=>v==null?'':String(v).replace('.',',');
 const gdate=d=>new Date(d+'T12:00').toLocaleDateString('da-DK',{day:'numeric',month:'short',year:'numeric'});
-function route(){const h=location.hash,s=h==="#indstillinger",t=h==="#tavle",ov=s||t;$("pages").hidden=$("pnav").hidden=$("top").hidden=ov;$("v-settings").hidden=!s;$("v-board").hidden=!t;if(t)bopen();else if(typeof bclose==="function")bclose();if(s)pushUI();const pg={"#mad":"p-food","#pumpning":"p-pump","#vaekst":"p-growth"}[h];if(pg)go(pg,false)}
+function route(){const h=location.hash,s=h==="#indstillinger",t=h==="#tavle",q=h==="#statistik",ov=s||t||q;$("pages").hidden=$("pnav").hidden=$("top").hidden=ov;$("v-settings").hidden=!s;$("v-board").hidden=!t;$("v-stats").hidden=!q;if(q)loadS();if(t)bopen();else if(typeof bclose==="function")bclose();if(s)pushUI();const pg={"#mad":"p-food","#pumpning":"p-pump","#vaekst":"p-growth"}[h];if(pg)go(pg,false)}
 // Sider man stryger mellem: vælgeren i bunden følger med, og Vækst/Udpumpning hentes, når man kommer dertil
 let curPage="p-sleep";const pgs=()=>[...document.querySelectorAll(".pg")].filter(e=>!e.hidden);
 function go(id,smooth=true){const e=$(id);if(!e||e.hidden)return;$("pages").scrollTo({left:e.offsetLeft,behavior:smooth?"smooth":"instant"});seen_(id)}
@@ -427,6 +438,26 @@ catch(e){$('err').textContent=e.message}$('pgo').disabled=false;load()};
 $('cp').onchange=()=>api('/api/feature',{name:'pump',on:$('cp').checked}).then(load);
 $('prem').onchange=()=>api('/api/pump/remind',{hours:+$('prem').value}).then(load).catch(e=>$('err').textContent=e.message);
 async function loadP(){try{P=await api('/api/pump/history?days=14');$('perr').textContent=''}catch(e){$('perr').textContent=e.message}drawP()}
+// ---------- Søvn i tal (#statistik, /api/stats). Pil ved tydelig forskel: 10 min for klokkeslæt, 0,3 for antal, ellers 5 % ----------
+let SS=null;
+async function loadS(){try{SS=await api('/api/stats');$('serr').textContent=''}catch(e){$('serr').textContent=e.message}drawS()}
+const clk=m=>m==null?'–':`${p2(m/60|0)}.${p2(m%60)}`;
+function drawS(){if(!SS)return;const D=SS.days,W=340,H=200,L=34,R=6,T=26,B=26,n=D.length,bw=(W-L-R)/n,f=v=>v.toFixed(1);
+const mx=Math.max(12,...D.map(d=>((d.night_min||0)+(d.day_min||0))/60)),top=Math.ceil(mx/4)*4,sy=v=>H-B-(H-T-B)*v/top;let s='';
+for(let v=0;v<=top;v+=4)s+=`<path d="M${L} ${f(sy(v))}H${W-R}" stroke="rgba(255,255,255,.07)"/><text x="${L-6}" y="${f(sy(v)+4)}" text-anchor="end">${v}</text>`;
+D.forEach((d,i)=>{const x=L+i*bw,nt=(d.night_min||0)/60,dy=(d.day_min||0)/60;
+if(nt)s+=`<rect x="${f(x+bw*.18)}" y="${f(sy(nt))}" width="${f(bw*.64)}" height="${f(sy(0)-sy(nt))}" rx="2" fill="#8b7cf6"/>`;
+if(dy)s+=`<rect x="${f(x+bw*.18)}" y="${f(sy(nt+dy))}" width="${f(bw*.64)}" height="${f(sy(nt)-sy(nt+dy))}" rx="2" fill="#a9c2ff"/>`;
+if(d.day_min!=null&&d.night_min==null)s+=`<text x="${f(x+bw/2)}" y="${f(sy(dy)-4)}" text-anchor="middle">?</text>`;
+if(i%2===(n-1)%2)s+=`<text x="${f(x+bw/2)}" y="${H-8}" text-anchor="middle">${new Date(d.date+'T12:00').getDate()}.</text>`});
+s+=`<text x="${L-6}" y="10" text-anchor="end">timer</text>`;$('ssvg').innerHTML=s;
+$('stext').textContent=SS.text||'Der er ikke registreret nok endnu. Når en hel dag med lure og nat er registreret, kommer tallene her.';
+const w=SS.week,p=SS.prev,num=v=>v==null?'–':String(v).replace('.',','),
+rows=[['Søvn i døgnet','total_min',dur,1],['Om natten','night_min',dur,1],['Om dagen','day_min',dur,1],['Lure pr. dag','naps',num,0],
+['Lurenes længde','nap_len',dur,1],['Sengetid','bed',clk,0],['Vågnede','wake',clk,0],['Opvågninger pr. nat','wakes',num,0]].filter(r=>r[1]!=='wakes'||w.wakes!=null||p.wakes!=null);
+const ar=(a,b,k)=>{if(a==null||b==null)return'';const d=a-b,big=k==='bed'||k==='wake'?Math.abs(d)>=10:k==='naps'||k==='wakes'?Math.abs(d)>=.3:Math.abs(d)>=Math.max(1,Math.abs(b)*.05);return big?`<span class="ar">${d>0?'↑':'↓'}</span>`:''};
+$('stab').innerHTML=`<tr><th></th><th>Seneste 7 dage</th><th>Ugen før</th></tr>`+rows.map(([l,k,fm])=>`<tr><td>${l}</td><td>${w[k]==null?'–':fm(w[k])}${ar(w[k],p[k],k)}</td><td class="pv">${p[k]==null?'–':fm(p[k])}</td></tr>`).join('')}
+$('sstat').onclick=()=>{location.hash='#statistik'};
 function drawP(){if(!P)return;const D=P.days,W=340,H=200,L=34,R=6,T=26,B=26,n=D.length,bw=(W-L-R)/n,f=v=>v.toFixed(1);
 const mx=Math.max(100,...D.map(d=>d.ml)),st=[50,100,200,250,500,1000].find(s=>mx/s<=5)||1000,top=Math.ceil(mx/st)*st,sy=v=>H-B-(H-T-B)*v/top;let s='';
 for(let v=0;v<=top;v+=st)s+=`<path d="M${L} ${f(sy(v))}H${W-R}" stroke="rgba(255,255,255,.07)"/><text x="${L-6}" y="${f(sy(v)+4)}" text-anchor="end">${v}</text>`;

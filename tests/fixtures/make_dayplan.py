@@ -20,6 +20,7 @@ import rough  # noqa: E402
 from folke import plan_day  # noqa: E402
 from test_dayplan import catnap_history  # noqa: E402
 from test_predict import BIRTH, at, history  # noqa: E402
+import test_missing  # noqa: E402
 import test_rough  # noqa: E402
 
 DAY, CAT = date(2026, 6, 10), date(2026, 6, 11)
@@ -121,6 +122,39 @@ def write_rough(name, desc, birth, child, kw):
         f.write("\n")
 
 
+def write_missing():
+    """Glemt nat (folke.missing_night): samme scenarier som tests/test_missing.py."""
+    from datetime import timedelta as td
+    from folke import missing_night
+    M, D = test_missing, test_missing.DAY
+    y = D - td(days=1)
+    cases = [
+        ("glemt-nat-17-10", "Folkes glemte nat 16/10: lur kører fra 11:24", M.week() + [{"start": M.at(D, 8, 37), "end": M.at(D, 9, 27), "nap": True}],
+         M.at(D, 12, 8), M.at(D, 11, 24)),
+        ("slut-ved-foerste-lur", "Første lur i dag kl. 7 er før hans typiske opvågning",
+         M.week() + [{"start": M.at(D, 7, 0), "end": M.at(D, 7, 40), "nap": True}], M.at(D, 8, 0), None),
+        ("slut-nu", "Kl. 6:10, før hans typiske opvågning", M.week(), M.at(D, 6, 10), None),
+        ("start-efter-aftenlur", "Aftenlur til kl. 21", M.week() + [{"start": M.at(y, 19, 30), "end": M.at(y, 21, 0), "nap": True}],
+         M.at(D, 9, 0), None),
+        ("standardtider", "Ingen nætter i historikken", M.week(nights=False), M.at(D, 9, 0), None),
+        ("natten-findes", "Natten er registreret", M.week() + [{"start": M.at(y, 20, 30), "end": M.at(D, 6, 50), "nap": False}],
+         M.at(D, 9, 0), None),
+        ("for-tidligt", "Kl. 4:30", M.week(), M.at(D, 4, 30), None),
+        ("i-gaar-ikke-registreret", "Intet registreret i går", M.week(last=D - td(days=2)), M.at(D, 9, 0), None),
+        ("natten-koerer", "Natten kører stadig", M.week(), M.at(D, 9, 0), M.at(y, 20, 45)),
+    ]
+    os.makedirs(os.path.join(HERE, "missing"), exist_ok=True)
+    for name, desc, sleeps, now, running in cases:
+        m = missing_night(sleeps, now, running)
+        data = {"description": desc, "now": iso(now), "running": running and iso(running),
+                "sleeps": [{"id": i + 1, "start": iso(x["start"]), "end": iso(x["end"]), "nap": x["nap"]} for i, x in enumerate(sleeps)],
+                "expect": m and {k: iso(v) for k, v in m.items()}}
+        with open(os.path.join(HERE, "missing", f"{name}.json"), "w") as f:
+            json.dump(data, f, ensure_ascii=False, indent=1)
+            f.write("\n")
+    return len(cases)
+
+
 def write_messages():
     """Notifikationernes tekster og et par valg, så Swift har præcis de samme (Messages.swift)."""
     from datetime import datetime
@@ -142,4 +176,5 @@ if __name__ == "__main__":
     for sc in ROUGH:
         write_rough(*sc)
     write_messages()
+    write_missing()
     print(f"{len(SCENARIOS)} dagsplaner, 1 måling og {len(ROUGH)} om urolig søvn skrevet")

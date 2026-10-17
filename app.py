@@ -78,6 +78,7 @@ def status():
         last_feed=last_feed,
         accuracy=accuracy(c, now),
         rough=rough_sleep(c, now),
+        missing_night=(lambda m: m and {k: v.isoformat() for k, v in m.items()})(folke.missing_night(sleeps, now, start)),
         feed_today=feed_today,
         pump=pump_summary(c["id"], now),
         pump_remind=prefs()["pump_remind"],
@@ -612,6 +613,35 @@ def edit_sleep(sid):
     if e > datetime.now(TZ) + timedelta(minutes=1):
         return jsonify(ok=False, error="Sluttid ligger i fremtiden"), 400
     db().edit_sleep(sid, s, e, bool(d["nap"]) if "nap" in d else None)
+    return jsonify(ok=True)
+
+
+@app.post("/api/sleep")
+def add_sleep():
+    """Tilføj en glemt søvn: {"start": "YYYY-MM-DDTHH:MM", "end": ..., "nap": true/false} (lokal tid).
+    Uden "nap" gættes ud fra start og længde. Må ikke ligge i fremtiden eller overlappe anden søvn."""
+    d = request.get_json(silent=True) or {}
+    try:
+        s, e = local(d["start"]), local(d["end"])
+    except (KeyError, ValueError):
+        return jsonify(ok=False, error="Ugyldigt tidspunkt"), 400
+    now = datetime.now(TZ)
+    if e <= s:
+        return jsonify(ok=False, error="Vågnede skal være efter faldt i søvn"), 400
+    if e > now + timedelta(minutes=1):
+        return jsonify(ok=False, error="Tidspunktet ligger i fremtiden"), 400
+    if e - s > timedelta(hours=16):
+        return jsonify(ok=False, error="En søvn kan højst vare 16 timer"), 400
+    c = get_child()
+    for x in db().sleeps(c["id"], s - timedelta(days=1)):
+        xs, xe = folke.parse(x["start"]), folke.parse(x["end"])
+        if xs < e and s < xe:
+            return jsonify(ok=False, error=f"Overlapper søvnen kl. {xs.astimezone(TZ):%H:%M}–{xe.astimezone(TZ):%H:%M}"), 400
+    t = sleep_timer(c["id"])
+    if t and folke.parse(t["start"]) < e:
+        return jsonify(ok=False, error="Overlapper søvnen, der er i gang"), 400
+    nap = bool(d["nap"]) if "nap" in d else folke.nap_at_stop(s, e)
+    db().add_sleep(c["id"], s, e, nap)
     return jsonify(ok=True)
 
 

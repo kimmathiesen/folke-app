@@ -8,7 +8,7 @@ egne minutter, og hver besked sendes kun én gang pr. forudsigelse og enhed. Kal
 import json
 import os
 import statistics
-from datetime import datetime, timedelta, date
+from datetime import datetime, timedelta, date, time
 from zoneinfo import ZoneInfo
 
 import messages
@@ -356,6 +356,46 @@ def notify(title, msg, kind=None):
             push.send(title, msg, kind=kind)
         except Exception as e:
             print("notify push:", e, flush=True)
+
+
+def missing_night(sleeps, now, running=None):
+    """Mangler sidste nat (fx glemt at trykke)? Giver et forslag {"start", "end"} ud fra hans typiske nat, ellers None.
+
+    Kun efter kl. 5, kun hvis i går er registreret, og kun hvis ingen nat ligger mellem i går kl. 15 og i dag kl. 9
+    (og ingen søvn har kørt siden før kl. 5). Starten er hans typiske sengetid (dog ikke før sidste søvn i går),
+    slutningen hans typiske opvågning (dog ikke efter første søvn i dag eller nu). Afrundet til 5 min.
+    Samme regel i Swift: MissingNight.swift (fælles testdata i tests/fixtures/missing)."""
+    now = now.astimezone(TZ)
+    today = now.date()
+    yday = today - timedelta(days=1)
+    loc = lambda t: t.astimezone(TZ)  # noqa: E731
+    at = lambda d, m: datetime.combine(d, time(0), TZ) + timedelta(minutes=m)  # noqa: E731
+    if now.hour < 5 or not any(loc(s["start"]).date() == yday for s in sleeps):
+        return None
+    lo, hi = at(yday, 15 * 60), at(today, 9 * 60)
+    if any(not s["nap"] and loc(s["end"]) > lo and loc(s["start"]) < hi for s in sleeps):
+        return None
+    if running and loc(running) < at(today, 5 * 60):
+        return None
+    nights = [s for s in sleeps if not s["nap"] and loc(s["start"]).date() >= today - timedelta(days=15)]
+
+    def typical(ts, default):
+        if not ts:
+            return default
+        return int(round(statistics.median(ts) / 5) * 5)
+    bed = typical([(loc(s["start"]).hour * 60 + loc(s["start"]).minute) % 1440 + (1440 if loc(s["start"]).hour < 12 else 0)
+                   for s in nights], 19 * 60 + 30)
+    wake = typical([loc(s["end"]).hour * 60 + loc(s["end"]).minute for s in nights], 6 * 60 + 30)
+    start = at(yday, bed)
+    before = [loc(s["end"]) for s in sleeps if loc(s["start"]) < at(today, 0)]  # søvn, der startede før midnat
+    if before:
+        start = max(start, max(before))
+    end = at(today, wake)
+    firsts = [loc(s["start"]) for s in sleeps if loc(s["start"]).date() == today] + ([loc(running)] if running else [])
+    end = min([end, now] + firsts)
+    if end <= start:
+        return None
+    return {"start": start, "end": end}
 
 
 def soon_text(pred, name=""):

@@ -110,7 +110,8 @@ def test_paamindelse(client, world, beskeder, monkeypatch):
     assert app_module.pump_reminder(noon) is False  # kun 4 timer siden
     client.post("/api/pump/remind", json={"hours": 3})
     assert app_module.pump_reminder(noon) is True
-    assert beskeder == [("Udpumpning", "Det er 4 timer siden sidste udpumpning (kl. 08:00)")]
+    import messages
+    assert beskeder == [("Udpumpning", messages.pick("pump", t, t="08:00", h="4"))]
     assert app_module.pump_reminder(noon + timedelta(minutes=1)) is False  # kun én gang
     assert len(beskeder) == 1
 

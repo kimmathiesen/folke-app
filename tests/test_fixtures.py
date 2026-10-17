@@ -61,3 +61,11 @@ def test_urolig_soevn(path):
     wakes = [{"start": p(w["start"]), "end": p(w["end"])} for w in d["wakes"]]
     got = rough.check(sleeps(d), wakes, date.fromisoformat(d["birth_date"]), datetime.fromisoformat(d["now"]), d["name"])
     assert got == d["expect"], d["description"]
+
+
+def test_beskeder():
+    import messages
+    d = json.load(open(os.path.join(HERE, "messages.json")))
+    assert d["lists"] == messages.ALL
+    for p in d["picks"]:
+        assert messages.pick(p["kind"], datetime.fromisoformat(p["when"]), p["name"], p["t"], p["h"]) == p["expect"]

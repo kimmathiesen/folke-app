@@ -12,6 +12,18 @@ TZ = folke.TZ
 SUB2 = {**SUB, "endpoint": "https://web.push.apple.com/far"}
 
 
+import re  # noqa: E402
+
+import messages  # noqa: E402
+
+
+def fits(text, templates):
+    """Teksten er en af skabelonerne med navn, klokkeslæt og timer udfyldt."""
+    pat = lambda t: "^" + re.escape(t).replace(re.escape("{name}"), ".+").replace(re.escape("{t}"), r"\d\d:\d\d") \
+        .replace(re.escape("{h}"), r"\d+") + "$"  # noqa: E731
+    return any(re.match(pat(t), text, re.IGNORECASE) for t in templates)
+
+
 def bodies(sent):
     return [json.loads(d)["body"] for _, d, _ in sent]
 
@@ -33,7 +45,7 @@ def test_besked_30_min_foer(client, world, sent, real_main):  # noqa: F811
     push.subscribe(SUB, "https://folke.test")
     real_main()
     [b] = bodies(sent)
-    assert b.startswith("Tid til at slappe af. ") and " ca. kl. " in b
+    assert fits(b, messages.SOON_NAP + messages.SOON_BED) and " ca. kl. " in b
     real_main()  # og ikke igen (heller ikke 10 min før)
     assert len(sent) == 1
 
@@ -51,7 +63,7 @@ def test_frisk_efter_lurtid_med_navn(client, world, sent, real_main):  # noqa: F
     push.subscribe(SUB, "https://folke.test")
     real_main()
     [b] = bodies(sent)
-    assert b.startswith("Folke virker meget frisk. Prøv alligevel ")
+    assert fits(b, messages.LATE_NAP + messages.LATE_BED) and "{name}" not in b
     real_main()
     assert len(sent) == 1
 

@@ -11,6 +11,8 @@ import statistics
 from datetime import datetime, timedelta, date
 from zoneinfo import ZoneInfo
 
+import messages
+
 CHILD_ID = os.environ.get("CHILD_ID")
 LEAD_MIN = int(os.environ.get("LEAD_MIN", "30"))
 OVERDUE_MIN = int(os.environ.get("OVERDUE_MIN", "15"))
@@ -356,14 +358,15 @@ def notify(title, msg, kind=None):
             print("notify push:", e, flush=True)
 
 
-def soon_text(pred):
-    t = f"{pred['time'].astimezone(TZ):%H:%M}"
-    return f"Tid til at slappe af. {'Næste lur' if pred['kind'] == 'lur' else 'Sengetid'} ca. kl. {t}"
+def soon_text(pred, name=""):
+    """«Snart lur/sengetid»: en af 10 milde tekster (messages.py), valgt ud fra tidspunktet."""
+    kind = "soon_nap" if pred["kind"] == "lur" else "soon_bed"
+    return messages.pick(kind, pred["time"], name, f"{pred['time'].astimezone(TZ):%H:%M}")
 
 
 def overdue_text(pred, name):
-    what = "en lur" if pred["kind"] == "lur" else "at putte til natten"
-    return f"{name or 'Babyen'} virker meget frisk. Prøv alligevel {what}"
+    """«Lurtiden/sengetiden er gået»: en af 10 milde tekster, valgt ud fra tidspunktet."""
+    return messages.pick("late_nap" if pred["kind"] == "lur" else "late_bed", pred["time"], name)
 
 
 def load_state():
@@ -432,7 +435,7 @@ def main():
         pass
     state = load_state()
     name = (display_name and display_name()) or child.get("first_name")
-    text = {"sleep_soon": soon_text(pred), "overdue": overdue_text(pred, name)}
+    text = {"sleep_soon": soon_text(pred, name), "overdue": overdue_text(pred, name)}
     old = {"sleep_soon": "notified", "overdue": "overdue"}  # nøglerne fra før minutter pr. enhed
     changed = False
     sent = state.setdefault("push_sent", {})

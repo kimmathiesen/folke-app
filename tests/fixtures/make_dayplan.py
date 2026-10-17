@@ -129,7 +129,7 @@ def write_missing():
     M, D = test_missing, test_missing.DAY
     y = D - td(days=1)
     cases = [
-        ("folke-17-10", "Folkes glemte nat 16/10: lur kører fra 11:24", M.week() + [{"start": M.at(D, 8, 37), "end": M.at(D, 9, 27), "nap": True}],
+        ("glemt-nat-17-10", "Folkes glemte nat 16/10: lur kører fra 11:24", M.week() + [{"start": M.at(D, 8, 37), "end": M.at(D, 9, 27), "nap": True}],
          M.at(D, 12, 8), M.at(D, 11, 24)),
         ("slut-ved-foerste-lur", "Første lur i dag kl. 7 er før hans typiske opvågning",
          M.week() + [{"start": M.at(D, 7, 0), "end": M.at(D, 7, 40), "nap": True}], M.at(D, 8, 0), None),

@@ -184,7 +184,7 @@ Planlæg forfra, hver gang data ændres lokalt eller fra iCloud (`NSPersistentSt
 
 | Type (id) | Hvornår | Titel og tekst | Standard pr. enhed |
 |---|---|---|---|
-| `sleep_soon` | 30 min før forudsagt tid | «Søvn»: en af 10 milde tekster med tidspunktet, fx «Snart lurtid, ca. kl. 13.40. Måske en stille stund sammen først?» | Til |
+| `sleep_soon` | 30 min før forudsagt tid | «Søvn»: en af 10 milde tekster med tidspunktet, fx «Snart lurtid, ca. kl. 13:40. Måske en stille stund sammen først?» | Til |
 | `overdue` | 15 min efter forudsagt tid, hvis ingen søvn er startet | «Søvn»: en af 10 støttende tekster, fx «Folke virker frisk endnu, og det er helt okay. Prøv stille og roligt en lur, når I er klar.» | Til |
 | `pump` | X timer efter sidste udpumpning (fælles indstilling, standard 3) | «Udpumpning»: en af 10 tekster, fx «Tid til udpumpning? Sidste gang var kl. 09:15. Du gør det godt.» | Fra |
 

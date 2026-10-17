@@ -22,16 +22,16 @@ import Testing
         let soon = n.first { $0.kind == .sleepSoon }!
         #expect(soon.fireDate == at(d, 13, 10))
         #expect(soon.title == "Søvn")
-        #expect(soon.body == "Tid til at slappe af. Næste lur ca. kl. 13:40")
+        #expect(soon.body == Messages.pick(.soonNap, when: at(d, 13, 40), name: "Folke", t: "13:40"))
         let late = n.first { $0.kind == .overdue }!
         #expect(late.fireDate == at(d, 13, 55))
-        #expect(late.body == "Folke virker meget frisk. Prøv alligevel en lur")
+        #expect(late.body == Messages.pick(.lateNap, when: at(d, 13, 40), name: "Folke"))
     }
 
     @Test func sengetidOgUdenNavn() {
         let (n, _) = planner.plan(input(at(d, 17, 0), pred(.bedtime, at: 19, 30), name: ""), log: .init())
-        #expect(n.first { $0.kind == .sleepSoon }!.body == "Tid til at slappe af. Sengetid ca. kl. 19:30")
-        #expect(n.first { $0.kind == .overdue }!.body == "Babyen virker meget frisk. Prøv alligevel at putte til natten")
+        #expect(n.first { $0.kind == .sleepSoon }!.body == Messages.pick(.soonBed, when: at(d, 19, 30), t: "19:30"))
+        #expect(n.first { $0.kind == .overdue }!.body == Messages.pick(.lateBed, when: at(d, 19, 30)))
     }
 
     @Test func ingentingNaarSoevnKoerer() {
@@ -81,7 +81,7 @@ import Testing
         i.lastPump = (id(7), at(d, 9, 15))
         let (n, log) = planner.plan(i, log: .init())
         #expect(n == [PlannedNotification(kind: .pump, fireDate: at(d, 12, 15), title: "Udpumpning",
-                                          body: "Det er 3 timer siden sidste udpumpning (kl. 09:15)")])
+                                          body: Messages.pick(.pump, when: at(d, 9, 15), t: "09:15", h: "3"))])
         // Højst én gang pr. udpumpning
         i.now = at(d, 13, 0)
         #expect(planner.plan(i, log: log).notifications.isEmpty)
@@ -94,7 +94,7 @@ import Testing
         i.lastPump = (id(7), at(d, 20, 0))
         let n = planner.plan(i, log: .init()).notifications
         #expect(n.first?.fireDate == at(plusDays(d, 1), 7, 0))
-        #expect(n.first?.body == "Det er 11 timer siden sidste udpumpning (kl. 20:00)")
+        #expect(n.first?.body == Messages.pick(.pump, when: at(d, 20, 0), t: "20:00", h: "11"))
     }
 
     @Test func forsinketUdpumpningVenterTilMorgenen() {
@@ -105,11 +105,11 @@ import Testing
         i.lastPump = (id(7), at(d, 13, 40))
         let n = planner.plan(i, log: .init()).notifications
         #expect(n.first?.fireDate == at(plusDays(d, 1), 7, 0))
-        #expect(n.first?.body == "Det er 17 timer siden sidste udpumpning (kl. 13:40)")
+        #expect(n.first?.body == Messages.pick(.pump, when: at(d, 13, 40), t: "13:40", h: "17"))
         // Om dagen sendes en forsinket påmindelse med det samme
         i.now = at(d, 18, 0)
         #expect(planner.plan(i, log: .init()).notifications.first?.fireDate == at(d, 18, 0))
-        #expect(planner.plan(i, log: .init()).notifications.first?.body == "Det er 4 timer siden sidste udpumpning (kl. 13:40)")
+        #expect(planner.plan(i, log: .init()).notifications.first?.body == Messages.pick(.pump, when: at(d, 13, 40), t: "13:40", h: "4"))
     }
 
     @Test func udpumpningFraSomStandard() {

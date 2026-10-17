@@ -95,4 +95,24 @@ import Testing
         let want = d.expect.map { RoughSleep(key: $0.key, period: $0.period, reasons: $0.reasons, title: $0.title, text: $0.text) }
         #expect(r == want, "\(d.description)")
     }
+
+    // MARK: Notifikationernes tekster (messages.py)
+
+    struct MessageFile: Decodable {
+        struct P: Decodable { var kind: String; var when: String; var name: String; var t: String; var h: String; var expect: String }
+        var lists: [String: [String]]
+        var picks: [P]
+    }
+
+    @Test func beskeder() throws {
+        let d = try JSONDecoder().decode(MessageFile.self, from: Data(contentsOf: Self.dir.appending(path: "messages.json")))
+        #expect(d.lists.count == Messages.Kind.allCases.count)
+        for k in Messages.Kind.allCases {
+            #expect(d.lists[k.rawValue] == Messages.list(k), "\(k.rawValue)")
+        }
+        for p in d.picks {
+            let k = try #require(Messages.Kind(rawValue: p.kind))
+            #expect(Messages.pick(k, when: Self.date(p.when), name: p.name, t: p.t, h: p.h) == p.expect)
+        }
+    }
 }

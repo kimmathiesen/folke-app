@@ -116,7 +116,7 @@ public struct NotificationPlanner: Sendable {
         if let p = input.prediction, !input.sleeping {
             let key = p.lastID.uuidString
             add(.sleepSoon, key: key, at: p.time.addingTimeInterval(-Double(input.leadMin) * 60), latest: p.time,
-                title: input.title, body: soonText(p))
+                title: input.title, body: soonText(p, name: input.childName))
             add(.overdue, key: key, at: p.time.addingTimeInterval(Double(input.overdueMin) * 60),
                 latest: p.time.addingTimeInterval(Double(Self.overdueMaxMin) * 60),
                 title: input.title, body: overdueText(p, name: input.childName))
@@ -127,18 +127,19 @@ public struct NotificationPlanner: Sendable {
             let fire = outsideQuiet(max(last.time.addingTimeInterval(input.pumpRemindHours * 3600), now))
             let hours = fire.timeIntervalSince(last.time) / 3600
             add(.pump, key: last.id.uuidString, at: fire, latest: .distantFuture, title: "Udpumpning",
-                body: "Det er \(String(format: "%.0f", hours)) timer siden sidste udpumpning (kl. \(clock(last.time)))")
+                body: Messages.pick(.pump, when: last.time, t: clock(last.time), h: String(format: "%.0f", hours)))
         }
         return (out, log)
     }
 
-    public func soonText(_ p: Prediction) -> String {
-        "Tid til at slappe af. \(p.kind == .nap ? "Næste lur" : "Sengetid") ca. kl. \(clock(p.time))"
+    /// «Snart lur/sengetid»: en af 10 milde tekster (Messages), valgt ud fra tidspunktet
+    public func soonText(_ p: Prediction, name: String = "") -> String {
+        Messages.pick(p.kind == .nap ? .soonNap : .soonBed, when: p.time, name: name, t: clock(p.time))
     }
 
+    /// «Lurtiden/sengetiden er gået»: en af 10 milde tekster, valgt ud fra tidspunktet
     public func overdueText(_ p: Prediction, name: String) -> String {
-        let what = p.kind == .nap ? "en lur" : "at putte til natten"
-        return "\(name.isEmpty ? "Babyen" : name) virker meget frisk. Prøv alligevel \(what)"
+        Messages.pick(p.kind == .nap ? .lateNap : .lateBed, when: p.time, name: name)
     }
 
     /// Flytter et tidspunkt mellem 22 og 7 til kl. 7.

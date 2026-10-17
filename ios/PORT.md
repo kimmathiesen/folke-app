@@ -10,6 +10,11 @@ Format: `- [ ] dato · commit på main · hvad · hvor i PLAN.md · facit`
 
 ## Åbne
 
+- [x] 2026-10-17 · `a390da1` (forbedring-web) · **Mildere notifikationer:** 10 støttende varianter pr. slags (snart lur,
+      snart sengetid, lurtiden/sengetiden er gået, udpumpning), valgt ud fra tidspunktet (minutter siden 1970 modulo 10).
+      Uden navn: «den lille». PLAN.md afsnit 4. Facit: `messages.py`, `tests/test_messages.py`, `tests/fixtures/messages.json`.
+      Lavet samtidig i Swift (`Messages.swift`, `FixtureTests.beskeder`).
+
 - [x] 2026-10-11 · `a40f2c0` (forbedring-web) · **Urolig søvn:** de seneste 4 hele dage mod de 14 før; mindst 2 ting
       tydeligt dårligere giver et kort på Søvn-siden med en blid tekst (søvnregression ved 4 mdr., 8–10 mdr., 1 år,
       1½ år, 2 år, ellers en generel tekst). «Tak» skjuler det pr. enhed; kan slås fra under Indstillinger. Gratis.

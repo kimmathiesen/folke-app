@@ -174,6 +174,7 @@ nu sengetid ca. 19.53.
   Planen ændres ikke. Facit: `tests/fixtures/rough/`.
 
 ## 4. Notifikationer (lokale)
+Teksterne: `Messages.swift` (port af `messages.py`). Varianten vælges ud fra tidspunktet (minutter siden 1970 modulo 10).
 
 Tidspunktet er `predict()` (afsnit 3): første punkt i dagsplanen uden genberegning ved misset lur.
 En kort lur eller en rykket sengetid flytter altså også beskeden.
@@ -183,9 +184,9 @@ Planlæg forfra, hver gang data ændres lokalt eller fra iCloud (`NSPersistentSt
 
 | Type (id) | Hvornår | Titel og tekst | Standard pr. enhed |
 |---|---|---|---|
-| `sleep_soon` | 30 min før forudsagt tid | «Søvn»: «Tid til at slappe af. Næste lur ca. kl. 13:40» (sengetid: «Sengetid ca. kl. 19:30») | Til |
-| `overdue` | 15 min efter forudsagt tid, hvis ingen søvn er startet | «Søvn»: «Folke virker meget frisk. Prøv alligevel en lur» (sengetid: «… at putte til natten») | Til |
-| `pump` | X timer efter sidste udpumpning (fælles indstilling, standard 3) | «Udpumpning»: «Det er 3 timer siden sidste udpumpning (kl. 09:15)» | Fra |
+| `sleep_soon` | 30 min før forudsagt tid | «Søvn»: en af 10 milde tekster med tidspunktet, fx «Snart lurtid, ca. kl. 13.40. Måske en stille stund sammen først?» | Til |
+| `overdue` | 15 min efter forudsagt tid, hvis ingen søvn er startet | «Søvn»: en af 10 støttende tekster, fx «Folke virker frisk endnu, og det er helt okay. Prøv stille og roligt en lur, når I er klar.» | Til |
+| `pump` | X timer efter sidste udpumpning (fælles indstilling, standard 3) | «Udpumpning»: en af 10 tekster, fx «Tid til udpumpning? Sidste gang var kl. 09:15. Du gør det godt.» | Fra |
 
 - Hver notifikation planlægges højst én gang pr. forudsigelse eller udpumpning. Fast id pr. type, så en ny planlægning erstatter den gamle.
 - `overdue` sendes ikke mere end 2 timer for sent.

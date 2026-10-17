@@ -130,6 +130,8 @@ header{position:relative}
 </header>
 <div id="sug" class="card" hidden><div class="t"><span>Forslag</span><b id="sugt" style="display:block"></b></div>
 <div class="seg"><button id="sy">Ja, gør det</button><button id="sl">Ikke nu</button><button id="sn">Aldrig</button></div></div>
+<div id="miss" class="card" hidden><div class="t"><b style="display:block">Mangler natten?</b><span style="display:block;margin-top:6px;line-height:1.4">Der er ingen nat registreret fra i går aftes. Tilføj den, så planen for i dag passer igen.</span></div>
+<div class="seg"><button id="missadd">Tilføj natten</button><button id="missno">Ikke nu</button></div></div>
 <div id="rough" class="card" hidden><div class="t"><b id="rought" style="display:block"></b><span id="roughx" style="display:block;margin-top:6px;line-height:1.4"></span></div>
 <div class="seg"><button id="roughok">Tak</button></div></div>
 <div class="colA">
@@ -154,7 +156,7 @@ header{position:relative}
 <div class="t"><b>Glemte du at trykke?</b><span>Vågnede kl.</span></div><input type="time" id="wt"></div><button class="go" id="wb" hidden>Gem</button></div>
 <div id="pred" class="card" hidden><div class="row"><svg class="ic" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M8 11q1.5 1.5 3 0M13 11q1.5 1.5 3 0M10 15.5q2 1.5 4 0"/></svg>
 <div class="t"><span id="pk"></span><div class="big" id="pt"></div><span id="sub"></span></div></div><ul id="plan" hidden></ul></div>
-<div id="sheet" hidden><div class="sh"><div class="dl">Ret søvn</div>
+<div id="sheet" hidden><div class="sh"><div class="dl" id="etitle">Ret søvn</div>
 <label>Faldt i søvn<input type="datetime-local" id="es"></label>
 <label>Vågnede<input type="datetime-local" id="ee"></label>
 <div class="seg" id="etype"><button data-n="1">Lur</button><button data-n="0">Nat</button></div>
@@ -162,6 +164,7 @@ header{position:relative}
 <button class="go" id="esave">Gem ændringer</button><button class="go del" id="edel">Slet søvn</button><button class="go ghost" id="ecancel">Annullér</button></div></div>
 <div id="day" class="card" hidden><div class="dh"><div class="dl"><svg class="ic" viewBox="0 0 24 24"><rect x="4" y="5" width="16" height="15" rx="2"/><path d="M4 10h16M9 3v4M15 3v4"/></svg>Dagens søvn</div><span id="dd"></span></div>
 <ul id="tl"></ul><div class="sum"><span>Samlet søvn</span><b id="tot"></b></div></div>
+<button class="go ghost" id="sadd" style="margin-top:12px">Tilføj glemt søvn</button>
 </div>
 </div></section>
 <section class="pg" id="p-food"><div class="in"><h1>Mad</h1>
@@ -282,7 +285,7 @@ document.querySelectorAll('#type button').forEach(x=>x.classList.toggle('on',(x.
 planUI(p,n);
 feedDay();const lf=S.last_feed;$('lastfeed').textContent=lf?`${FM[lf.method]||lf.method}${lf.amount?' '+Math.round(+lf.amount)+' ml':''} kl. ${hm(lf.time)} · for ${ago(lf.time)} siden`:'Ingen måltider endnu';
 const F=S.features||{},sg=(S.suggestions||[])[0];$('fbr').hidden=!F.breast;$('fsolid').hidden=!F.solids;$('sug').hidden=!sg;if(sg)$('sugt').textContent=sg.text;
-roughUI();
+roughUI();missUI();
 pumpUI();
 $('day').hidden=!S.today.length;
 if(S.today.length){let n=0,tot=0;$('dd').textContent=cap(new Date().toLocaleDateString('da-DK',{weekday:'long',day:'numeric',month:'long'}));
@@ -336,7 +339,15 @@ function eui(){const m=Math.round((new Date($('ee').value)-new Date($('es').valu
 $('edur').textContent=m>0?'Varighed: '+dur(m):'Sluttid skal være efter starttid';
 document.querySelectorAll('#etype button').forEach(x=>x.classList.toggle('on',(x.dataset.n==='1')===edNap));
 $('edel').textContent=armed?'Tryk igen for at slette':'Slet søvn'}
-function openEdit(x){ed=x;edNap=x.nap;armed=false;$('es').value=loc(x.start);$('ee').value=loc(x.end);$('eerr').textContent='';$('sheet').hidden=false;eui();
+// Samme ark til at rette en søvn og til at tilføje en glemt (ed = null), fx en nat, der ikke blev trykket
+function openAdd(start,end,nap){ed=null;edNap=nap;armed=false;$('etitle').textContent='Tilføj søvn';$('esave').textContent='Gem søvn';$('edel').hidden=true;
+$('es').max=$('ee').max=loc(new Date());$('es').value=loc(start);$('ee').value=loc(end);$('eerr').textContent='';$('ewakes').hidden=true;$('sheet').hidden=false;eui()}
+$('sadd').onclick=()=>openAdd(Date.now()-36e5,Date.now(),true);
+$('missadd').onclick=()=>{const m=S&&S.missing_night;if(m)openAdd(m.start,m.end,false)};
+$('missno').onclick=()=>{lsSet('folke.missSeen',new Date().toDateString());missUI()};
+function missUI(){$('miss').hidden=!(S&&S.missing_night)||lsGet('folke.missSeen','')===new Date().toDateString()}
+function openEdit(x){ed=x;edNap=x.nap;armed=false;$('etitle').textContent='Ret søvn';$('esave').textContent='Gem ændringer';$('edel').hidden=false;
+$('es').value=loc(x.start);$('ee').value=loc(x.end);$('eerr').textContent='';$('sheet').hidden=false;eui();
 const ws=x.wakes||[];$('ewakes').hidden=!ws.length;$('ewakes').innerHTML='Opvågninger'+ws.map(w=>`<div><span>${hm(w.start)} – ${w.end?hm(w.end):'nu'}</span><button data-w="${w.id}">Slet</button></div>`).join('')}
 $('ewakes').onclick=async e=>{const b=e.target.closest('button');if(!b)return;try{await api('/api/wake/'+b.dataset.w,{},'DELETE');
 ed.wakes=ed.wakes.filter(w=>w.id!==+b.dataset.w);openEdit(ed);load()}catch(er){$('eerr').textContent=er.message}};
@@ -346,7 +357,7 @@ $('es').oninput=$('ee').oninput=()=>{armed=false;eui()};
 document.querySelectorAll('#etype button').forEach(x=>x.onclick=()=>{edNap=x.dataset.n==='1';eui()});
 $('ecancel').onclick=()=>{$('sheet').hidden=true;ed=null};
 $('sheet').onclick=e=>{if(e.target.id==='sheet')$('ecancel').onclick()};
-$('esave').onclick=async()=>{try{await api('/api/sleep/'+ed.id,{start:$('es').value,end:$('ee').value,nap:edNap});$('sheet').hidden=true;ed=null;load()}catch(e){$('eerr').textContent=e.message}};
+$('esave').onclick=async()=>{try{await api(ed?'/api/sleep/'+ed.id:'/api/sleep',{start:$('es').value,end:$('ee').value,nap:edNap});$('sheet').hidden=true;ed=null;load()}catch(e){$('eerr').textContent=e.message}};
 $('edel').onclick=async()=>{if(!armed){armed=true;eui();return}
 try{await api('/api/sleep/'+ed.id,{},'DELETE');$('sheet').hidden=true;ed=null;load()}catch(e){$('eerr').textContent=e.message;armed=false;eui()}};
 let G=null,gk='w',gid=null,garm=false;

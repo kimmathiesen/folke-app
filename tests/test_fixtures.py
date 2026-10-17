@@ -69,3 +69,15 @@ def test_beskeder():
     assert d["lists"] == messages.ALL
     for p in d["picks"]:
         assert messages.pick(p["kind"], datetime.fromisoformat(p["when"]), p["name"], p["t"], p["h"]) == p["expect"]
+
+
+MISSING = sorted(glob.glob(os.path.join(HERE, "missing", "*.json")))
+
+
+@pytest.mark.parametrize("path", MISSING, ids=[os.path.basename(f)[:-5] for f in MISSING])
+def test_glemt_nat(path):
+    from folke import missing_night
+    d = json.load(open(path))
+    m = missing_night(sleeps(d), datetime.fromisoformat(d["now"]), d["running"] and datetime.fromisoformat(d["running"]))
+    want = d["expect"] and {k: datetime.fromisoformat(v) for k, v in d["expect"].items()}
+    assert m == want, d["description"]

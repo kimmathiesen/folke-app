@@ -3,7 +3,7 @@ import hashlib, json, math, os, struct, threading, time, zlib
 from datetime import datetime, timedelta, date
 from flask import Flask, Response, jsonify, request, send_from_directory
 from werkzeug.exceptions import HTTPException
-import evaluate, folke, messages, push, rough, store, who
+import evaluate, folke, messages, push, rough, stats, store, who
 
 app = Flask(__name__)
 TZ = folke.TZ
@@ -614,6 +614,18 @@ def edit_sleep(sid):
         return jsonify(ok=False, error="Sluttid ligger i fremtiden"), 400
     db().edit_sleep(sid, s, e, bool(d["nap"]) if "nap" in d else None)
     return jsonify(ok=True)
+
+
+@app.get("/api/stats")
+def sleep_stats():
+    """Søvn i tal (stats.py): de seneste 14 hele dage og ugen mod ugen før."""
+    c = get_child()
+    now = datetime.now(TZ)
+    since = now - timedelta(days=stats.DAYS + 2)
+    sleeps = [{"start": folke.parse(s["start"]), "end": folke.parse(s["end"]), "nap": s["nap"]}
+              for s in db().sleeps(c["id"], since)]
+    wakes = [{"start": folke.parse(w["start"]), "end": w["end"] and folke.parse(w["end"])} for w in db().wakes(c["id"], since)]
+    return jsonify(stats.stats(sleeps, wakes, now, child_name(c)))
 
 
 @app.post("/api/sleep")

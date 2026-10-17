@@ -40,6 +40,7 @@ forudsigelse af næste lur/sengetid, notifikation via web push (Home Assistant e
 ## Push
 - `push.py`: web push med pywebpush. VAPID-nøgle i `vapid.pem` (laves første gang), abonnementer i `push.json`, begge ved STATE_FILE. 404/410 fra push-tjenesten fjerner abonnementet.
 - Beskedtyper (`folke.KINDS`): `sleep_soon`, `overdue`, `pump`. Hver enhed har til/fra i `push.json` (`kinds`, `push.DEFAULT_KINDS`: søvn til, udpumpning fra), sat via `POST /api/push/kinds`. Hver enhed vælger også minutter før/efter (`lead`/`overdue` i `push.json`, standard LEAD_MIN 30 og OVERDUE_MIN 15, valg 10-60 og 5-45, `{"minutes": {...}}` til samme endpoint); `folke.main()` regner tidspunktet pr. enhed og husker det sendte i `state["push_sent"]`. Udpumpningens «efter X timer» er fælles (`prefs.pump_remind`, standard 3).
+- Teksterne: `messages.py` har 10 milde, støttende varianter pr. slags (snart lur/sengetid, lurtiden/sengetiden er gået, udpumpning). `messages.pick(kind, tidspunkt, …)` vælger ud fra minutter siden 1970 modulo 10, så samme begivenhed giver samme tekst. Uden navn: «den lille». Samme lister i Swift (`Messages.swift`), tjekket af `tests/fixtures/messages.json`.
 - `folke.notify(title, msg, kind)` sender via push (`folke.push`, sat af app.py). `folke.can_notify()` styrer, om der overhovedet notificeres. `sw.js` (route `/sw.js`) viser notifikationen.
 
 ## Navn og forælder

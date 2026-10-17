@@ -3,7 +3,7 @@ import hashlib, json, math, os, struct, threading, time, zlib
 from datetime import datetime, timedelta, date
 from flask import Flask, Response, jsonify, request, send_from_directory
 from werkzeug.exceptions import HTTPException
-import evaluate, folke, push, rough, store, who
+import evaluate, folke, messages, push, rough, store, who
 
 app = Flask(__name__)
 TZ = folke.TZ
@@ -336,7 +336,7 @@ def pump_reminder(now):
     if state.get("pump_notified") == last["id"]:
         return False
     hrs = (now - t).total_seconds() / 3600
-    folke.notify("Udpumpning", f"Det er {hrs:.0f} timer siden sidste udpumpning (kl. {t:%H:%M})", kind="pump")
+    folke.notify("Udpumpning", messages.pick("pump", t, t=f"{t.astimezone(TZ):%H:%M}", h=f"{hrs:.0f}"), kind="pump")
     state["pump_notified"] = last["id"]
     folke.save_state(state)
     return True

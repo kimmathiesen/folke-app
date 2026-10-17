@@ -15,6 +15,7 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path[:0] = [os.path.dirname(HERE), os.path.dirname(os.path.dirname(HERE))]
 
 import evaluate  # noqa: E402
+import messages  # noqa: E402
 import rough  # noqa: E402
 from folke import plan_day  # noqa: E402
 from test_dayplan import catnap_history  # noqa: E402
@@ -120,10 +121,25 @@ def write_rough(name, desc, birth, child, kw):
         f.write("\n")
 
 
+def write_messages():
+    """Notifikationernes tekster og et par valg, så Swift har præcis de samme (Messages.swift)."""
+    from datetime import datetime
+    from folke import TZ
+    whens = [datetime(2026, 10, 17, 13, 40, tzinfo=TZ), datetime(2026, 10, 17, 19, 33, tzinfo=TZ),
+             datetime(2026, 12, 31, 23, 59, tzinfo=TZ)]
+    picks = [{"kind": k, "when": iso(w), "name": n, "t": "13:40", "h": "3", "expect": messages.pick(k, w, n, "13:40", "3")}
+             for k in messages.ALL for w in whens for n in ("Folke", "")]
+    with open(os.path.join(HERE, "messages.json"), "w") as f:
+        json.dump({"description": "messages.py: lister og valg (minutter siden 1970 modulo 10)", "lists": messages.ALL,
+                   "picks": picks}, f, ensure_ascii=False, indent=1)
+        f.write("\n")
+
+
 if __name__ == "__main__":
     for sc in SCENARIOS:
         write(*sc)
     write_backtest()
     for sc in ROUGH:
         write_rough(*sc)
+    write_messages()
     print(f"{len(SCENARIOS)} dagsplaner, 1 måling og {len(ROUGH)} om urolig søvn skrevet")

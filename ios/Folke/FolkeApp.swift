@@ -33,6 +33,8 @@ struct RootView: View {
                     SettingsView()
                 } else if model.page == .board {
                     BoardView()
+                } else if model.page == .stats {
+                    StatsView()
                 } else {
                     HomeView()
                 }

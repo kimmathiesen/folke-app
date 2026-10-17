@@ -282,6 +282,8 @@ struct SleepPage: View {
                 DayCard(now: now)
             }
             AddSleepButton()
+            GoButton(title: "Se søvn i tal", kind: .ghost) { model.page = .stats }
+                .padding(.top, -6)
         }
         .padding(.top, 16)
         .frame(maxWidth: .infinity)

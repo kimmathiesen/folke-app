@@ -10,6 +10,11 @@ Format: `- [ ] dato · commit på main · hvad · hvor i PLAN.md · facit`
 
 ## Åbne
 
+- [x] 2026-10-17 · `5fd7869` (forbedring-web) · **Søvn i tal:** 14 dages søjler (nat/dag), gennemsnit for de seneste 7 dage mod
+      ugen før (søvn i døgnet, nat, dag, lure, lurenes længde, sengetid, opvågning, opvågninger). Dage uden nat tæller ikke med.
+      PLAN.md afsnit 5. Facit: `stats.py`, `tests/test_stats.py`, `tests/fixtures/stats/`. Lavet samtidig i Swift
+      (`SleepStats.swift`, `StatsView.swift`, `FixtureTests.soevnITal`).
+
 - [x] 2026-10-17 · `0463244` (forbedring-web) · **Glemt søvn og glemt nat:** «Tilføj glemt søvn» (start og slut med dato,
       lur/nat; ikke i fremtiden, højst 16 t, ikke overlappende) og kortet «Mangler natten?» med hans typiske tider.
       PLAN.md afsnit 3.10. Facit: `folke.missing_night`, `tests/test_missing.py`, `tests/fixtures/missing/`. Lavet samtidig

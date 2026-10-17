@@ -289,6 +289,13 @@ Tilbyd «Inviter din partner» (iCloud-deling) og «Importér fra Folke-server»
 - Baggrunden følger tiden på dagen, med et skær øverst i ringens farve.
 - iPad: to kolonner fra 900 pt bredde.
 
+### Søvn i tal (`SleepStats.swift`, `StatsView.swift`)
+- Knappen «Se søvn i tal» under Dagens søvn. De seneste 14 hele dage som søjler (nat nederst, dag ovenpå, «?» hvor natten
+  mangler), en linje i almindeligt dansk og en tabel: de seneste 7 dage mod ugen før (søvn i døgnet, om natten, om dagen,
+  lure pr. dag, lurenes længde, sengetid, vågnede, opvågninger pr. nat hvis de registreres). Pil ved tydelig forskel
+  (10 min for klokkeslæt, 0,3 for antal, ellers 5 %). En dag = lurene, der starter dagen, + natten, der starter samme aften
+  (minus tid vågen). Dage uden nat tæller ikke med i gennemsnittene. Facit: `tests/fixtures/stats/`.
+
 ## 6. Ekstra i appen
 
 - **Live Activity:** kørende søvn på låseskærm og Dynamic Island.

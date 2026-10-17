@@ -100,7 +100,7 @@ final class AppModel {
     /// Siden, der vises (som hash-ruterne i webappen)
     var page: Page = .home
 
-    enum Page { case home, settings, board }
+    enum Page { case home, settings, board, stats }
 
     /// Forsidens sider, man stryger mellem (som iPhones hjemmeskærm). Søvn er standard.
     enum Tab: Hashable, CaseIterable {

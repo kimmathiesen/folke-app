@@ -138,4 +138,55 @@ import Testing
         #expect(m?.start == d.expect.map { Self.date($0.start) }, "\(d.description)")
         #expect(m?.end == d.expect.map { Self.date($0.end) }, "\(d.description)")
     }
+
+    // MARK: Søvn i tal (stats.py)
+
+    static var statsFiles: [String] {
+        ((try? FileManager.default.contentsOfDirectory(atPath: dir.appending(path: "stats").path)) ?? [])
+            .filter { $0.hasSuffix(".json") }.sorted()
+    }
+
+    struct StatsFile: Decodable {
+        struct W: Decodable { var start: String; var end: String? }
+        struct D: Decodable {
+            var date: String; var naps: Int?; var day_min: Int?; var night_min: Int?; var total_min: Int?
+            var bed: Int?; var wake: Int?; var wakes: Int?; var nap_len: Int?
+        }
+        struct S: Decodable {
+            var days: Int; var total_min: Int?; var night_min: Int?; var day_min: Int?; var nap_len: Int?
+            var bed: Int?; var wake: Int?; var naps: Double?; var wakes: Double?
+        }
+        struct E: Decodable { var days: [D]; var week: S; var prev: S; var text: String? }
+        var description: String; var now: String; var name: String; var sleeps: [JSleep]; var wakes: [W]; var expect: E
+    }
+
+    @Test func derErFixturesOmSoevnITal() {
+        #expect(Self.statsFiles.count >= 5)
+    }
+
+    @Test(arguments: statsFiles) func soevnITal(_ file: String) throws {
+        let d = try JSONDecoder().decode(StatsFile.self, from: Data(contentsOf: Self.dir.appending(path: "stats/\(file)")))
+        let wakes = d.wakes.map { WakeItem(id: UUID(), start: Self.date($0.start), end: $0.end.map(Self.date)) }
+        let r = SleepStats.make(sleeps: Self.samples(d.sleeps), wakes: wakes, now: Self.date(d.now), name: d.name, calendar: cph)
+        let f = DateFormatter()
+        f.calendar = cph
+        f.timeZone = cph.timeZone
+        f.dateFormat = "yyyy-MM-dd"
+        #expect(r.days.map { f.string(from: $0.date) } == d.expect.days.map(\.date), "\(d.description)")
+        for (got, want) in zip(r.days, d.expect.days) {
+            let g = got.registered
+                ? StatsFile.D(date: want.date, naps: got.naps, day_min: got.dayMin, night_min: got.nightMin, total_min: got.totalMin,
+                              bed: got.bed, wake: got.wake, wakes: got.wakes, nap_len: got.napLen)
+                : StatsFile.D(date: want.date)
+            #expect([g.naps, g.day_min, g.night_min, g.total_min, g.bed, g.wake, g.wakes, g.nap_len]
+                    == [want.naps, want.day_min, want.night_min, want.total_min, want.bed, want.wake, want.wakes, want.nap_len],
+                    "\(d.description) \(want.date)")
+        }
+        for (got, want) in [(r.week, d.expect.week), (r.prev, d.expect.prev)] {
+            #expect(got.days == want.days && got.totalMin == want.total_min && got.nightMin == want.night_min
+                    && got.dayMin == want.day_min && got.napLen == want.nap_len && got.bed == want.bed && got.wake == want.wake
+                    && got.naps == want.naps && got.wakes == want.wakes, "\(d.description)")
+        }
+        #expect(r.text == d.expect.text, "\(d.description)")
+    }
 }

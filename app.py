@@ -40,6 +40,7 @@ def status():
     c = db().child()
     if not c:  # første opstart uden import: UI'et spørger om navn og fødselsdato
         return jsonify(setup=True)
+    p = prefs()
     t = sleep_timer(c["id"])
     raw = db().sleeps(c["id"], now - timedelta(days=folke.HISTORY_DAYS))
     wakes = db().wakes(c["id"], now - timedelta(days=2))
@@ -81,17 +82,17 @@ def status():
         missing_night=(lambda m: m and {k: v.isoformat() for k, v in m.items()})(folke.missing_night(sleeps, now, start)),
         feed_today=feed_today,
         pump=pump_summary(c["id"], now),
-        pump_remind=prefs()["pump_remind"],
+        pump_remind=p["pump_remind"],
         can_notify=folke.can_notify(),
-        child_name=child_name(c),
+        child_name=child_name(c, p),
         birth_date=c["birth_date"],
         push_devices=len(push.load()),
         notify_lead=folke.LEAD_MIN,
         notify_overdue=folke.OVERDUE_MIN,
         board=(lambda b: b["version"] if b["strokes"] else 0)(load_board()),
-        features=prefs()["features"],
-        sex=prefs()["sex"],
-        suggestions=current_suggestions(c, now, prefs()),
+        features=p["features"],
+        sex=p["sex"],
+        suggestions=current_suggestions(c, now, p),
         today=[{"id": s["id"], "start": s["start"].isoformat(), "end": s["end"].isoformat(), "nap": s["nap"],
                 "wakes": [] if s["nap"] else wakes_in(wakes, s["start"], s["end"])}
                for s in sorted(sleeps, key=lambda s: s["start"])
@@ -397,9 +398,9 @@ def prefs():
             "child_name": p.get("child_name", "")}
 
 
-def child_name(c=None):
-    """Navnet fra opsætningen, ellers fra databasen."""
-    return prefs()["child_name"] or ((c or db().child() or {}).get("first_name") or "")
+def child_name(c=None, p=None):
+    """Navnet fra opsætningen, ellers fra databasen. p: allerede læste prefs (sparer en fil-læsning)."""
+    return (p or prefs())["child_name"] or ((c or db().child() or {}).get("first_name") or "")
 
 
 folke.display_name = child_name

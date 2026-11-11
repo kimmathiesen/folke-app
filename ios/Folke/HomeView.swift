@@ -18,18 +18,22 @@ struct HomeView: View {
                     .padding(.bottom, 6)
             }
             GeometryReader { g in
-                ScrollView(.horizontal) {
-                    HStack(spacing: 0) {
-                        ForEach(model.tabs, id: \.self) { t in
-                            page(t).frame(width: g.size.width, height: g.size.height)
+                ScrollViewReader { proxy in
+                    ScrollView(.horizontal) {
+                        HStack(spacing: 0) {
+                            ForEach(model.tabs, id: \.self) { t in
+                                page(t).frame(width: g.size.width, height: g.size.height)
+                            }
                         }
+                        .scrollTargetLayout()
                     }
-                    .scrollTargetLayout()
+                    .scrollTargetBehavior(.paging)
+                    .scrollPosition(id: Binding(get: { model.tab }, set: { if let t = $0 { model.tab = t } }))
+                    .scrollIndicators(.hidden)
+                    .scrollBounceBehavior(.basedOnSize, axes: .horizontal)
+                    // En ny ScrollView (efter tavle, indstillinger, søvn i tal) starter på første side; ret den til fanen
+                    .onAppear { proxy.scrollTo(model.tab) }
                 }
-                .scrollTargetBehavior(.paging)
-                .scrollPosition(id: Binding(get: { model.tab }, set: { if let t = $0 { model.tab = t } }))
-                .scrollIndicators(.hidden)
-                .scrollBounceBehavior(.basedOnSize, axes: .horizontal)
             }
             PageIndicator()
         }

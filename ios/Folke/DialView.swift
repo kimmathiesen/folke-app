@@ -4,6 +4,7 @@ import SwiftUI
 /// Ringen: 24 timer, midnat i bunden og middag i toppen (som `#dial` i index.html, viewBox 360×400).
 struct DialView: View {
     var snapshot: Snapshot
+    /// Nu, til minuttet (tælleren i midten har sin egen tidslinje pr. sekund)
     var now: Date
     var calendar: Calendar = .current
 
@@ -178,10 +179,13 @@ struct DialView: View {
         let since = openWake?.start ?? snapshot.running?.start ?? snapshot.awakeSince // vågen om natten: tæl fra opvågningen
         return VStack(spacing: 2) {
             Text(headline).font(.system(size: 14)).foregroundStyle(muted)
-            Text(since.map { Format.counter(seconds: Int(now.timeIntervalSince($0))) } ?? "--")
-                .font(.system(size: min(34, 30 * k), weight: .light))
-                .monospacedDigit()
-                .foregroundStyle(Color.fg)
+            // Tælleren er det eneste, der skifter hvert sekund
+            TimelineView(.periodic(from: .now, by: 1)) { tl in
+                Text(since.map { Format.counter(seconds: Int(tl.date.timeIntervalSince($0))) } ?? "--")
+                    .font(.system(size: min(34, 30 * k), weight: .light))
+                    .monospacedDigit()
+                    .foregroundStyle(Color.fg)
+            }
             Text(openWake != nil ? "Vågen om natten" : snapshot.running != nil ? "Sover" : "Vågen")
                 .font(.system(size: 14)).foregroundStyle(muted)
         }

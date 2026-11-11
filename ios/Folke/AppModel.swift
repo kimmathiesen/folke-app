@@ -21,6 +21,8 @@ struct Snapshot {
         }
     }
 
+    /// Hvornår det er beregnet (forsiden regner «nu» ud fra det og minuttet)
+    var updated = Date.distantPast
     var childName = ""
     var hasChild = false
     var running: Item?
@@ -187,6 +189,7 @@ final class AppModel {
     func refresh(now: Date = .now) {
         let child = store.child()
         var s = Snapshot()
+        s.updated = now
         s.hasChild = child != nil
         s.childName = child?.name ?? ""
         if let r = store.runningSleep(), let id = r.id, let start = r.start {

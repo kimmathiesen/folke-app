@@ -138,8 +138,11 @@ struct SleepPage: View {
     @Environment(AppModel.self) private var model
     @Environment(\.muted) private var muted
 
+    // Kun tælleren i ringen viser sekunder (sin egen tidslinje i `DialView`). Resten følger minuttet og nye data
+    // (`snapshot.updated`, så fx en ny søvn ses med det samme).
     var body: some View {
-        TimelineView(.periodic(from: .now, by: 1)) { tl in
+        TimelineView(.everyMinute) { tl in
+            let now = max(tl.date, model.snapshot.updated)
             GeometryReader { g in
                 ScrollView {
                     // iPad på langs: ring til venstre, kort til højre (fra 900 pt)
@@ -148,8 +151,8 @@ struct SleepPage: View {
                             greeting
                             suggestion.frame(maxWidth: 600)
                             HStack(alignment: .top, spacing: 40) {
-                                dialColumn(now: tl.date, maxDial: 420)
-                                cards(now: tl.date).padding(.top, 6)
+                                dialColumn(now: now, maxDial: 420)
+                                cards(now: now).padding(.top, 6)
                             }
                         }
                         .frame(maxWidth: 1040)
@@ -157,8 +160,8 @@ struct SleepPage: View {
                         VStack(spacing: 0) {
                             greeting
                             suggestion
-                            dialColumn(now: tl.date, maxDial: g.size.width >= 600 ? 420 : 360)
-                            cards(now: tl.date)
+                            dialColumn(now: now, maxDial: g.size.width >= 600 ? 420 : 360)
+                            cards(now: now)
                         }
                         .frame(maxWidth: g.size.width >= 600 ? 600 : 440)
                     }

@@ -95,9 +95,10 @@ final class Notifier: NSObject, UNUserNotificationCenterDelegate {
     }
 
     /// Planlæg forfra (fra appens skærm). Gentages kun, hvis planen har ændret sig.
-    func reschedule(store: FolkeStore, now: Date = .now) {
+    /// `known`: det valgte barns søvn, som forsiden lige har hentet (genbruges i stedet for at hente igen).
+    func reschedule(store: FolkeStore, now: Date = .now, known: FolkeStore.SleepInput? = nil) {
         guard status == .allowed else { return }
-        let (plan, scopes) = Self.plan(store: store, now: now, enabled: enabled)
+        let (plan, scopes) = Self.plan(store: store, now: now, enabled: enabled, known: known)
         if plan == lastPlan { return }
         lastPlan = plan
         Self.apply(plan, scopes: scopes)
@@ -112,7 +113,7 @@ final class Notifier: NSObject, UNUserNotificationCenterDelegate {
 
     /// Søvnbeskeder for hvert barn og én påmindelse om udpumpning for familien. Uden Folke Plus regnes søvnbeskederne
     /// ud fra den enkle forudsigelse. Ved flere børn får hvert barn sin egen besked (id og log pr. barn, navnet som titel).
-    private static func plan(store: FolkeStore, now: Date, enabled: Set<NotificationKind>)
+    private static func plan(store: FolkeStore, now: Date, enabled: Set<NotificationKind>, known: FolkeStore.SleepInput? = nil)
         -> (plan: [PlannedNotification], scopes: [String]) {
         let plus = FolkeShared.plus(now: now).unlocked
         let kids = store.children()
@@ -127,9 +128,11 @@ final class Notifier: NSObject, UNUserNotificationCenterDelegate {
             let many = kids.count > 1
             let scope = many ? (c.id?.uuidString ?? "") : ""
             scopes.append(scope)
+            let h = known.flatMap { $0.childID != nil && $0.childID == c.id ? $0 : nil }
+                ?? store.sleepInput(now: now, days: Predictor.historyDays)
             let input = NotificationPlanner.Input(
-                now: now, prediction: plus ? store.prediction(now: now) : store.basicPrediction(now: now),
-                sleeping: store.runningSleep() != nil, childName: c.name ?? "", enabled: enabled.subtracting([.pump]),
+                now: now, prediction: plus ? store.prediction(h, now: now) : store.basicPrediction(h, now: now),
+                sleeping: h.running != nil, childName: c.name ?? "", enabled: enabled.subtracting([.pump]),
                 scope: scope, title: many ? (c.name ?? "Søvn") : "Søvn", leadMin: leadMin, overdueMin: overdueMin)
             let r = planner.plan(input, log: log)
             out += r.notifications

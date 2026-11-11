@@ -91,4 +91,58 @@ import Testing
         #expect(s.todaySleeps(now: at(d, 10, 0)).count == 2)
         #expect(s.todaySleeps(now: at(plusDays(d, 1), 10, 0)).isEmpty)
     }
+
+    @Test func hentetSøvnGiverSammeSomEnkeltopslag() throws {
+        let s = try store()
+        try s.createChild(name: "Folke", birthDate: day(2026, 2, 1))
+        let d = day(2026, 6, 20)
+        // 20 dage med lure og nætter (også ældre end de 10 dage, forudsigelsen bruger), i går uden nat
+        for i in (1...20).reversed() {
+            let x = plusDays(d, -i)
+            try s.startSleep(at: at(x, 9, 30 + i % 3 * 5), by: .mor, now: at(x, 9, 45))
+            try s.stopSleep(at: at(x, 10, 40), nap: true, now: at(x, 11, 0))
+            try s.startSleep(at: at(x, 13, 0), by: .mor, now: at(x, 13, 10))
+            try s.stopSleep(at: at(x, 14, 20 + i % 4 * 5), nap: true, now: at(x, 14, 40))
+            guard i > 1 else { continue }
+            try s.startSleep(at: at(x, 19, 0), by: .far, now: at(x, 19, 10))
+            try s.stopSleep(at: at(plusDays(x, 1), 6, 15), nap: false, now: at(plusDays(x, 1), 6, 30))
+        }
+        func same(_ now: Date) {
+            let h = s.sleepInput(now: now)
+            #expect(s.prediction(h, now: now) == s.prediction(now: now))
+            #expect(s.basicPrediction(h, now: now) == s.basicPrediction(now: now))
+            #expect(s.dayPlan(h, now: now) == s.dayPlan(now: now))
+            #expect(s.awakeSince(h, now: now) == s.awakeSince(now: now))
+            #expect(s.todaySleeps(h, now: now) == s.todaySleeps(now: now).compactMap(\.sample))
+            let m = s.missingNight(h, now: now), m2 = s.missingNight(now: now)
+            #expect(m?.start == m2?.start && m?.end == m2?.end)
+        }
+        same(at(d, 7, 0))
+        #expect(s.missingNight(now: at(d, 7, 0)) != nil) // natten til i dag mangler
+        same(at(d, 8, 0))
+        try s.startSleep(at: at(d, 9, 35), by: .mor, now: at(d, 9, 40))
+        same(at(d, 10, 0)) // under en lur: planen regnes fra forventet opvågning
+        #expect(s.sleepInput(now: at(d, 10, 0)).running != nil)
+        try s.stopSleep(at: at(d, 10, 45), nap: true, now: at(d, 11, 0))
+        same(at(d, 11, 0))
+        same(at(d, 16, 0))
+    }
+
+    @Test func barnetSlåsOpÉnGang() throws {
+        let s = try store()
+        let a = try s.createChild(name: "Folke", birthDate: day(2026, 2, 1))
+        let b = try s.createChild(name: "Ida", birthDate: day(2024, 1, 1))
+        s.currentChildID = a.id
+        s.withChild {
+            #expect(s.child() == a)
+            // Skiftes barnet undervejs (tvillinger, notifikationer), gælder det nye
+            s.currentChildID = b.id
+            #expect(s.child() == b)
+            #expect(s.sleepInput().childID == b.id)
+            s.currentChildID = a.id
+            #expect(s.child() == a)
+        }
+        s.currentChildID = nil
+        #expect(s.child() == a) // det først oprettede
+    }
 }

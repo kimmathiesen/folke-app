@@ -26,13 +26,16 @@ struct SleepActivityAttributes: ActivityAttributes {
     }
 
     /// Kørende søvn for alle børn (tvillinger kan sove samtidig), med forventet opvågning ved lur.
-    static func entries(store: FolkeStore, now: Date = .now) -> [Entry] {
+    /// `known`: det valgte barns søvn, som forsiden lige har hentet (genbruges i stedet for at hente igen).
+    static func entries(store: FolkeStore, now: Date = .now, known: FolkeStore.SleepInput? = nil) -> [Entry] {
         let saved = store.currentChildID
         defer { store.currentChildID = saved }
         return store.children().compactMap { c in
             store.currentChildID = c.id
-            guard let id = c.id, let r = store.runningSleep(), let start = r.start else { return nil }
-            let wake = r.nap ? store.dayPlan(now: now)?.wake : nil
+            let h = known.flatMap { $0.childID != nil && $0.childID == c.id ? $0 : nil }
+                ?? store.sleepInput(now: now, days: Predictor.historyDays)
+            guard let id = c.id, let r = h.running, let start = r.start else { return nil }
+            let wake = r.nap ? store.dayPlan(h, now: now)?.wake : nil
             return Entry(childID: id.uuidString, name: c.name ?? "",
                          state: .init(start: start, nap: r.nap, expectedWake: wake))
         }

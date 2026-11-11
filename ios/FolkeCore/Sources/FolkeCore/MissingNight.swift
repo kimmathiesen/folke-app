@@ -44,4 +44,9 @@ public extension FolkeStore {
         let samples = sleeps(since: now.addingTimeInterval(-17 * 86400)).compactMap(\.sample)
         return MissingNight.check(samples, now: now, running: runningSleep()?.start, calendar: calendar)
     }
+
+    /// Som ovenfor ud fra allerede hentet søvn (`sleepInput`, mindst 17 dage)
+    func missingNight(_ h: SleepInput, now: Date = .now) -> (start: Date, end: Date)? {
+        MissingNight.check(h.since(days: 17, now: now), now: now, running: h.running?.start, calendar: calendar)
+    }
 }

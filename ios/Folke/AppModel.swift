@@ -100,7 +100,9 @@ final class AppModel {
     /// Lur/Nat-valg, mens søvnen kører (nil = gæt ud fra klokkeslættet)
     var napSelection: Bool?
     /// Siden, der vises (som hash-ruterne i webappen)
-    var page: Page = .home
+    var page: Page = .home {
+        didSet { loadHidden() }
+    }
 
     enum Page { case home, settings, board, stats }
 
@@ -118,7 +120,9 @@ final class AppModel {
         }
     }
 
-    var tab: Tab = .sleep
+    var tab: Tab = .sleep {
+        didSet { loadHidden() }
+    }
     /// Udpumpning vises kun, når funktionen er slået til
     var tabs: [Tab] { Tab.allCases.filter { $0 != .pump || snapshot.featurePump } }
 
@@ -187,17 +191,23 @@ final class AppModel {
     var needsOnboarding: Bool { !snapshot.hasChild || role == nil }
 
     func refresh(now: Date = .now) {
+        store.withChild { build(now: now) } // barnet slås op én gang for hele opdateringen
+    }
+
+    private func build(now: Date) {
         let child = store.child()
+        // Søvnen hentes én gang og bruges til alt nedenfor (også notifikationer og Live Activity)
+        let h = store.sleepInput(now: now)
         var s = Snapshot()
         s.updated = now
         s.hasChild = child != nil
         s.childName = child?.name ?? ""
-        if let r = store.runningSleep(), let id = r.id, let start = r.start {
+        if let r = h.running, let id = r.id, let start = r.start {
             s.running = .init(id: id, start: start, end: now, nap: r.nap, wakes: store.wakes(from: start))
         } else {
             napSelection = nil
         }
-        s.awakeSince = store.awakeSince(now: now)
+        s.awakeSince = store.awakeSince(h, now: now)
         s.plus = FolkeShared.plus(now: now)
         // Målingen regnes højst hvert 10. minut (og forfra ved skift af barn)
         if now.timeIntervalSince(accuracyAt) > 600 || accuracyChild != child?.id {
@@ -212,13 +222,12 @@ final class AppModel {
             roughChild = child?.id
         }
         s.rough = roughCache
-        s.missingNight = store.missingNight(now: now)
+        s.missingNight = store.missingNight(h, now: now)
         // Gratis: den oprindelige forudsigelse (kun næste lur/sengetid). Plus: dagsplanen med løbende tilpasning.
-        s.prediction = s.plus.unlocked ? store.prediction(now: now) : store.basicPrediction(now: now)
-        s.plan = s.plus.unlocked ? store.dayPlan(now: now) : nil
-        s.today = store.todaySleeps(now: now).compactMap { x in
-            guard let id = x.id, let start = x.start, let end = x.end else { return nil }
-            return .init(id: id, start: start, end: end, nap: x.nap, wakes: x.nap ? [] : store.wakes(from: start, to: end))
+        s.prediction = s.plus.unlocked ? store.prediction(h, now: now) : store.basicPrediction(h, now: now)
+        s.plan = s.plus.unlocked ? store.dayPlan(h, now: now) : nil
+        s.today = store.todaySleeps(h, now: now).map { x in
+            .init(id: x.id, start: x.start, end: x.end, nap: x.nap, wakes: x.nap ? [] : store.wakes(from: x.start, to: x.end))
         }
         if let set = store.settings() {
             s.featureBreast = set.featureBreast
@@ -241,27 +250,49 @@ final class AppModel {
         if let f = store.lastFeeding(now: now), let t = f.time, let k = f.kind.flatMap(FeedKind.init(rawValue:)) {
             s.lastFeed = (k, f.amountMl, t)
         }
-        s.pump = store.pumpSummary(now: now)
         s.feedItems = store.todayFeedings(now: now).compactMap { f in
             guard let id = f.id, let t = f.time, let k = f.kind.flatMap(FeedKind.init(rawValue:)) else { return nil }
             return .init(id: id, time: t, kind: k, amountMl: f.amountMl, milk: f.milk.flatMap(Milk.init(rawValue:)), note: f.note)
         }
         s.suggestion = store.suggestions(now: now).first
         s.birthDate = child?.birthDate
-        s.growth = store.growthPoints()
-        s.clothing = store.clothingEstimate(now: now)
-        s.strokes = store.strokes()
-        s.boardVersion = store.boardVersion()
+        s.boardVersion = store.boardVersion() // kun nyeste streg (stjernerne ved månen)
         if page == .board { boardSeen = s.boardVersion }
-        s.pumpHistory = store.pumpHistory(now: now)
-        s.pumpItems = store.pumpings(since: now.addingTimeInterval(-7 * 86400)).reversed().compactMap { p in
-            guard let id = p.id, let t = p.time else { return nil }
-            return .init(id: id, time: t, amountMl: p.amountMl, side: p.side.flatMap(Side.init(rawValue:)), minutes: p.minutes)
-        }
+        fillHidden(&s, now: now)
         snapshot = s
         if tab == .pump && !s.featurePump { tab = .sleep }
-        syncExtensions(s)
-        notifier.reschedule(store: store, now: now)
+        syncExtensions(s, known: h, now: now)
+        notifier.reschedule(store: store, now: now, known: h)
+    }
+
+    // Udpumpning, vækst og tavlen regnes kun, når de kan ses. Udpumpning og vækst, så snart man har forladt Søvn-siden
+    // (så siden ved siden af er klar, mens man stryger), tavlen kun på sin egen side.
+    private var pagesShown: Bool { tab != .sleep }
+    private var pagesLoaded = false
+    private var boardLoaded = false
+
+    private func fillHidden(_ s: inout Snapshot, now: Date) {
+        pagesLoaded = pagesShown
+        if pagesShown {
+            s.pump = store.pumpSummary(now: now)
+            s.growth = store.growthPoints()
+            s.clothing = store.clothingEstimate(now: now)
+            s.pumpHistory = store.pumpHistory(now: now)
+            s.pumpItems = store.pumpings(since: now.addingTimeInterval(-7 * 86400)).reversed().compactMap { p in
+                guard let id = p.id, let t = p.time else { return nil }
+                return .init(id: id, time: t, amountMl: p.amountMl, side: p.side.flatMap(Side.init(rawValue:)), minutes: p.minutes)
+            }
+        }
+        boardLoaded = page == .board
+        if boardLoaded { s.strokes = store.strokes() }
+    }
+
+    /// Ved skift af side: regn det, der nu kan ses, med det samme (før siden tegnes)
+    private func loadHidden() {
+        guard (pagesShown && !pagesLoaded) || (page == .board && !boardLoaded) else { return }
+        var s = snapshot
+        store.withChild { fillHidden(&s, now: .now) }
+        snapshot = s
     }
 
     private var widgetKey = ""
@@ -273,8 +304,8 @@ final class AppModel {
     private var roughChild: UUID?
 
     /// Live Activity og widgets følger appen. Widgets genindlæses kun, når noget, de viser, har ændret sig.
-    private func syncExtensions(_ s: Snapshot) {
-        let entries = SleepLiveActivity.entries(store: store)
+    private func syncExtensions(_ s: Snapshot, known: FolkeStore.SleepInput, now: Date) {
+        let entries = SleepLiveActivity.entries(store: store, now: now, known: known)
         Task { await SleepLiveActivity.sync(entries) }
         let key = [s.running?.start.description, s.awakeSince?.description,
                    s.plan?.items.map { $0.start.description }.joined(), s.childName, "\(s.plus.unlocked)",

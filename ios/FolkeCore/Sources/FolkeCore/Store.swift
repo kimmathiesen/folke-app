@@ -160,8 +160,20 @@ public final class FolkeStore: @unchecked Sendable {
                                  NSSortDescriptor(key: "createdAt", ascending: true)])
     }
 
+    /// Barnet, slået op én gang i `withChild` (gælder kun, så længe det valgte barn ikke skiftes undervejs)
+    private var pinned: (key: UUID?, child: Child)?
+
+    /// Kør `body` med barnet slået op én gang (fx en hel opdatering af forsiden) i stedet for ved hver hentning.
+    public func withChild<T>(_ body: () throws -> T) rethrows -> T {
+        let outer = pinned
+        pinned = child().map { (currentChildID, $0) }
+        defer { pinned = outer }
+        return try body()
+    }
+
     /// Barnet, der vises: det valgte på denne enhed, ellers det først oprettede.
     public func child() -> Child? {
+        if let pinned, pinned.key == currentChildID, !pinned.child.isDeleted { return pinned.child }
         if let currentChildID,
            let c = fetch(Child.self, NSPredicate(format: "id == %@", currentChildID as CVarArg), limit: 1).first {
             return c
@@ -282,26 +294,60 @@ public final class FolkeStore: @unchecked Sendable {
     /// Forudsigelsen er slået til for barnet (kan skjules, når barnet er holdt op med at sove lur)
     var predictionOn: Bool { settings()?.featurePrediction ?? true }
 
+    /// Det valgte barns søvn, hentet én gang og brugt af forudsigelse, dagsplan, glemt nat m.fl. (fx pr. opdatering af
+    /// forsiden i stedet for en hentning pr. funktion).
+    public struct SleepInput {
+        public var childID: UUID?
+        public var birthDate: Date?
+        public var predictionOn = true
+        public var running: Sleep?
+        /// Afsluttede søvn, der sluttede inden for `days` dage, sorteret efter start (som `sleeps(since:)`)
+        public var samples: [SleepSample] = []
+
+        /// Som `sleeps(since:)`: dem, der sluttede efter `date`
+        func since(_ date: Date) -> [SleepSample] { samples.filter { $0.end >= date } }
+        func since(days: Int, now: Date) -> [SleepSample] { since(now.addingTimeInterval(-Double(days) * 86400)) }
+    }
+
+    /// Henter `SleepInput` for det valgte barn. `days` skal dække det, der bruges (glemt nat: 17 dage).
+    public func sleepInput(now: Date = .now, days: Int = 17) -> SleepInput {
+        withChild {
+            guard let c = child() else { return SleepInput() }
+            return SleepInput(childID: c.id, birthDate: c.birthDate, predictionOn: predictionOn, running: runningSleep(),
+                              samples: sleeps(since: now.addingTimeInterval(-Double(days) * 86400)).compactMap(\.sample))
+        }
+    }
+
     public func prediction(now: Date = .now) -> Prediction? {
-        guard predictionOn, runningSleep() == nil, let birth = child()?.birthDate else { return nil }
-        let samples = sleeps(since: now.addingTimeInterval(-Double(Predictor.historyDays) * 86400)).compactMap(\.sample)
-        return Predictor.predict(samples, birthDate: birth, now: now, calendar: calendar)
+        prediction(sleepInput(now: now, days: Predictor.historyDays), now: now)
+    }
+
+    public func prediction(_ h: SleepInput, now: Date = .now) -> Prediction? {
+        guard h.predictionOn, h.running == nil, let birth = h.birthDate else { return nil }
+        return Predictor.predict(h.since(days: Predictor.historyDays, now: now), birthDate: birth, now: now, calendar: calendar)
     }
 
     /// Gratisudgaven: kun næste lur eller sengetid (`Predictor.basic`, den oprindelige forudsigelse).
     public func basicPrediction(now: Date = .now) -> Prediction? {
-        guard predictionOn, runningSleep() == nil, let birth = child()?.birthDate else { return nil }
-        let samples = sleeps(since: now.addingTimeInterval(-Double(Predictor.historyDays) * 86400)).compactMap(\.sample)
-        return Predictor.basic(samples, birthDate: birth, now: now, calendar: calendar)
+        basicPrediction(sleepInput(now: now, days: Predictor.historyDays), now: now)
+    }
+
+    public func basicPrediction(_ h: SleepInput, now: Date = .now) -> Prediction? {
+        guard h.predictionOn, h.running == nil, let birth = h.birthDate else { return nil }
+        return Predictor.basic(h.since(days: Predictor.historyDays, now: now), birthDate: birth, now: now, calendar: calendar)
     }
 
     /// Resten af dagen (afsnit 3). Under en lur regnes planen fra forventet opvågning; om natten er der ingen plan.
     public func dayPlan(now: Date = .now) -> DayPlan? {
-        guard predictionOn, let birth = child()?.birthDate else { return nil }
-        let running = runningSleep()?.start
+        dayPlan(sleepInput(now: now, days: Predictor.historyDays), now: now)
+    }
+
+    public func dayPlan(_ h: SleepInput, now: Date = .now) -> DayPlan? {
+        guard h.predictionOn, let birth = h.birthDate else { return nil }
+        let running = h.running?.start
         if let running, !Predictor.napGuess(running, calendar: calendar) { return nil }
-        let samples = sleeps(since: now.addingTimeInterval(-Double(Predictor.historyDays) * 86400)).compactMap(\.sample)
-        return DayPlanner.plan(samples, birthDate: birth, now: now, running: running, calendar: calendar)
+        return DayPlanner.plan(h.since(days: Predictor.historyDays, now: now), birthDate: birth, now: now, running: running,
+                               calendar: calendar)
     }
 
     /// Dagens søvn til ringen og listen: dem, der starter eller slutter i dag.
@@ -312,8 +358,17 @@ public final class FolkeStore: @unchecked Sendable {
         }
     }
 
+    public func todaySleeps(_ h: SleepInput, now: Date = .now) -> [SleepSample] {
+        let today = calendar.startOfDay(for: now)
+        return h.since(today).filter { calendar.isDate($0.start, inSameDayAs: today) || calendar.isDate($0.end, inSameDayAs: today) }
+    }
+
     /// Vågen siden: slut på seneste søvn.
     public func awakeSince(now: Date = .now) -> Date? {
         sleeps(since: now.addingTimeInterval(-Double(Predictor.historyDays) * 86400)).compactMap(\.end).max()
+    }
+
+    public func awakeSince(_ h: SleepInput, now: Date = .now) -> Date? {
+        h.since(days: Predictor.historyDays, now: now).map(\.end).max()
     }
 }

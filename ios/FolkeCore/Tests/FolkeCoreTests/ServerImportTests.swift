@@ -57,6 +57,20 @@ import Testing
         #expect(s.fetch(Pumping.self).count == 2)
     }
 
+    @Test func toGangeImportGiverSammeAntalRaekkerIAlleTyper() throws {
+        let s = try FolkeStore(inMemory: true)
+        try s.importServerExport(Data(json.utf8))
+        func counts() -> [Int] {
+            [s.fetch(Sleep.self).count, s.fetch(Feeding.self).count, s.fetch(Pumping.self).count,
+             s.fetch(Growth.self).count, s.fetch(NightWake.self).count]
+        }
+        let before = counts()
+        #expect(before == [3, 3, 1, 1, 1])
+        let r = try s.importServerExport(Data(json.utf8))
+        #expect(r.sleeps == 2 && r.feedings == 3 && r.pumpings == 1 && r.growth == 1 && r.wakes == 1)
+        #expect(counts() == before)
+    }
+
     @Test func forkertFilAfvises() throws {
         let s = try FolkeStore(inMemory: true)
         #expect(throws: ServerImportError.self) { try s.importServerExport(Data("{\"x\": 1}".utf8)) }

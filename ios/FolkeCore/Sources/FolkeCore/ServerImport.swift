@@ -58,141 +58,21 @@ struct ServerExport: Decodable {
     var prefs: Prefs?
 }
 
+/// Afkoder en eksport én gang (fejl: `notAnExport`).
+private func decodeServerExport(_ data: Data) throws -> ServerExport {
+    do {
+        return try JSONDecoder().decode(ServerExport.self, from: data)
+    } catch {
+        throw ServerImportError.notAnExport
+    }
+}
+
 public extension FolkeStore {
     /// Importér en eksport. Findes barnet ikke, oprettes det med navn, fødselsdato, køn og funktionsvalg fra serveren.
     /// Rækker, der allerede er importeret (samme serverID), opdateres i stedet for at blive kopieret.
     @discardableResult
     func importServerExport(_ data: Data) throws -> ServerImportResult {
-        let e: ServerExport
-        do {
-            e = try JSONDecoder().decode(ServerExport.self, from: data)
-        } catch {
-            throw ServerImportError.notAnExport
-        }
-        guard let sc = e.child.first, let birth = Self.day(sc.birth_date) else { throw ServerImportError.noChild }
-        var r = ServerImportResult()
-
-        if child() == nil {
-            let name = [e.prefs?.child_name, sc.first_name].compactMap { $0 }.first { !$0.isEmpty } ?? "Barnet"
-            try createChild(name: name, birthDate: birth, sex: Sex(rawValue: e.prefs?.sex ?? "") ?? .boy)
-            if let s = settings(), let f = family(), let p = e.prefs {
-                s.featureBreast = p.features?.breast ?? s.featureBreast
-                s.featureSolids = p.features?.solids ?? s.featureSolids
-                f.featurePump = p.features?.pump ?? f.featurePump
-                f.pumpRemindHours = p.pump_remind ?? f.pumpRemindHours
-            }
-            r.createdChild = true
-        }
-        let c = child()
-        let fam = family()
-
-        // Serverens id er nøglen: pr. barn for søvn, mad og vækst, pr. familie for udpumpning
-        func existing<T: NSManagedObject>(_ type: T.Type, _ id: Int) -> T? {
-            let p = NSPredicate(format: "serverID == %lld", Int64(id))
-            return fetch(type, type == Pumping.self ? forFamily(p) : forChild(p), limit: 1).first
-        }
-
-        for s in e.sleep ?? [] {
-            guard let start = Self.time(s.start), let end = Self.time(s.end) else { continue }
-            let o = existing(FolkeCore.Sleep.self, s.id) ?? {
-                let n = insert(FolkeCore.Sleep.self, child: c)
-                n.id = UUID()
-                n.serverID = Int64(s.id)
-                n.child = c
-                return n
-            }()
-            o.start = start
-            o.end = end
-            o.nap = (s.nap ?? 1) != 0
-            r.sleeps += 1
-        }
-
-        // En kørende timer bliver til en søvn uden slut, kun én gang (serverID = -timer-id) og kun hvis ingen søvn er i gang
-        if let t = e.timer?.first, let start = Self.time(t.start), runningSleep() == nil,
-           existing(FolkeCore.Sleep.self, -t.id) == nil {
-            let n = insert(FolkeCore.Sleep.self, child: c)
-            n.id = UUID()
-            n.serverID = Int64(-t.id)
-            n.start = start
-            n.nap = Predictor.napGuess(start, calendar: calendar)
-            n.child = c
-            r.runningSleep = true
-        }
-
-        for f in e.feeding ?? [] {
-            guard let t = Self.time(f.start) else { continue }
-            let kind: FeedKind
-            switch (f.method ?? "", f.type ?? "") {
-            case ("left breast", _): kind = .left
-            case ("right breast", _): kind = .right
-            case ("both breasts", _): kind = .both
-            case ("bottle", _): kind = .bottle
-            case (_, "solid food"), ("parent fed", _): kind = .solid
-            default: continue
-            }
-            let o = existing(Feeding.self, f.id) ?? {
-                let n = insert(Feeding.self, child: c)
-                n.id = UUID()
-                n.serverID = Int64(f.id)
-                n.child = c
-                return n
-            }()
-            o.time = t
-            o.kind = kind.rawValue
-            o.amountMl = kind == .bottle ? (f.amount ?? 0) : 0
-            o.milk = kind == .bottle ? (f.type == "formula" ? Milk.formula : .breast).rawValue : nil
-            o.note = kind == .solid ? f.notes.flatMap { $0.isEmpty ? nil : $0 } : nil
-            r.feedings += 1
-        }
-
-        for p in e.pumping ?? [] {
-            guard let t = Self.time(p.start), let ml = p.amount, ml > 0 else { continue }
-            let o = existing(Pumping.self, p.id) ?? {
-                let n = insert(Pumping.self, child: c)
-                n.id = UUID()
-                n.serverID = Int64(p.id)
-                n.family = fam
-                return n
-            }()
-            o.time = t
-            o.amountMl = ml
-            o.side = p.side.flatMap { Side(rawValue: $0)?.rawValue }
-            o.minutes = p.minutes ?? 0
-            r.pumpings += 1
-        }
-
-        for g in e.growth ?? [] {
-            guard let d = Self.day(g.date), g.w != nil || g.l != nil || g.h != nil else { continue }
-            let o = existing(Growth.self, g.id) ?? {
-                let n = insert(Growth.self, child: c)
-                n.id = UUID()
-                n.serverID = Int64(g.id)
-                n.child = c
-                return n
-            }()
-            o.date = calendar.startOfDay(for: d)
-            o.weightKg = g.w ?? 0
-            o.lengthCm = g.l ?? 0
-            o.headCm = g.h ?? 0
-            r.growth += 1
-        }
-
-        // Opvågninger om natten: genkendes på starttidspunktet (de har intet serverID)
-        for w in e.night_wake ?? [] {
-            guard let st = Self.time(w.start) else { continue }
-            let o = fetch(NightWake.self, forChild(NSPredicate(format: "start == %@", st as NSDate)), limit: 1).first ?? {
-                let n = insert(NightWake.self, child: c)
-                n.id = UUID()
-                n.start = st
-                n.child = c
-                return n
-            }()
-            o.end = w.end.flatMap(Self.time)
-            r.wakes += 1
-        }
-
-        try save()
-        return r
+        try importExport(decodeServerExport(data))
     }
 
     /// Spejl serveren (midlertidig synkronisering, kun egne builds): importér som ovenfor, og fjern derefter det,
@@ -200,12 +80,7 @@ public extension FolkeStore {
     /// og kun for det valgte barn (udpumpning for familien). Opvågninger kun, hvis serveren sender dem.
     @discardableResult
     func mirrorServerExport(_ data: Data) throws -> ServerImportResult {
-        let e: ServerExport
-        do {
-            e = try JSONDecoder().decode(ServerExport.self, from: data)
-        } catch {
-            throw ServerImportError.notAnExport
-        }
+        let e = try decodeServerExport(data)
         // Den kørende søvn er serverens timer og intet andet. Serveren genbruger timer-id'er, så en gammel række
         // med samme nummer (anden start, eller stoppet på enheden) og andre kørende søvn fjernes, før importen
         // lægger timeren ind igen.
@@ -217,7 +92,7 @@ public extension FolkeStore {
                 context.delete(o)
             }
         }
-        let r = try importServerExport(data)
+        let r = try importExport(e)
         func prune<T: NSManagedObject>(_ type: T.Type, keep: Set<Int64>, family: Bool = false) {
             let p = NSPredicate(format: "serverID != 0")
             for o in fetch(type, family ? forFamily(p) : forChild(p)) {
@@ -271,5 +146,162 @@ public extension FolkeStore {
         var c = Calendar.current
         c.timeZone = .current
         return c.date(from: DateComponents(year: p[0], month: p[1], day: p[2], hour: 12))
+    }
+
+    /// Eksisterende rækker i scope, nøglet på serverID. Læses én gang pr. type; ved dubletter vinder den første.
+    private func byServerID<T: NSManagedObject>(_ type: T.Type, _ scope: NSPredicate, _ id: (T) -> Int64) -> [Int64: T] {
+        var d: [Int64: T] = [:]
+        for o in fetch(type, scope) where d[id(o)] == nil { d[id(o)] = o }
+        return d
+    }
+
+    /// Selve importen af en afkodet eksport (bruges af både import og spejling).
+    fileprivate func importExport(_ e: ServerExport) throws -> ServerImportResult {
+        guard let sc = e.child.first, let birth = Self.day(sc.birth_date) else { throw ServerImportError.noChild }
+        var r = ServerImportResult()
+
+        if child() == nil {
+            let name = [e.prefs?.child_name, sc.first_name].compactMap { $0 }.first { !$0.isEmpty } ?? "Barnet"
+            try createChild(name: name, birthDate: birth, sex: Sex(rawValue: e.prefs?.sex ?? "") ?? .boy)
+            if let s = settings(), let f = family(), let p = e.prefs {
+                s.featureBreast = p.features?.breast ?? s.featureBreast
+                s.featureSolids = p.features?.solids ?? s.featureSolids
+                f.featurePump = p.features?.pump ?? f.featurePump
+                f.pumpRemindHours = p.pump_remind ?? f.pumpRemindHours
+            }
+            r.createdChild = true
+        }
+        let c = child()
+        let fam = family()
+
+        // Opslag pr. serverID, læst én gang pr. type (efter evt. sletning i spejlingen). Nye rækker lægges ind her
+        // med det samme, så et id ikke oprettes to gange under samme import.
+        let sleepScope = forChild(NSPredicate(format: "serverID != 0"))
+        var sleeps = byServerID(FolkeCore.Sleep.self, sleepScope) { $0.serverID }
+        var feedings = byServerID(Feeding.self, forChild(NSPredicate(format: "serverID != 0"))) { $0.serverID }
+        var pumpings = byServerID(Pumping.self, forFamily(NSPredicate(format: "serverID != 0"))) { $0.serverID }
+        var growths = byServerID(Growth.self, forChild(NSPredicate(format: "serverID != 0"))) { $0.serverID }
+        // Opvågninger har intet serverID: de genkendes på starttidspunktet
+        var wakes: [Date: NightWake] = [:]
+        for w in fetch(NightWake.self, forChild()) {
+            if let st = w.start, wakes[st] == nil { wakes[st] = w }
+        }
+
+        for s in e.sleep ?? [] {
+            guard let start = Self.time(s.start), let end = Self.time(s.end) else { continue }
+            let o: FolkeCore.Sleep
+            if let known = sleeps[Int64(s.id)] {
+                o = known
+            } else {
+                o = insert(FolkeCore.Sleep.self, child: c)
+                o.id = UUID()
+                o.serverID = Int64(s.id)
+                o.child = c
+                sleeps[o.serverID] = o
+            }
+            o.start = start
+            o.end = end
+            o.nap = (s.nap ?? 1) != 0
+            r.sleeps += 1
+        }
+
+        // En kørende timer bliver til en søvn uden slut, kun én gang (serverID = -timer-id) og kun hvis ingen søvn er i gang
+        if let t = e.timer?.first, let start = Self.time(t.start), runningSleep() == nil,
+           sleeps[-Int64(t.id)] == nil {
+            let n = insert(FolkeCore.Sleep.self, child: c)
+            n.id = UUID()
+            n.serverID = -Int64(t.id)
+            n.start = start
+            n.nap = Predictor.napGuess(start, calendar: calendar)
+            n.child = c
+            sleeps[n.serverID] = n
+            r.runningSleep = true
+        }
+
+        for f in e.feeding ?? [] {
+            guard let t = Self.time(f.start) else { continue }
+            let kind: FeedKind
+            switch (f.method ?? "", f.type ?? "") {
+            case ("left breast", _): kind = .left
+            case ("right breast", _): kind = .right
+            case ("both breasts", _): kind = .both
+            case ("bottle", _): kind = .bottle
+            case (_, "solid food"), ("parent fed", _): kind = .solid
+            default: continue
+            }
+            let o: Feeding
+            if let known = feedings[Int64(f.id)] {
+                o = known
+            } else {
+                o = insert(Feeding.self, child: c)
+                o.id = UUID()
+                o.serverID = Int64(f.id)
+                o.child = c
+                feedings[o.serverID] = o
+            }
+            o.time = t
+            o.kind = kind.rawValue
+            o.amountMl = kind == .bottle ? (f.amount ?? 0) : 0
+            o.milk = kind == .bottle ? (f.type == "formula" ? Milk.formula : .breast).rawValue : nil
+            o.note = kind == .solid ? f.notes.flatMap { $0.isEmpty ? nil : $0 } : nil
+            r.feedings += 1
+        }
+
+        for p in e.pumping ?? [] {
+            guard let t = Self.time(p.start), let ml = p.amount, ml > 0 else { continue }
+            let o: Pumping
+            if let known = pumpings[Int64(p.id)] {
+                o = known
+            } else {
+                o = insert(Pumping.self, child: c)
+                o.id = UUID()
+                o.serverID = Int64(p.id)
+                o.family = fam
+                pumpings[o.serverID] = o
+            }
+            o.time = t
+            o.amountMl = ml
+            o.side = p.side.flatMap { Side(rawValue: $0)?.rawValue }
+            o.minutes = p.minutes ?? 0
+            r.pumpings += 1
+        }
+
+        for g in e.growth ?? [] {
+            guard let d = Self.day(g.date), g.w != nil || g.l != nil || g.h != nil else { continue }
+            let o: Growth
+            if let known = growths[Int64(g.id)] {
+                o = known
+            } else {
+                o = insert(Growth.self, child: c)
+                o.id = UUID()
+                o.serverID = Int64(g.id)
+                o.child = c
+                growths[o.serverID] = o
+            }
+            o.date = calendar.startOfDay(for: d)
+            o.weightKg = g.w ?? 0
+            o.lengthCm = g.l ?? 0
+            o.headCm = g.h ?? 0
+            r.growth += 1
+        }
+
+        for w in e.night_wake ?? [] {
+            guard let st = Self.time(w.start) else { continue }
+            let o: NightWake
+            if let known = wakes[st] {
+                o = known
+            } else {
+                o = insert(NightWake.self, child: c)
+                o.id = UUID()
+                o.start = st
+                o.child = c
+                wakes[st] = o
+            }
+            o.end = w.end.flatMap(Self.time)
+            r.wakes += 1
+        }
+
+        try save()
+        return r
     }
 }
